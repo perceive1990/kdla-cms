@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Projects</h1><p class="sub">Donor-funded projects that beneficiaries and reports are linked to</p></div>
+  <a class="btn btn-primary" href="/admin/projects/new"><i class="bi bi-plus-lg"></i> Add project</a>
+</div>
+<% if (!projects.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-kanban"></i>No projects yet. <a href="/admin/projects/new">Add one</a>.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Project</th><th>Donor</th><th>Period</th><th class="text-end">Budget</th><th></th></tr></thead>
+    <tbody>
+      <% for (const p of projects) { %>
+      <tr>
+        <td><a class="cell-strong" href="/admin/projects/<%= p.id %>/edit"><%= p.title %></a></td>
+        <td><%= p.donor %></td>
+        <td class="nowrap"><%= h.fmtDate(p.startDate) %> to <%= h.fmtDate(p.endDate) %></td>
+        <td class="text-end nowrap"><%= p.budget !== null && p.budget !== undefined ? p.currency + ' ' + Number(p.budget).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '' %></td>
+        <td class="text-end">
+          <form method="post" action="/admin/projects/<%= p.id %>/delete" data-confirm="Delete <%= p.title %>?">
+            <%- f.hidden(csrfToken) %>
+            <button class="btn btn-link btn-sm text-danger p-0" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

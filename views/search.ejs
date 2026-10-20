@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+<div class="page-head"><div><h1>Search</h1><p class="sub">Cases by heading, number or complaint. People by name, NRC, contact or file number. Reports and organisations by name.</p></div></div>
+<form class="filters" method="get" action="/search" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= term %>" placeholder="At least 2 characters" aria-label="Search" autofocus>
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+<% if (term.length >= 2) { %>
+<% const slug = { client: 'clients', defendant: 'defendants', attendee: 'attendees' }; const lbl = { client: 'Client', defendant: 'Other party', attendee: 'Attendee' }; %>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Cases (<%= cases.length %>)</h2>
+      <% if (!cases.length) { %><p class="text-body-secondary mb-0">No matching cases you can open.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const c of cases) { %>
+        <li class="py-2 border-bottom"><a class="cell-strong" href="/cases/<%= c.id %>"><%= c.heading %></a><% if (c.restricted) { %> <i class="bi bi-lock-fill text-warning" title="Confidential"></i><% } %>
+          <div class="small text-body-secondary"><%= c.caseNumber %> · <%= c.status %></div></li>
+        <% } %>
+      </ul>
+    </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Activity reports (<%= reports.length %>)</h2>
+      <% if (!reports.length) { %><p class="text-body-secondary mb-0">No matching reports.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const r of reports) { %><li class="py-2 border-bottom"><a href="/reports/<%= r.id %>"><%= r.heading %></a><div class="small text-body-secondary"><%= h.fmtDate(r.date) %> · <%= r.activityType %></div></li><% } %>
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">People (<%= people.length %>)</h2>
+      <% if (!people.length) { %><p class="text-body-secondary mb-0">No matching people.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const p of people) { %>
+        <li class="py-2 border-bottom"><a class="cell-strong" href="/people/<%= slug[p.kind] %>/<%= p.id %>"><%= h.fullName(p) %></a>
+          <div class="small text-body-secondary"><%= lbl[p.kind] %><%= p.nrc ? ' · NRC ' + p.nrc : '' %><%= p.caseNumber ? ' · File ' + p.caseNumber : '' %></div></li>
+        <% } %>
+      </ul>
+    </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Organisations (<%= orgs.length %>)</h2>
+      <% if (!orgs.length) { %><p class="text-body-secondary mb-0">No matching organisations.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const o of orgs) { %><li class="py-2 border-bottom"><a href="/stakeholders/<%= o.id %>"><%= o.name %></a></li><% } %>
+      </ul>
+    </div></div>
+  </div>
+</div>
+<% } %>
+<%- include('partials/footer') %>

@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+<% const uname = (id) => users[id] ? (users[id].fullName || users[id].username) : 'Former user'; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/referrals">Referrals</a></div>
+    <h1>Referral to <%= org ? org.name : 'removed organisation' %></h1>
+    <p class="sub">Recorded <%= h.fmtDate(r.createdAt) %> by <%= uname(r.createdBy) %> ·
+      <span class="badge text-bg-<%= r.followUp === 'Needs follow up' ? 'warning' : 'secondary' %>"><%= r.followUp %></span></p>
+  </div>
+  <a class="btn btn-outline-primary" href="/referrals/<%= r.id %>/letter"><i class="bi bi-envelope-paper"></i> Referral letter</a>
+</div>
+<% if (gaps && gaps.length) { %>
+  <div class="callout mb-3" role="alert"><i class="bi bi-shield-exclamation"></i> Consent to share is not recorded for
+    <% gaps.forEach((p, i) => { %><%= i ? ', ' : '' %><a href="/people/clients/<%= p.id %>"><%= h.fullName(p) %></a><% }) %>.</div>
+<% } %>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body">
+      <dl class="dl" style="grid-template-columns: 120px 1fr;">
+        <dt>Case</dt><dd><%- c ? '<a href="/cases/' + f.esc(c.id) + '">' + f.esc(c.heading) + '</a><div class="small text-body-secondary">' + f.esc(c.caseNumber) + ' · ' + f.esc(c.status) + '</div>' : 'Case removed' %></dd>
+        <dt>Organisation</dt><dd><%- org ? '<a href="/stakeholders/' + f.esc(org.id) + '">' + f.esc(org.name) + '</a><div class="small text-body-secondary">' + f.esc(org.contactPerson) + ' · ' + f.esc(org.phone) + '</div>' : '—' %></dd>
+        <dt>Reason</dt><dd class="prose"><%= r.reason || '—' %></dd>
+      </dl>
+    </div></div>
+    <% if (user.role === 'admin') { %>
+    <form method="post" action="/referrals/<%= r.id %>/delete" class="mt-3" data-confirm="Delete this referral and its follow ups?">
+      <%- f.hidden(csrfToken) %>
+      <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash"></i> Delete referral</button>
+    </form>
+    <% } %>
+  </div>
+  <div class="col-lg-7">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Follow ups</h2>
+      <% if (!(r.followUps || []).length) { %><p class="text-body-secondary">No follow ups recorded yet.</p><% } %>
+      <ul class="timeline mb-3">
+        <% for (const fu of (r.followUps || []).slice().reverse()) { %>
+        <li><div class="prose"><%= fu.description %></div>
+          <div class="meta"><%= h.fmtDateTime(fu.conductedOn) %> · <%= uname(fu.conductedBy) %><%= fu.status ? ' · Case: ' + fu.status : '' %></div></li>
+        <% } %>
+      </ul>
+      <form method="post" action="/referrals/<%= r.id %>/follow-ups" class="row g-3 border-top pt-3" novalidate>
+        <%- f.hidden(csrfToken) %>
+        <h3 class="h6 mb-0">Record a follow up</h3>
+        <%- f.textarea('description', 'What happened', values, errors, { required: true, rows: 3 }) %>
+        <%- f.select('status', 'Update case status (optional)', choices.caseStatuses.filter((s) => s.startsWith('Open')), { status: values.status }, errors, { col: 'col-md-6', blank: 'Leave unchanged', help: 'To conclude the case, record its outcome on the case page.' }) %>
+        <%- f.select('followUp', 'Further follow up', choices.followUpNeeds, { followUp: r.followUp }, errors, { col: 'col-md-6', blank: false }) %>
+        <div class="col-12"><button class="btn btn-primary" type="submit">Save follow up</button></div>
+      </form>
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

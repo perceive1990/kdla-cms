@@ -1,0 +1,21 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Consultation rooms</h1><p class="sub">Discuss a case privately with colleagues</p></div>
+  <a class="btn btn-primary" href="/rooms/new"><i class="bi bi-plus-lg"></i> New room</a>
+</div>
+<% if (!rooms.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-chat-square-text"></i>You are not in any rooms yet. <a href="/rooms/new">Start a consultation</a>.</div></div>
+<% } else { %>
+<div class="row g-3">
+  <% for (const r of rooms) { %>
+  <div class="col-md-6 col-xl-4">
+    <a class="stat" href="/rooms/<%= r.id %>">
+      <div class="fw-semibold mb-1"><i class="bi bi-chat-square-text text-success"></i> <%= r.name %></div>
+      <div class="text-muted small text-truncate"><%= r.description || 'No description' %></div>
+      <div class="small text-muted mt-2"><%= (r.memberIds || []).length %> member<%= (r.memberIds || []).length === 1 ? '' : 's' %> · last activity <%= h.fmtDateTime(r.lastMessageAt) %></div>
+    </a>
+  </div>
+  <% } %>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

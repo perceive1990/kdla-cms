@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+<% const uname = (id) => users[id] ? (users[id].fullName || users[id].username) : 'Former user'; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/rooms">Consultation rooms</a></div>
+    <h1><%= room.name %></h1>
+    <% if (room.description) { %><p class="sub prose"><%= room.description %></p><% } %>
+    <% if (c) { %><p class="sub">Case: <a href="/cases/<%= c.id %>"><%= c.caseNumber %> · <%= c.heading %></a></p><% } %>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel">
+      <div class="chat" id="chat" data-feed="/rooms/<%= room.id %>/messages.json" data-last="<%= messages.length ? messages[messages.length - 1].createdAt : '' %>" aria-live="polite">
+        <% if (!messages.length) { %><p class="text-muted text-center my-5" id="chat-empty">No messages yet. Start the discussion below.</p><% } %>
+        <% for (const m of messages) { const mine = m.senderId === user.id; %>
+          <div class="msg<%= mine ? ' mine' : '' %>" id="m-<%= m.id %>">
+            <div class="meta"><%= mine ? 'You' : uname(m.senderId) %> · <%= h.fmtDateTime(m.createdAt) %></div>
+            <div class="bubble"><%= m.content %></div>
+          </div>
+        <% } %>
+        <span id="latest"></span>
+      </div>
+      <form method="post" action="/rooms/<%= room.id %>/messages" class="panel-body d-flex gap-2 align-items-end" id="chat-form">
+        <%- f.hidden(csrfToken) %>
+        <div class="flex-grow-1">
+          <label class="visually-hidden" for="content">Message</label>
+          <textarea class="form-control" id="content" name="content" rows="2" placeholder="Write your advice or question… (Ctrl+Enter to send)" required maxlength="4000"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit" data-keep><i class="bi bi-send"></i> Send</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Members (<%= (room.memberIds || []).length %>)</h2>
+      <ul class="list-unstyled mb-3">
+        <% for (const id of (room.memberIds || [])) { %><li class="py-1"><i class="bi bi-person text-muted"></i> <%= uname(id) %><%= id === room.createdBy ? ' (creator)' : '' %></li><% } %>
+      </ul>
+      <% if (nonMembers.length) { %>
+      <form method="post" action="/rooms/<%= room.id %>/members" class="d-flex gap-2">
+        <%- f.hidden(csrfToken) %>
+        <label class="visually-hidden" for="userId">Add a colleague</label>
+        <select class="form-select form-select-sm" id="userId" name="userId" required>
+          <option value="">Add a colleague…</option>
+          <% for (const u of nonMembers) { %><option value="<%= u.id %>"><%= u.fullName || u.username %></option><% } %>
+        </select>
+        <button class="btn btn-sm btn-outline-primary" type="submit">Add</button>
+      </form>
+      <% } %>
+    </div></div>
+    <div class="d-flex gap-2 mt-3">
+      <% if ((room.memberIds || []).includes(user.id)) { %>
+      <form method="post" action="/rooms/<%= room.id %>/leave" data-confirm="Leave this room?">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Leave room</button>
+      </form>
+      <% } %>
+      <% if (user.role === 'admin' || room.createdBy === user.id) { %>
+      <form method="post" action="/rooms/<%= room.id %>/delete" data-confirm="Delete this room and all its messages?">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-sm btn-outline-danger" type="submit">Delete room</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

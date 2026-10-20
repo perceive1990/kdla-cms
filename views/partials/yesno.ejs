@@ -1,0 +1,8 @@
+<fieldset class="col-md-6">
+  <legend class="form-label fs-6"><%= label %></legend>
+  <div class="d-flex gap-3">
+    <div class="form-check"><input class="form-check-input" type="radio" name="<%= name %>" id="<%= name %>-yes" value="yes"<%= value === 'yes' ? ' checked' : '' %>><label class="form-check-label" for="<%= name %>-yes">Yes</label></div>
+    <div class="form-check"><input class="form-check-input" type="radio" name="<%= name %>" id="<%= name %>-no" value="no"<%= value === 'no' ? ' checked' : '' %>><label class="form-check-label" for="<%= name %>-no">No</label></div>
+    <div class="form-check"><input class="form-check-input" type="radio" name="<%= name %>" id="<%= name %>-unknown" value=""<%= !value ? ' checked' : '' %>><label class="form-check-label" for="<%= name %>-unknown">Not asked yet</label></div>
+  </div>
+</fieldset>

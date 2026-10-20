@@ -1,0 +1,57 @@
+<%- include('../partials/header') %>
+<div class="page-head d-print-none">
+  <div><div class="crumbs"><a href="/referrals/<%= r.id %>">Back to referral</a></div><h1>Referral letter</h1>
+    <p class="sub">Check the wording, then print or save as PDF. It prints without the menus.</p></div>
+  <button class="btn btn-primary" type="button" data-print><i class="bi bi-printer"></i> Print or save as PDF</button>
+</div>
+
+<article class="letter">
+  <header class="letter-head">
+    <img src="/static/images/logo.jpg" alt="<%= config.orgName %> logo">
+    <div>
+      <div class="fw-bold fs-5"><%= config.orgFullName %> (<%= config.orgName %>)</div>
+      <div class="small"><%= config.orgAddress %><%= config.orgContact ? ' · ' + config.orgContact : '' %></div>
+    </div>
+  </header>
+
+  <p><%= h.fmtDate(date) %></p>
+  <p>Our reference: <%= c ? c.caseNumber : '' %></p>
+  <p>
+    <% if (org) { %><strong><%= org.contactPerson %></strong><br><%= org.name %><br><span class="prose"><%= org.address %></span><% } %>
+  </p>
+
+  <p>Dear <%= org && org.contactPerson ? org.contactPerson : 'Sir or Madam' %>,</p>
+  <p><strong>Referral of <%= clients.map((p) => fullName(p)).join(' and ') || 'our client' %></strong></p>
+
+  <p><%= config.orgFullName %> provides free paralegal services and legal information to communities. We are referring the person named below to your organisation for further assistance.</p>
+
+  <table class="table table-sm table-bordered mb-3" style="max-width: 640px;">
+    <tbody>
+    <% for (const p of clients) { %>
+      <tr><th style="width: 40%;">Name</th><td><%= fullName(p) %></td></tr>
+      <% if (p.nrc) { %><tr><th>NRC</th><td><%= p.nrc %></td></tr><% } %>
+      <% if (p.contact) { %><tr><th>Contact</th><td><%= p.contact %></td></tr><% } %>
+      <% if (p.location) { %><tr><th>Village or area</th><td><%= p.location %></td></tr><% } %>
+    <% } %>
+      <tr><th>Type of matter</th><td><%= c ? (c.caseTypes || []).join(', ') : '' %></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Reason for referral</strong></p>
+  <p class="prose"><%= r.reason || 'Please see the attached case summary.' %></p>
+
+  <% if (c && c.complaint) { %>
+  <p><strong>Summary of the matter</strong></p>
+  <p class="prose"><%= c.complaint %></p>
+  <% } %>
+
+  <p>We would be grateful if you could let us know the outcome so that we can follow up with the client. Please contact the officer below with any questions.</p>
+
+  <p><%= org && org.contactPerson ? 'Yours sincerely,' : 'Yours faithfully,' %></p>
+  <p style="margin-top: 3rem;">______________________________<br>
+    <strong><%= officer ? (officer.fullName || officer.username) : (author ? author.fullName || author.username : '') %></strong><br>
+    <%= officer && officer.category ? officer.category + ', ' : '' %><%= config.orgName %><%= officer && officer.office ? ', ' + officer.office : '' %></p>
+
+  <p class="small text-body-secondary mt-4">Confidential: this letter contains personal information shared with the client's consent for the purpose of the referral only.</p>
+</article>
+<%- include('../partials/footer') %>

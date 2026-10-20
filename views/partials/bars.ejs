@@ -1,0 +1,14 @@
+<%# rows: [{label, count}], link: optional (label) => url, unit: optional suffix %>
+<% if (!rows.length || rows.every((r) => !r.count)) { %>
+  <p class="text-body-secondary mb-0">No data for this period.</p>
+<% } else { const max = Math.max(...rows.map((r) => r.count), 1); const lk = locals.link; %>
+<ul class="bars">
+  <% for (const r of rows) { %>
+  <li>
+    <% if (lk) { %><a href="<%= lk(r.label) %>" class="text-truncate text-reset text-decoration-none" title="<%= r.label %>"><%= r.label %></a><% } else { %><span class="text-truncate" title="<%= r.label %>"><%= r.label %></span><% } %>
+    <span class="num"><%= r.count %><%= locals.unit || '' %></span>
+    <span class="track" aria-hidden="true"><span class="fill" style="width: <%= Math.round((r.count / max) * 100) %>%"></span></span>
+  </li>
+  <% } %>
+</ul>
+<% } %>

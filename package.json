@@ -1,0 +1,42 @@
+{
+  "name": "kdla-case-management",
+  "version": "2.2.1",
+  "description": "KDLA Case Management System: Node.js, Express and Azure Cosmos DB (NoSQL), with a JSON REST API",
+  "main": "server.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "init-db": "node scripts/init-db.js",
+    "create-admin": "node scripts/create-admin.js",
+    "seed-demo": "node scripts/seed-demo.js",
+    "test": "node --test test/*.test.js",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test",
+    "package": "node scripts/package.js"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.10.1",
+    "@azure/storage-blob": "^12.34.0",
+    "bcryptjs": "^3.0.3",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "compression": "^1.8.1",
+    "dotenv": "^17.2.3",
+    "ejs": "^6.0.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0"
+  }
+}

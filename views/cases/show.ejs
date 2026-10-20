@@ -1,0 +1,184 @@
+<%- include('../partials/header') %>
+<% const uname = (id) => users[id] ? (users[id].fullName || users[id].username) : 'Former user'; %>
+<% const concluded = String(c.status).startsWith('Concluded'); const t0 = h.today(); %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/cases">Cases</a> / <%= c.caseNumber %></div>
+    <h1><%= c.heading %></h1>
+    <p class="sub">
+      <span class="badge text-bg-<%= h.statusBadge(c.status) %> badge-status"><%= c.status %></span>
+      <% if (c.restricted) { %><span class="badge text-bg-warning"><i class="bi bi-lock-fill"></i> Confidential</span><% } %>
+      <span class="ms-1">Opened <%= h.fmtDate(c.openedOn) %> · <%= h.plural(daysOpen || 0, 'day') %><%= concluded ? ' to conclude' : ' open' %> · Updated <%= h.fmtDateTime(c.updatedAt) %></span>
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 d-print-none">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <a class="btn btn-outline-primary" href="/referrals/new?case=<%= c.id %>"><i class="bi bi-arrow-left-right"></i> Refer</a>
+    <a class="btn btn-outline-primary" href="/rooms/new?case=<%= c.id %>"><i class="bi bi-chat-square-text"></i> Consult</a>
+    <a class="btn btn-primary" href="/cases/<%= c.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+  </div>
+</div>
+
+<% if (conflicts.length) { %>
+<div class="callout callout-danger mb-3" role="alert">
+  <strong><i class="bi bi-exclamation-diamond"></i> Possible conflict of interest.</strong>
+  <ul class="mb-0 mt-1">
+    <% for (const a of conflicts) { const slug = a.match.kind === 'client' ? 'clients' : 'defendants'; %>
+      <li><%= h.fullName(a.party) %> <%= a.reason %>: <a href="/people/<%= slug %>/<%= a.match.id %>"><%= h.fullName(a.match) %></a><%= a.match.nrc ? ' (NRC ' + a.match.nrc + ')' : '' %>.</li>
+    <% } %>
+  </ul>
+  <div class="small mt-1">Check whether these are the same person. If so, discuss with your supervisor before continuing.</div>
+</div>
+<% } %>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel"><div class="panel-body">
+      <dl class="dl">
+        <dt>Case number</dt><dd><%= c.caseNumber %></dd>
+        <dt>Client(s)</dt>
+        <dd><% (c.clientIds || []).forEach((id, i) => { const p = people[id]; if (!p) return; %><%= i ? ', ' : '' %><a href="/people/clients/<%= id %>"><%= h.fullName(p) %></a><% if (p.consentRecord !== 'yes') { %> <span class="tag tag-danger" title="Consent to record their information not confirmed">no consent recorded</span><% } %><% }) %></dd>
+        <dt>Other party</dt>
+        <dd><% if (!(c.defendantIds || []).length) { %><span class="text-body-secondary">None recorded</span><% } %>
+          <% (c.defendantIds || []).forEach((id, i) => { const p = people[id]; if (!p) return; %><%= i ? ', ' : '' %><a href="/people/defendants/<%= id %>"><%= h.fullName(p) %></a><% }) %></dd>
+        <dt>Type of case</dt><dd><% for (const t of (c.caseTypes || [])) { %><span class="tag"><%= t %></span><% } %></dd>
+        <dt>Services offered</dt><dd><% for (const t of (c.services || [])) { %><span class="tag"><%= t %></span><% } %></dd>
+        <dt>Responsible officer</dt><dd><%= uname(c.officerId) %></dd>
+        <% if ((c.teamIds || []).length) { %><dt>Case team</dt><dd><%= c.teamIds.map(uname).join(', ') %></dd><% } %>
+        <dt>Office</dt><dd><%= c.office || '—' %></dd>
+        <dt>Time recorded</dt><dd><%= minutes ? (Math.round(minutes / 6) / 10) + ' hours in the case diary' : 'None yet' %></dd>
+      </dl>
+    </div></div>
+
+    <% if (concluded) { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title"><i class="bi bi-flag"></i> Outcome</h2>
+      <dl class="dl">
+        <dt>Outcome</dt><dd class="fw-semibold"><%= c.outcome || 'Not recorded' %></dd>
+        <dt>Concluded</dt><dd><%= h.fmtDate(c.closedOn) %> (<%= h.plural(daysOpen || 0, 'day') %> after opening)</dd>
+        <% if (c.outcomeNotes) { %><dt>Achieved</dt><dd class="prose"><%= c.outcomeNotes %></dd><% } %>
+      </dl>
+    </div></div>
+    <% } %>
+
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Complaint</h2>
+      <p class="prose"><%= c.complaint || 'Not recorded.' %></p>
+      <h2 class="panel-title">Defence</h2>
+      <p class="prose"><%= c.defence || 'Not recorded.' %></p>
+      <h2 class="panel-title">Action taken</h2>
+      <p class="prose mb-0"><%= c.actionTaken || 'Not recorded.' %></p>
+    </div></div>
+
+    <div class="panel" id="notes"><div class="panel-body">
+      <div class="panel-head">
+        <h2 class="panel-title">Case diary (<%= notes.length %>)</h2>
+      </div>
+      <details class="mb-3 d-print-none"<%= notes.length ? '' : ' open' %>>
+        <summary class="btn btn-sm btn-outline-primary">Add an entry</summary>
+        <form method="post" action="/cases/<%= c.id %>/notes" class="row g-2 mt-2" novalidate>
+          <%- f.hidden(csrfToken) %>
+          <%- f.select('type', 'Type', choices.noteTypes, noteValues, noteErrors, { col: 'col-md-4', blank: false, id: 'note-type' }) %>
+          <%- f.text('date', 'Date', noteValues, noteErrors, { type: 'date', col: 'col-md-4', max: t0, id: 'note-date' }) %>
+          <%- f.text('minutes', 'Time spent (minutes)', noteValues, noteErrors, { type: 'number', min: 0, max: 1440, col: 'col-md-4', inputmode: 'numeric', id: 'note-minutes' }) %>
+          <%- f.textarea('text', 'What happened', noteValues, noteErrors, { rows: 3, required: true, id: 'note-text', placeholder: 'e.g. Met the headman with both parties. Agreed to measure the boundary on Friday.' }) %>
+          <div class="col-12"><button class="btn btn-primary btn-sm" type="submit">Save entry</button></div>
+        </form>
+      </details>
+      <% if (!notes.length) { %><p class="text-body-secondary mb-0">No diary entries yet. Record every meeting, call, mediation session and court appearance here.</p><% } %>
+      <% for (const n of notes) { %>
+        <div class="note">
+          <div class="meta d-flex flex-wrap gap-2 align-items-center">
+            <span class="tag"><%= n.type %></span>
+            <span><%= h.fmtDate(n.date) %> · <%= uname(n.authorId) %><%= n.minutes ? ' · ' + n.minutes + ' min' : '' %></span>
+            <% if (n.authorId === user.id || user.role === 'admin') { %>
+            <form method="post" action="/cases/<%= c.id %>/notes/<%= n.id %>/delete" class="ms-auto d-print-none" data-confirm="Delete this diary entry?">
+              <%- f.hidden(csrfToken) %>
+              <button class="btn btn-link btn-sm p-0 text-danger" type="submit">Delete</button>
+            </form>
+            <% } %>
+          </div>
+          <div class="prose"><%= n.text %></div>
+        </div>
+      <% } %>
+    </div></div>
+
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Documents</h2>
+      <%- include('../partials/attachments', { list: c.attachments, entity: 'cases', docId: c.id, users }) %>
+    </div></div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="panel" id="tasks"><div class="panel-body">
+      <div class="panel-head">
+        <h2 class="panel-title">Tasks and hearings</h2>
+        <a class="small d-print-none" href="/tasks?who=all">All tasks</a>
+      </div>
+      <% if (!tasks.length) { %><p class="text-body-secondary">No tasks or hearings yet.</p><% } %>
+      <% for (const t of tasks) { const overdue = !t.done && t.dueDate < t0; %>
+        <div class="task-row<%= t.done ? ' done' : '' %>">
+          <form method="post" action="/tasks/<%= t.id %>/done" class="d-print-none">
+            <%- f.hidden(csrfToken) %>
+            <input type="hidden" name="done" value="<%= t.done ? 'false' : 'true' %>">
+            <button class="btn btn-sm <%= t.done ? 'btn-primary' : 'btn-outline-primary' %>" type="submit" title="<%= t.done ? 'Mark not done' : 'Mark done' %>"><i class="bi bi-check2"></i><span class="visually-hidden"><%= t.done ? 'Mark not done' : 'Mark done' %></span></button>
+          </form>
+          <div class="grow">
+            <div class="title"><%= t.title %></div>
+            <div class="small <%= overdue ? 'text-danger fw-semibold' : 'text-body-secondary' %>"><%= t.type %> · <%= h.fmtDate(t.dueDate) %><%= t.dueTime ? ' ' + t.dueTime : '' %><%= overdue ? ' · overdue' : '' %></div>
+            <div class="small text-body-secondary"><%= uname(t.assigneeId) %><%= t.location ? ' · ' + t.location : '' %>
+              · <a href="/tasks/<%= t.id %>/calendar.ics" class="d-print-none">Add to calendar</a> · <a href="/tasks/<%= t.id %>/edit" class="d-print-none">Edit</a></div>
+          </div>
+        </div>
+      <% } %>
+      <details class="mt-2 d-print-none">
+        <summary class="btn btn-sm btn-outline-primary">Add task or hearing</summary>
+        <form method="post" action="/tasks" class="row g-2 mt-2" novalidate>
+          <%- f.hidden(csrfToken) %>
+          <input type="hidden" name="caseId" value="<%= c.id %>">
+          <input type="hidden" name="returnTo" value="/cases/<%= c.id %>#tasks">
+          <%- f.text('title', 'What', {}, {}, { required: true, placeholder: 'e.g. Hearing at Kitwe Local Court', id: 'task-title' }) %>
+          <%- f.select('type', 'Type', choices.taskTypes, { type: 'Task' }, {}, { col: 'col-6', blank: false, id: 'task-type' }) %>
+          <%- f.text('dueDate', 'Date', { dueDate: h.today(1) }, {}, { type: 'date', col: 'col-6', required: true, id: 'task-date' }) %>
+          <%- f.text('dueTime', 'Time', {}, {}, { type: 'time', col: 'col-6', id: 'task-time' }) %>
+          <%- f.select('assigneeId', 'Who', staff.map((u) => ({ value: u.id, label: u.fullName || u.username })), { assigneeId: user.id }, {}, { col: 'col-6', blank: false, id: 'task-assignee' }) %>
+          <%- f.text('location', 'Where', {}, {}, { id: 'task-location' }) %>
+          <div class="col-12"><button class="btn btn-primary btn-sm" type="submit">Add</button></div>
+        </form>
+      </details>
+    </div></div>
+
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Referrals</h2>
+      <% if (!referrals.length) { %><p class="text-body-secondary mb-2">Not referred.</p><% } %>
+      <ul class="list-unstyled mb-2">
+        <% for (const r of referrals) { %>
+          <li class="py-1"><a href="/referrals/<%= r.id %>"><%= orgs[r.organizationId] ? orgs[r.organizationId].name : 'Organisation removed' %></a>
+            <div class="small text-body-secondary"><%= h.fmtDate(r.createdAt) %> · <%= r.followUp %></div></li>
+        <% } %>
+      </ul>
+      <a class="small d-print-none" href="/referrals/new?case=<%= c.id %>">Record a referral</a>
+    </div></div>
+
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">History</h2>
+      <ul class="timeline">
+        <% for (const e of (c.history || []).slice().reverse()) { %>
+        <li><div><%= e.action %><%= e.status && e.action !== 'Record updated' ? ': ' + e.status : '' %></div>
+          <div class="meta"><%= h.fmtDateTime(e.at) %> · <%= uname(e.by) %></div></li>
+        <% } %>
+      </ul>
+    </div></div>
+
+    <% if (user.role === 'admin') { %>
+    <div class="d-flex flex-wrap gap-2 mt-3 d-print-none">
+      <a class="btn btn-outline-secondary btn-sm" href="/admin/audit?entityId=<%= c.id %>"><i class="bi bi-clock-history"></i> Who accessed this case</a>
+      <form method="post" action="/cases/<%= c.id %>/delete" data-confirm="Delete this case, its diary, tasks, referrals and documents? This cannot be undone.">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash"></i> Delete case</button>
+      </form>
+    </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,69 @@
+<%- include('../partials/header') %>
+<% const base = k ? '/people/' + k.slug : '/people'; const projectsById = Object.fromEntries(projects.map((p) => [p.id, p])); %>
+<div class="page-head">
+  <div><h1><%= title %></h1>
+    <p class="sub"><%= k ? '' : 'Everyone KDLA has served directly: clients, other parties and activity attendees' %></p></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="<%= base %>/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([key]) => key !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
+    <% if (k) { %><a class="btn btn-primary" href="<%= base %>/new"><i class="bi bi-plus-lg"></i> Add <%= k.label.toLowerCase() %></a><% } %>
+  </div>
+</div>
+
+<form class="filters" method="get" action="<%= base %>" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search name, NRC, contact<%= k && k.kind === 'client' ? ', file number' : '' %>" aria-label="Search">
+  <select class="form-select" name="ageCategory" aria-label="Age category" data-autosubmit>
+    <option value="">All age categories</option>
+    <% for (const s of choices.ageCategories) { %><option<%= query.ageCategory === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="disability" aria-label="Disability" data-autosubmit>
+    <option value="">Disability: any</option>
+    <% for (const s of choices.disability) { %><option<%= query.disability === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <% if (projects.length) { %>
+  <select class="form-select" name="projectId" aria-label="Project" data-autosubmit>
+    <option value="">All projects</option>
+    <% for (const p of projects) { %><option value="<%= p.id %>"<%= query.projectId === p.id ? ' selected' : '' %>><%= p.title %></option><% } %>
+  </select>
+  <% } %>
+  <% if (!k || k.kind !== 'defendant') { %>
+  <select class="form-select" name="consent" aria-label="Consent" data-autosubmit>
+    <option value="">Consent: any</option>
+    <option value="missing"<%= query.consent === 'missing' ? ' selected' : '' %>>Consent not recorded</option>
+  </select>
+  <% } %>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+  <% if (Object.keys(query).some((key) => key !== 'page' && query[key])) { %><a class="btn btn-link" href="<%= base %>">Clear</a><% } %>
+</form>
+
+<% if (!people.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-people"></i>Nobody found.<% if (k) { %> <a href="<%= base %>/new">Add the first <%= k.label.toLowerCase() %></a>.<% } %></div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr>
+      <th>Name</th><% if (!k) { %><th>Type</th><% } %>
+      <% if (k && k.kind === 'client') { %><th>File no.</th><% } %>
+      <% if (k && k.kind === 'attendee') { %><th>Activity</th><% } %>
+      <th class="d-none d-md-table-cell">NRC</th><th>Age category</th><th class="d-none d-lg-table-cell">Contact</th>
+      <th class="d-none d-lg-table-cell">Project</th><th class="d-none d-md-table-cell">Registered</th>
+    </tr></thead>
+    <tbody>
+    <% for (const p of people) { const slug = SLUG_OF[p.kind]; %>
+      <tr>
+        <td><a class="cell-strong" href="/people/<%= slug %>/<%= p.id %>"><%= h.fullName(p) %></a><% if (p.kind !== 'defendant' && p.consentRecord !== 'yes') { %> <i class="bi bi-shield-exclamation text-warning" title="Consent not recorded"></i><span class="visually-hidden">(consent not recorded)</span><% } %></td>
+        <% if (!k) { %><td><%= KIND_LABEL[p.kind] %></td><% } %>
+        <% if (k && k.kind === 'client') { %><td><%= p.caseNumber %></td><% } %>
+        <% if (k && k.kind === 'attendee') { %><td><%= p.activity %></td><% } %>
+        <td class="d-none d-md-table-cell nowrap"><%= p.nrc %></td>
+        <td><%= p.ageCategory %><%= p.age !== null && p.age !== undefined ? ' (' + p.age + ')' : '' %><%= p.disability === 'Disabled' ? ' · Disabled' : '' %></td>
+        <td class="d-none d-lg-table-cell"><%= p.contact %></td>
+        <td class="d-none d-lg-table-cell"><%= projectsById[p.projectId] ? projectsById[p.projectId].title : '' %></td>
+        <td class="d-none d-md-table-cell nowrap"><%= h.fmtDate(p.createdAt) %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+<div class="page-head"><div><h1>Appearance</h1><p class="sub">Choose how the system looks for you. Other staff keep their own settings.</p></div></div>
+<form method="post" action="/account/appearance" style="max-width: 900px;" id="appearance-form">
+  <%- f.hidden(csrfToken) %>
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Light or dark</h2>
+    <div class="choice-grid" role="radiogroup" aria-label="Light or dark">
+      <% for (const m of modes) { %>
+      <label class="choice">
+        <input type="radio" name="mode" value="<%= m.value %>"<%= current.mode === m.value ? ' checked' : '' %> data-live="mode">
+        <div class="preview pv-<%= m.value %>" aria-hidden="true"><div class="pv-top"></div><div class="pv-body"></div></div>
+        <div class="fw-semibold"><%= m.label %></div>
+        <div class="small text-body-secondary"><%= m.help %></div>
+      </label>
+      <% } %>
+    </div>
+  </div></div>
+
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Colour</h2>
+    <div class="choice-grid" role="radiogroup" aria-label="Colour">
+      <% for (const a of accents) { %>
+      <label class="choice">
+        <input type="radio" name="accent" value="<%= a.value %>"<%= current.accent === a.value ? ' checked' : '' %> data-live="accent">
+        <span class="swatch" style="background: <%= a.swatch %>;" aria-hidden="true"></span><span class="fw-semibold"><%= a.label %></span>
+      </label>
+      <% } %>
+    </div>
+  </div></div>
+
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Text size</h2>
+    <div class="choice-grid" role="radiogroup" aria-label="Text size">
+      <% for (const s of sizes) { %>
+      <label class="choice">
+        <input type="radio" name="textSize" value="<%= s.value %>"<%= current.textSize === s.value ? ' checked' : '' %> data-live="textSize">
+        <span class="fw-semibold" style="font-size: <%= s.value === 'large' ? '1.15rem' : '1rem' %>;"><%= s.label %></span>
+      </label>
+      <% } %>
+    </div>
+  </div></div>
+
+  <button class="btn btn-primary mt-3" type="submit">Save appearance</button>
+</form>
+<%- include('../partials/footer') %>

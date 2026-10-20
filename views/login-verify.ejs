@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img class="logo mb-3" src="/static/images/logo.jpg" alt="<%= config.orgName %> logo">
+      <h1 class="h4 mb-1">Two-step verification</h1>
+      <p class="text-body-secondary mb-0">Enter the 6-digit code from the authenticator app on your phone.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-body">
+        <% if (error) { %><div class="alert alert-danger py-2" role="alert"><%= error %></div><% } %>
+        <form method="post" action="/login/verify" class="row g-3">
+          <%- f.hidden(csrfToken) %>
+          <div class="col-12">
+            <label class="form-label" for="code">Verification code</label>
+            <input class="form-control form-control-lg text-center" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="9" required autofocus placeholder="123456">
+            <div class="form-text">Lost your phone? Enter one of your recovery codes instead, like abcd-efgh.</div>
+          </div>
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-primary">Verify</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <p class="text-center small mt-3 mb-0"><a href="/login">Back to log in</a></p>
+  </div>
+</div>
+<%- include('partials/footer') %>

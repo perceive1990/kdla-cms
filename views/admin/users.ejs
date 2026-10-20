@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Staff accounts</h1><p class="sub">Officers can add and edit records. Administrators can also delete records, manage accounts and see the audit trail.</p></div>
+  <a class="btn btn-primary" href="/admin/users/new"><i class="bi bi-person-plus"></i> Add account</a>
+</div>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Name</th><th>Username</th><th>Role</th><th class="d-none d-md-table-cell">Category</th><th class="d-none d-md-table-cell">Office</th><th>Status</th><th class="d-none d-lg-table-cell">Two-step</th><th class="d-none d-lg-table-cell">Last login</th></tr></thead>
+    <tbody>
+      <% for (const u of users) { const locked = u.lockedUntil && new Date(u.lockedUntil) > new Date(); %>
+      <tr>
+        <td><a class="cell-strong" href="/admin/users/<%= u.id %>/edit"><%= u.fullName || '—' %></a></td>
+        <td><%= u.username %></td>
+        <td><%= u.role === 'admin' ? 'Administrator' : 'Officer' %></td>
+        <td class="d-none d-md-table-cell"><%= u.category %><%= u.qualification ? ' · ' + u.qualification : '' %></td>
+        <td class="d-none d-md-table-cell"><%= u.office %></td>
+        <td>
+          <span class="badge text-bg-<%= u.active === false ? 'secondary' : 'success' %>"><%= u.active === false ? 'Disabled' : 'Active' %></span>
+          <% if (locked) { %><span class="badge text-bg-danger">Locked</span><% } %>
+          <% if (u.mustChangePassword) { %><span class="badge text-bg-warning">Temporary password</span><% } %>
+        </td>
+        <td class="d-none d-lg-table-cell"><%= u.totpEnabled ? 'On' : 'Off' %></td>
+        <td class="d-none d-lg-table-cell nowrap"><%= u.lastLoginAt ? h.fmtDateTime(u.lastLoginAt) : 'Never' %></td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<p class="small text-body-secondary mt-2">Two-step verification policy: <strong><%= { none: 'optional for everyone', admins: 'required for administrators', all: 'required for everyone' }[config.require2fa] %></strong>. Change it with the REQUIRE_2FA setting.</p>
+<%- include('../partials/footer') %>

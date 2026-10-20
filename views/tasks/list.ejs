@@ -1,0 +1,54 @@
+<%- include('../partials/header') %>
+<% const uname = (id) => usersById[id] ? (usersById[id].fullName || usersById[id].username) : 'Former user'; %>
+<div class="page-head">
+  <div><h1>Tasks and hearings</h1><p class="sub">Deadlines, court hearings, mediation sessions and follow ups</p></div>
+  <a class="btn btn-primary" href="/tasks/new"><i class="bi bi-plus-lg"></i> New task or hearing</a>
+</div>
+<form class="filters" method="get" action="/tasks">
+  <select class="form-select" name="who" aria-label="Whose tasks" data-autosubmit>
+    <option value="me"<%= who === 'me' ? ' selected' : '' %>>My tasks</option>
+    <option value="all"<%= who === 'all' ? ' selected' : '' %>>Everyone's tasks</option>
+    <% for (const u of users) { %><option value="<%= u.id %>"<%= who === u.id ? ' selected' : '' %>><%= u.fullName || u.username %></option><% } %>
+  </select>
+  <select class="form-select" name="type" aria-label="Type" data-autosubmit>
+    <option value="">All types</option>
+    <% for (const t of choices.taskTypes) { %><option<%= query.type === t ? ' selected' : '' %>><%= t %></option><% } %>
+  </select>
+  <select class="form-select" name="show" aria-label="Status" data-autosubmit>
+    <option value="open"<%= show === 'open' ? ' selected' : '' %>>To do</option>
+    <option value="done"<%= show === 'done' ? ' selected' : '' %>>Completed</option>
+  </select>
+  <noscript><button class="btn btn-outline-primary" type="submit">Filter</button></noscript>
+</form>
+
+<% if (!total) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-calendar-check"></i><%= show === 'done' ? 'Nothing completed yet.' : 'Nothing to do. Add hearings and deadlines from a case page or with the button above.' %></div></div>
+<% } %>
+<% for (const g of groups) { if (!g.items.length) continue; %>
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title<%= g.tone === 'danger' ? ' text-danger' : '' %>"><%= g.label %> (<%= g.items.length %>)</h2>
+    <% for (const t of g.items) { const c = t.caseId && cases[t.caseId]; %>
+      <div class="task-row<%= t.done ? ' done' : '' %>">
+        <form method="post" action="/tasks/<%= t.id %>/done">
+          <%- f.hidden(csrfToken) %>
+          <input type="hidden" name="done" value="<%= t.done ? 'false' : 'true' %>">
+          <button class="btn btn-sm <%= t.done ? 'btn-primary' : 'btn-outline-primary' %>" type="submit" title="<%= t.done ? 'Mark not done' : 'Mark done' %>"><i class="bi bi-check2"></i><span class="visually-hidden"><%= t.done ? 'Mark not done' : 'Mark done' %>: <%= t.title %></span></button>
+        </form>
+        <div class="when"><%= h.fmtDate(t.dueDate) %><div class="small text-body-secondary"><%= t.dueTime || '' %></div></div>
+        <div class="grow">
+          <div class="title"><span class="tag tag-muted"><%= t.type %></span> <%= t.title %></div>
+          <div class="small text-body-secondary">
+            <%= uname(t.assigneeId) %><%= t.location ? ' · ' + t.location : '' %>
+            <% if (c) { %> · <a href="/cases/<%= c.id %>"><%= c.caseNumber %><%= c.redacted ? '' : ' ' + c.heading %></a><% } %>
+          </div>
+          <% if (t.notes) { %><div class="small prose"><%= t.notes %></div><% } %>
+        </div>
+        <div class="small text-nowrap">
+          <a href="/tasks/<%= t.id %>/calendar.ics" title="Download for your phone or Outlook calendar"><i class="bi bi-calendar-plus"></i><span class="visually-hidden">Add to calendar</span></a>
+          <a class="ms-2" href="/tasks/<%= t.id %>/edit">Edit</a>
+        </div>
+      </div>
+    <% } %>
+  </div></div>
+<% } %>
+<%- include('../partials/footer') %>

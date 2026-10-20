@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/cases">Cases</a><% if (!isNew) { %> / <a href="/cases/<%= values.id %>"><%= values.caseNumber %></a><% } %></div>
+    <h1><%= isNew ? 'Open a new case' : 'Edit case' %></h1>
+    <% if (isNew) { %><p class="sub">Tip: run a <a href="/conflicts" target="_blank" rel="noopener">conflict check</a> on the other party before taking the case.</p><% } %>
+  </div>
+</div>
+
+<% if (Object.keys(errors).length) { %>
+  <div class="alert alert-danger" role="alert">Please correct the highlighted fields.<% if (isNew) { %> Any files you chose must be selected again.<% } %></div>
+<% } %>
+
+<form method="post" action="<%= isNew ? '/cases' : '/cases/' + values.id %>" enctype="multipart/form-data" novalidate>
+  <%- f.hidden(csrfToken, isNew ? null : values._etag) %>
+
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Parties</h2>
+    <%- f.text('heading', 'Heading', values, errors, { required: true, maxlength: 300, placeholder: 'e.g. John Mansa vs Mary Sampa', col: 'col-md-9' }) %>
+    <%- f.text('openedOn', 'Date opened', values, errors, { type: 'date', required: true, col: 'col-md-3', max: h.today() }) %>
+    <%- f.multi('clientIds', 'Client(s) / complainant', clients.map((p) => ({ value: p.id, label: h.fullName(p) + (p.caseNumber ? ' (' + p.caseNumber + ')' : '') })), values, errors, { required: true, col: 'col-md-6', empty: 'No clients registered yet.' }) %>
+    <%- f.multi('defendantIds', 'Other party / defendant', defendants.map((p) => ({ value: p.id, label: h.fullName(p) })), values, errors, { col: 'col-md-6', empty: 'No other parties registered yet.' }) %>
+    <div class="col-12 small">
+      Not listed? <a href="/people/clients/new" target="_blank" rel="noopener">Register a client</a> or
+      <a href="/people/defendants/new" target="_blank" rel="noopener">register an other party</a> in a new tab, then reload this page.
+    </div>
+  </div></div>
+
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Case details</h2>
+    <%- f.multi('caseTypes', 'Type of case', choices.caseTypes, values, errors, { required: true, columns: true }) %>
+    <%- f.multi('services', 'Legal services offered', choices.legalServices, values, errors, { required: true, columns: true }) %>
+    <%- f.textarea('complaint', 'Complaint', values, errors, { rows: 5 }) %>
+    <%- f.textarea('defence', 'Defence / other party response', values, errors, { rows: 4 }) %>
+    <%- f.textarea('actionTaken', 'Action taken (summary)', values, errors, { rows: 3, help: 'Record each meeting, call or mediation session in the case diary on the case page.' }) %>
+  </div></div>
+
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Management</h2>
+    <%- f.select('status', 'Status', choices.caseStatuses, values, errors, { required: true, col: 'col-md-4', blank: false }) %>
+    <%- f.select('officerId', 'Responsible officer', officers.map((u) => ({ value: u.id, label: u.fullName || u.username })), values, errors, { required: true, col: 'col-md-4' }) %>
+    <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-4' }) %>
+
+    <div class="col-12" id="outcome-section" data-show-when-status="Concluded">
+      <div class="callout callout-info row g-3 m-0">
+        <div class="col-12 p-0"><strong>Case outcome</strong> <span class="small text-body-secondary">Required when a case is concluded. This is what donors and the statistics page report.</span></div>
+        <%- f.select('outcome', 'Outcome', choices.caseOutcomes, values, errors, { col: 'col-md-6 ps-0', required: true }) %>
+        <%- f.text('closedOn', 'Date concluded', values, errors, { type: 'date', col: 'col-md-3', max: h.today() }) %>
+        <%- f.textarea('outcomeNotes', 'What was achieved for the client', values, errors, { rows: 2, col: 'col-12 ps-0', placeholder: 'e.g. Land returned to the widow and boundary agreed before the headman' }) %>
+      </div>
+    </div>
+
+    <%- f.files({ label: isNew ? 'Attach case documents' : 'Add more documents', maxMb: config.storage.maxFileMb }) %>
+  </div></div>
+
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title"><i class="bi bi-lock"></i> Confidentiality</h2>
+    <%- f.checkbox('restricted', 'Confidential case: only the responsible officer, the case team below and administrators can open it', values.restricted === true) %>
+    <div class="col-12 small text-body-secondary mt-1">Use for gender-based violence and other sensitive matters. Other staff will see only that a confidential case exists. Client names stay visible in the client list, so register the client with initials or a code name if their identity must also be protected.</div>
+    <%- f.multi('teamIds', 'Case team (can open a confidential case)', officers.filter((u) => u.id !== values.officerId).map((u) => ({ value: u.id, label: u.fullName || u.username })), values, errors, { columns: true, empty: 'No other staff accounts yet.' }) %>
+  </div></div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit"><%= isNew ? 'Save case' : 'Save changes' %></button>
+    <a class="btn btn-outline-secondary" href="<%= isNew ? '/cases' : '/cases/' + values.id %>">Cancel</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

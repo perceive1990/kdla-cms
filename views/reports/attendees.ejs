@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/reports">Activity reports</a> / <a href="/reports/<%= r.id %>"><%= r.heading %></a></div>
+    <h1>Attendance register</h1>
+    <p class="sub">Type in the people from the paper register. Blank rows are ignored. Each person is added as an activity attendee (<%= r.activityType %>) and linked to this report.</p>
+  </div>
+</div>
+<% if (Object.keys(rowErrors).length) { %><div class="alert alert-danger" role="alert">Some rows need correcting. Nothing has been saved yet.</div><% } %>
+
+<form method="post" action="/reports/<%= r.id %>/attendees" novalidate>
+  <%- f.hidden(csrfToken) %>
+  <div class="table-wrap">
+    <table class="table table-compact align-middle mb-0" id="bulk-table">
+      <thead><tr><th>#</th><th>First name</th><th>Last name</th><th>Age category</th><th>Age</th><th>NRC</th><th>Phone</th><th>Has a disability</th></tr></thead>
+      <tbody>
+      <% rows.forEach((row, i) => { const err = rowErrors[i]; %>
+        <tr data-row>
+          <td class="text-body-secondary"><span data-row-num><%= i + 1 %></span></td>
+          <td><input class="form-control form-control-sm<%= err ? ' is-invalid' : '' %>" name="rows[<%= i %>][firstName]" value="<%= row.firstName || '' %>" aria-label="First name, row <%= i + 1 %>" autocomplete="off"></td>
+          <td><input class="form-control form-control-sm<%= err ? ' is-invalid' : '' %>" name="rows[<%= i %>][lastName]" value="<%= row.lastName || '' %>" aria-label="Last name, row <%= i + 1 %>" autocomplete="off"></td>
+          <td><select class="form-select form-select-sm" name="rows[<%= i %>][ageCategory]" aria-label="Age category, row <%= i + 1 %>">
+            <option value=""></option>
+            <% for (const a of choices.ageCategories) { %><option<%= row.ageCategory === a ? ' selected' : '' %>><%= a %></option><% } %>
+          </select></td>
+          <td style="max-width: 5rem;"><input class="form-control form-control-sm" name="rows[<%= i %>][age]" value="<%= row.age || '' %>" inputmode="numeric" aria-label="Age, row <%= i + 1 %>"></td>
+          <td><input class="form-control form-control-sm" name="rows[<%= i %>][nrc]" value="<%= row.nrc || '' %>" placeholder="optional" aria-label="NRC, row <%= i + 1 %>"></td>
+          <td><input class="form-control form-control-sm" name="rows[<%= i %>][contact]" value="<%= row.contact || '' %>" aria-label="Phone, row <%= i + 1 %>"></td>
+          <td><select class="form-select form-select-sm" name="rows[<%= i %>][disability]" aria-label="Disability, row <%= i + 1 %>">
+            <option value="Not Disabled"<%= (row.disability || 'Not Disabled') === 'Not Disabled' ? ' selected' : '' %>>No</option>
+            <option value="Disabled"<%= row.disability === 'Disabled' ? ' selected' : '' %>>Yes</option>
+          </select></td>
+        </tr>
+        <% if (err) { %><tr class="table-danger"><td></td><td colspan="7" class="small">Row <%= i + 1 %>: <%= err %></td></tr><% } %>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <button class="btn btn-sm btn-outline-secondary mt-2 d-none" type="button" id="add-rows">Add 10 more rows</button>
+
+  <div class="panel mt-3"><div class="panel-body row g-3">
+    <h2 class="panel-title"><i class="bi bi-shield-check"></i> Consent for everyone in this register</h2>
+    <p class="small text-body-secondary mb-0">Only answer Yes if the meeting was told how KDLA uses attendance information and people agreed.</p>
+    <%- include('../partials/yesno', { name: 'consentRecord', label: 'Agreed to KDLA recording their attendance details', value: consent.consentRecord }) %>
+    <%- include('../partials/yesno', { name: 'consentShare', label: 'Agreed to sharing with partner organisations', value: consent.consentShare }) %>
+  </div></div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit">Save attendees</button>
+    <a class="btn btn-outline-secondary" href="/reports/<%= r.id %>">Cancel</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

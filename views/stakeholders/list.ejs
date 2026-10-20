@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Stakeholder organisations</h1><p class="sub">Partners that KDLA refers clients to or works with</p></div>
+  <a class="btn btn-primary" href="/stakeholders/new"><i class="bi bi-plus-lg"></i> Add organisation</a>
+</div>
+<form class="filters" method="get" action="/stakeholders" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search by name, service or contact" aria-label="Search organisations">
+  <button class="btn btn-outline-primary" type="submit">Search</button>
+</form>
+<% if (!stakeholders.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-building"></i>No organisations yet. <a href="/stakeholders/new">Add one</a>.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Organisation</th><th class="d-none d-md-table-cell">Services</th><th>Contact person</th><th>Phone</th></tr></thead>
+    <tbody>
+      <% for (const s of stakeholders) { %>
+      <tr>
+        <td><a class="cell-strong" href="/stakeholders/<%= s.id %>"><%= s.name %></a></td>
+        <td class="d-none d-md-table-cell text-truncate" style="max-width: 320px;"><%= s.services || s.description %></td>
+        <td><%= s.contactPerson %></td>
+        <td class="nowrap"><%= s.phone %></td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

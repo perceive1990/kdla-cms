@@ -1,0 +1,103 @@
+<%- include('partials/header') %>
+<% const qs = new URLSearchParams({ from: p.from, to: p.to, office: p.office, projectId: p.projectId }).toString(); %>
+<div class="page-head">
+  <div><h1>Statistics</h1><p class="sub">Results and reach for a period, disaggregated for donor reporting</p></div>
+  <div class="d-flex gap-2 d-print-none">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <a class="btn btn-outline-primary" href="/statistics/export.csv?<%= qs %>"><i class="bi bi-download"></i> Export CSV</a>
+  </div>
+</div>
+
+<form class="filters d-print-none" method="get" action="/statistics">
+  <label class="small" for="from">From</label>
+  <input class="form-control" type="date" id="from" name="from" value="<%= p.from %>">
+  <label class="small" for="to">to</label>
+  <input class="form-control" type="date" id="to" name="to" value="<%= p.to %>">
+  <select class="form-select" name="office" aria-label="Office">
+    <option value="">All offices</option>
+    <% for (const o of choices.offices) { %><option<%= p.office === o ? ' selected' : '' %>><%= o %></option><% } %>
+  </select>
+  <% if (projects.length) { %>
+  <select class="form-select" name="projectId" aria-label="Project">
+    <option value="">All projects</option>
+    <% for (const pr of projects) { %><option value="<%= pr.id %>"<%= p.projectId === pr.id ? ' selected' : '' %>><%= pr.title %></option><% } %>
+  </select>
+  <% } %>
+  <button class="btn btn-primary" type="submit">Show</button>
+</form>
+<p class="d-none d-print-block"><strong>Period:</strong> <%= h.fmtDate(p.from) %> to <%= h.fmtDate(p.to) %><%= p.office ? ' · ' + p.office : '' %></p>
+
+<% if (!s) { %>
+  <div class="alert alert-warning">The start date must be before the end date.</div>
+<% } else { const t = s.totals; %>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Cases opened</div><div class="value"><%= t.opened %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Cases concluded</div><div class="value"><%= t.closed %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Resolved for the client</div><div class="value"><%= t.resolvedRate === null ? '—' : t.resolvedRate + '%' %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Median days to conclude</div><div class="value"><%= t.medianDays === null ? '—' : t.medianDays %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Clients served</div><div class="value"><%= t.served %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">New clients registered</div><div class="value"><%= t.newClients %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">People reached by activities</div><div class="value"><%= t.reach %></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat"><div class="label">Hours recorded in case diaries</div><div class="value"><%= t.hoursLogged %></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Cases opened by type</h2>
+    <%- include('partials/bars', { rows: s.openedByType }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Legal services provided</h2>
+    <%- include('partials/bars', { rows: s.openedByService }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Outcomes of concluded cases</h2>
+    <%- include('partials/bars', { rows: s.closedByOutcome.filter((r) => r.count) }) %>
+    <p class="small text-body-secondary mb-0 mt-2">Average <%= t.avgDays === null ? '—' : h.plural(t.avgDays, 'day') %> from opening to conclusion.</p>
+  </div></div></div>
+
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Clients served by age and sex</h2>
+    <%- include('partials/bars', { rows: s.servedByAge }) %>
+    <p class="small text-body-secondary mb-0 mt-2"><%= h.plural(s.servedDisabled, 'client') %> with a disability.</p>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Cases opened by office</h2>
+    <%- include('partials/bars', { rows: s.openedByOffice }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">How new clients heard about KDLA</h2>
+    <%- include('partials/bars', { rows: s.heardVia.filter((r) => r.count) }) %>
+  </div></div></div>
+
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Activities (<%= t.activities %>)</h2>
+    <%- include('partials/bars', { rows: s.activitiesByType.filter((r) => r.count) }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Registered attendees by age and sex</h2>
+    <%- include('partials/bars', { rows: s.attendeesByAge }) %>
+    <p class="small text-body-secondary mb-0 mt-2"><%= t.registeredAttendees %> registered, <%= t.otherParticipants %> others counted, <%= s.attendeesDisabled %> with a disability.</p>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Referrals (<%= t.referrals %>)</h2>
+    <%- include('partials/bars', { rows: s.referralsByOrg }) %>
+    <p class="small text-body-secondary mb-0 mt-2"><%= h.plural(t.followUps, 'follow up') %> recorded.</p>
+  </div></div></div>
+
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Time recorded by activity</h2>
+    <%- include('partials/bars', { rows: s.hoursByType, unit: ' h' }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Time recorded by officer</h2>
+    <%- include('partials/bars', { rows: s.hoursByOfficer, unit: ' h' }) %>
+  </div></div></div>
+  <div class="col-md-6 col-xl-4"><div class="panel h-100"><div class="panel-body">
+    <h2 class="panel-title">Open caseload by officer (today, <%= t.openNow %>)</h2>
+    <%- include('partials/bars', { rows: s.caseload }) %>
+  </div></div></div>
+</div>
+<p class="small text-body-secondary mt-3">Clients served are the clients on cases opened in the period. "Resolved for the client" counts outcomes that start with "Resolved" or a decision in the client's favour. Confidential cases are included in the numbers but never named.</p>
+<% } %>
+<%- include('partials/footer') %>

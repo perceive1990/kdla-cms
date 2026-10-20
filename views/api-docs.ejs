@@ -1,0 +1,196 @@
+<%- include('partials/header') %>
+<%
+  const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+%>
+<div class="page-head">
+  <div>
+    <h1><%= spec.info.title %></h1>
+    <p class="sub">Version <%= spec.info.version %> · JSON over HTTPS · Base address <code class="user-select-all"><%= baseUrl %></code></p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 d-print-none">
+    <a class="btn btn-outline-secondary" href="/api/v1/openapi.json" download="kdla-cms-openapi.json"><i class="bi bi-download" aria-hidden="true"></i> OpenAPI file</a>
+    <% if (user) { %>
+      <a class="btn btn-primary" href="/account/api"><i class="bi bi-key" aria-hidden="true"></i> Your API tokens</a>
+    <% } else { %>
+      <a class="btn btn-primary" href="/login?next=/api/docs"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Log in</a>
+    <% } %>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-3 d-none d-lg-block d-print-none">
+    <nav class="panel api-toc" aria-label="API sections">
+      <div class="panel-body">
+        <ul class="list-unstyled small mb-0">
+          <li><a href="#start">Getting started</a></li>
+          <li><a href="#rules">Rules for every request</a></li>
+          <li><a href="#errors">Errors</a></li>
+          <% for (const g of groups) { %>
+            <li><a href="#tag-<%= slug(g.name) %>"><%= g.name %></a> <span class="text-body-secondary">(<%= g.ops.length %>)</span></li>
+          <% } %>
+        </ul>
+      </div>
+    </nav>
+  </div>
+
+  <div class="col-lg-9">
+    <section class="panel" id="start">
+      <div class="panel-body">
+        <h2 class="panel-title">Getting started</h2>
+        <p><%= spec.info.description %></p>
+        <ol class="api-steps">
+          <li>
+            <strong>Get a token.</strong> Sign in with your staff username and password. If your account uses two-step verification, add the 6-digit code from your app as <code>"code"</code>. A sign-in token lasts <%= tokenHours %> hours.
+            For a script or report that runs on its own, create a personal access token instead under
+            <% if (user) { %><a href="/account/api">Account &gt; API access</a><% } else { %>Account &gt; API access<% } %> (up to <%= maxDays %> days).
+<pre class="code"><code>curl -X POST <%= baseUrl %>/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "your.name", "password": "your password", "code": "123456"}'</code></pre>
+          </li>
+          <li>
+            <strong>Send the token with every request</strong> in the Authorization header.
+<pre class="code"><code>curl <%= baseUrl %>/cases?status=open \
+  -H "Authorization: Bearer kdla_your_token"</code></pre>
+            The same two steps in Windows PowerShell:
+<pre class="code"><code>$body = @{ username = "your.name"; password = "your password"; code = "123456" } | ConvertTo-Json
+$login = Invoke-RestMethod -Method Post "<%= baseUrl %>/auth/login" -ContentType "application/json" -Body $body
+$headers = @{ Authorization = "Bearer $($login.token)" }
+Invoke-RestMethod "<%= baseUrl %>/cases?status=open" -Headers $headers</code></pre>
+          </li>
+          <li>
+            <strong>Change a record safely.</strong> Send only the fields you want to change with <code>PATCH</code>. Copy the <code>etag</code> from when you read the record into an <code>If-Match</code> header, so you never overwrite a colleague's changes.
+<pre class="code"><code>curl -X PATCH <%= baseUrl %>/cases/CASE_ID \
+  -H "Authorization: Bearer kdla_your_token" \
+  -H "Content-Type: application/json" \
+  -H 'If-Match: "ETAG_FROM_GET"' \
+  -d '{"status": "Concluded Closed Case", "outcome": "Resolved through mediation"}'</code></pre>
+          </li>
+          <li>
+            <strong>Sign out</strong> when you are done: <code>POST <%= baseUrl %>/auth/logout</code> ends the token.
+          </li>
+        </ol>
+        <p class="small text-body-secondary mb-0">
+          Power BI Desktop: choose Get data &gt; Web &gt; Advanced, enter an address such as <code><%= baseUrl %>/statistics?from=2026-01-01</code>
+          and add the header <code>Authorization</code> with the value <code>Bearer</code> followed by a personal access token.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel" id="rules">
+      <div class="panel-body">
+        <h2 class="panel-title">Rules for every request</h2>
+        <dl class="dl">
+          <dt>Same rules as the web app</dt>
+          <dd>Confidential cases can only be opened by the responsible officer, the case team and administrators. Actions marked <span class="badge text-bg-warning">Administrators</span> need an administrator account. Everything you do is recorded in the audit trail, marked as done through the API.</dd>
+          <dt>Formats</dt>
+          <dd>Send and receive JSON (<code>Content-Type: application/json</code>), except file uploads (<code>multipart/form-data</code>). Dates are <code>YYYY-MM-DD</code>; times are ISO 8601 in UTC.</dd>
+          <dt>Lists</dt>
+          <dd>Lists return <code>{"data": [...], "page": 1, "pageSize": 25, "total": 120, "pages": 5}</code>. Ask for more with <code>?page=2&amp;pageSize=100</code> (at most 100). Many lists accept <code>?sort=field</code>, or <code>?sort=-field</code> for newest first.</dd>
+          <dt>Versions</dt>
+          <dd>Single records include an <code>etag</code> (also sent as the <code>ETag</code> header). Send it back as <code>If-Match</code> when changing the record; if someone else changed it first you get <code>412</code> and nothing is saved.</dd>
+          <dt>Limits</dt>
+          <dd><%= rateLimit %> requests a minute per token, and 20 failed sign-in attempts every 15 minutes per connection. Five wrong passwords lock the account for a while, as on the web.</dd>
+          <dt>Tokens</dt>
+          <dd>Treat a token like a password. Tokens stop working when they expire, when you sign out or revoke them, when your account is disabled, and when your sessions are signed out (for example after a password change).</dd>
+          <dt>Browsers</dt>
+          <dd><% if (corsOrigins.length) { %>Web pages on <%= corsOrigins.join(', ') %> may call the API from the browser.<% } else { %>Calling the API from a web page on another site is switched off. An administrator can allow specific sites with the API_CORS_ORIGINS setting.<% } %></dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="panel" id="errors">
+      <div class="panel-body">
+        <h2 class="panel-title">Errors</h2>
+        <p>Errors come back as <code>{"error": {"code": "validation_failed", "message": "...", "fields": {"heading": "Enter a heading."}}}</code>. Show <code>message</code> to people; use <code>code</code> in your program.</p>
+        <div class="table-wrap">
+          <table class="table table-compact">
+            <thead><tr><th>Status</th><th>Code</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>400</td><td><code>invalid_json</code>, <code>invalid_body</code></td><td>The body is not a JSON object.</td></tr>
+              <tr><td>401</td><td><code>unauthorized</code>, <code>invalid_token</code></td><td>No token, or it has expired or been revoked. Sign in again.</td></tr>
+              <tr><td>401</td><td><code>invalid_credentials</code>, <code>two_step_required</code>, <code>invalid_code</code></td><td>Sign-in problems.</td></tr>
+              <tr><td>403</td><td><code>forbidden</code>, <code>confidential</code></td><td>Not allowed for your account, or a confidential case you cannot open.</td></tr>
+              <tr><td>403</td><td><code>password_change_required</code>, <code>two_step_setup_required</code></td><td>Finish these first (as on the web).</td></tr>
+              <tr><td>404</td><td><code>not_found</code></td><td>No such record or address.</td></tr>
+              <tr><td>409</td><td><code>possible_matches</code></td><td>Possible duplicate or conflict of interest. Review <code>matches</code>, then confirm.</td></tr>
+              <tr><td>409</td><td><code>in_use</code></td><td>Cannot be deleted because other records use it.</td></tr>
+              <tr><td>412</td><td><code>precondition_failed</code></td><td>Someone changed the record since you read it.</td></tr>
+              <tr><td>413, 415</td><td><code>file_too_large</code>, <code>file_type_not_allowed</code>, <code>unsupported_media_type</code></td><td>Upload or format problems.</td></tr>
+              <tr><td>422</td><td><code>validation_failed</code></td><td>See <code>fields</code> (and <code>rowErrors</code> for attendance registers).</td></tr>
+              <tr><td>423</td><td><code>account_locked</code></td><td>Too many wrong passwords.</td></tr>
+              <tr><td>429</td><td><code>rate_limited</code>, <code>too_many_attempts</code></td><td>Slow down and try again shortly.</td></tr>
+              <tr><td>503</td><td><code>busy</code></td><td>The database is busy. Wait a few seconds and try again.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <% for (const g of groups) { %>
+    <section class="panel" id="tag-<%= slug(g.name) %>">
+      <div class="panel-body">
+        <h2 class="panel-title"><%= g.name %></h2>
+        <% if (g.description) { %><p class="text-body-secondary"><%= g.description %></p><% } %>
+        <% for (const o of g.ops) { %>
+        <article class="api-op" id="<%= o.id %>">
+          <div class="api-op-head">
+            <span class="api-method api-<%= o.method.toLowerCase() %>"><%= o.method %></span>
+            <code class="api-path"><%= o.path %></code>
+            <% if (o.admin) { %><span class="badge text-bg-warning">Administrators</span><% } %>
+            <% if (o.public) { %><span class="badge text-bg-secondary">No token needed</span><% } %>
+          </div>
+          <p class="fw-semibold mb-1"><%= o.summary %></p>
+          <% if (o.description) { %><p class="small mb-2"><%= o.description %></p><% } %>
+
+          <% if (o.params.length) { %>
+          <div class="table-wrap mb-2">
+            <table class="table table-compact small">
+              <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <% for (const p of o.params) { %>
+                <tr>
+                  <td class="nowrap"><code><%= p.name %></code><% if (p.required) { %> <span class="text-danger" title="Required">*</span><% } %></td>
+                  <td><%= p.in === 'query' ? 'query' : p.in === 'path' ? 'address' : p.in %></td>
+                  <td><%= p.type %></td>
+                  <td><%= p.description %></td>
+                </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+
+          <% if (o.body && o.body.multipart) { %>
+            <p class="small mb-2"><strong>Body:</strong> <code>multipart/form-data</code> with the files in a field called <code>files</code>.</p>
+          <% } else if (o.body && o.body.fields.length) { %>
+          <details class="mb-2">
+            <summary class="small fw-semibold">Body fields (JSON)</summary>
+            <div class="table-wrap mt-2">
+              <table class="table table-compact small">
+                <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+                <tbody>
+                  <% for (const fld of o.body.fields) { %>
+                  <tr>
+                    <td class="nowrap"><code><%= fld.name %></code><% if (fld.required) { %> <span class="text-danger" title="Required">*</span><% } %></td>
+                    <td class="api-type"><%= fld.type %></td>
+                    <td><%= fld.description %></td>
+                  </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </details>
+          <% } %>
+
+          <p class="small text-body-secondary mb-0">
+            <% o.responses.forEach((r, i) => { %><%= i ? ' · ' : 'Responses: ' %><strong><%= r.code %></strong> <%= r.description %><% }) %>
+          </p>
+        </article>
+        <% } %>
+      </div>
+    </section>
+    <% } %>
+    <p class="small text-body-secondary mt-3"><span class="text-danger">*</span> required. Fields you leave out of a PATCH keep their current value.</p>
+  </div>
+</div>
+<%- include('partials/footer') %>

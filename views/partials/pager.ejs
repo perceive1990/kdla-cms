@@ -1,0 +1,11 @@
+<% if (pg.pages > 1) { %>
+<nav class="d-flex justify-content-between align-items-center mt-3 d-print-none" aria-label="Pages">
+  <span class="text-muted small">Page <%= pg.page %> of <%= pg.pages %> · <%= pg.total %> records</span>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item<%= pg.page <= 1 ? ' disabled' : '' %>"><a class="page-link" href="<%= pg.qs(pg.page - 1) %>">Previous</a></li>
+    <li class="page-item<%= pg.page >= pg.pages ? ' disabled' : '' %>"><a class="page-link" href="<%= pg.qs(pg.page + 1) %>">Next</a></li>
+  </ul>
+</nav>
+<% } else if (pg.total) { %>
+<p class="text-muted small mt-2 mb-0"><%= pg.total %> record<%= pg.total === 1 ? '' : 's' %></p>
+<% } %>

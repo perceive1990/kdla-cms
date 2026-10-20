@@ -1,0 +1,103 @@
+<%- include('../partials/header') %>
+<% const uname = (id) => users[id] ? (users[id].fullName || users[id].username) : ''; %>
+<% const consentLabel = (v) => v === 'yes' ? 'Yes' : v === 'no' ? 'No' : 'Not asked'; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/people/<%= k.slug %>"><%= k.plural %></a> / <%= h.fullName(p) %></div>
+    <h1><%= h.fullName(p) %></h1>
+    <p class="sub"><%= k.label %><%= p.caseNumber ? ' · File ' + p.caseNumber : '' %>
+      <% if (k.kind !== 'defendant' && p.consentRecord !== 'yes') { %><span class="tag tag-danger ms-1">Consent not recorded</span><% } %></p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <% if (k.kind === 'client') { %>
+      <a class="btn btn-outline-primary" href="/people/defendants/new?client=<%= p.id %>"><i class="bi bi-person-x"></i> Add other party</a>
+      <a class="btn btn-outline-primary" href="/cases/new?client=<%= p.id %>"><i class="bi bi-folder-plus"></i> Open case</a>
+    <% } %>
+    <a class="btn btn-primary" href="/people/<%= k.slug %>/<%= p.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+  </div>
+</div>
+
+<% if (alsoAs.length) { %>
+<div class="callout callout-danger mb-3" role="alert">
+  <strong><i class="bi bi-exclamation-diamond"></i> Possible conflict of interest.</strong>
+  A person with the same name or NRC is also recorded as
+  <% alsoAs.forEach((m, i) => { %><%= i ? ', ' : '' %><a href="/people/<%= SLUG_OF[m.kind] %>/<%= m.id %>"><%= KIND_LABEL[m.kind].toLowerCase() %> <%= h.fullName(m) %></a><% }) %>.
+</div>
+<% } %>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="panel"><div class="panel-body">
+      <dl class="dl">
+        <dt>NRC</dt><dd><%= p.nrc || '—' %></dd>
+        <dt>Age</dt><dd><%= p.age !== null && p.age !== undefined ? p.age : '—' %></dd>
+        <dt>Age category</dt><dd><%= p.ageCategory %></dd>
+        <dt>Civil status</dt><dd><%= p.civilStatus || '—' %></dd>
+        <dt>Disability</dt><dd><%= p.disability || '—' %></dd>
+        <dt>Contact</dt><dd><%= p.contact || '—' %></dd>
+        <dt>Village or area</dt><dd><%= p.location || '—' %></dd>
+        <dt>Project</dt><dd><%= project ? project.title : '—' %></dd>
+        <% if (k.kind === 'client') { %><dt>Heard about us via</dt><dd><%= p.referralSource || '—' %></dd><% } %>
+        <% if (k.kind === 'defendant') { %><dt>In dispute with</dt><dd><%- versus ? '<a href="/people/clients/' + f.esc(versus.id) + '">' + f.esc(h.fullName(versus)) + '</a>' : '—' %></dd><% } %>
+        <% if (k.kind === 'attendee') { %><dt>Activity</dt><dd><%= p.activity || '—' %></dd><% } %>
+        <dt>Registered</dt><dd><%= h.fmtDate(p.createdAt) %><%= uname(p.addedBy) ? ' by ' + uname(p.addedBy) : '' %></dd>
+      </dl>
+    </div></div>
+
+    <% if (k.kind !== 'defendant') { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title"><i class="bi bi-shield-check"></i> Consent</h2>
+      <dl class="dl">
+        <dt>Record and store</dt><dd><%= consentLabel(p.consentRecord) %></dd>
+        <dt>Share on referral</dt><dd><%= consentLabel(p.consentShare) %></dd>
+        <% if (p.consentDate) { %><dt>Recorded</dt><dd><%= h.fmtDate(p.consentDate) %><%= uname(p.consentBy) ? ' by ' + uname(p.consentBy) : '' %></dd><% } %>
+      </dl>
+    </div></div>
+    <% } %>
+
+    <% if (user.role === 'admin') { %>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <a class="btn btn-outline-secondary btn-sm" href="/people/<%= k.slug %>/<%= p.id %>/data.json" title="For a data subject access request"><i class="bi bi-download"></i> Download all data held</a>
+      <form method="post" action="/people/<%= k.slug %>/<%= p.id %>/delete" data-confirm="Delete <%= h.fullName(p) %>? They will be removed from any cases or reports.">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash"></i> Delete</button>
+      </form>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="col-lg-6">
+    <% if (k.kind !== 'attendee') { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Cases (<%= cases.length %>)</h2>
+      <% if (!cases.length) { %><p class="text-body-secondary mb-0">No cases linked.</p><% } %>
+      <ul class="list-unstyled mb-0">
+      <% for (const c of cases) { %>
+        <li class="py-2 border-bottom"><a class="cell-strong" href="/cases/<%= c.id %>"><%= c.heading %></a><% if (c.restricted) { %> <i class="bi bi-lock-fill text-warning" title="Confidential"></i><% } %>
+          <div class="small text-body-secondary"><%= c.caseNumber %> · <span class="badge text-bg-<%= h.statusBadge(c.status) %>"><%= c.status %></span></div></li>
+      <% } %>
+      </ul>
+    </div></div>
+    <% } %>
+    <% if (k.kind === 'client') { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Other parties</h2>
+      <% if (!opponents.length) { %><p class="text-body-secondary mb-0">None recorded.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const o of opponents) { %><li class="py-1"><a href="/people/defendants/<%= o.id %>"><%= h.fullName(o) %></a></li><% } %>
+      </ul>
+    </div></div>
+    <% } %>
+    <% if (k.kind === 'attendee') { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Activities attended (<%= reports.length %>)</h2>
+      <% if (!reports.length) { %><p class="text-body-secondary mb-0">Not yet linked to an activity report.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const r of reports) { %><li class="py-2 border-bottom"><a href="/reports/<%= r.id %>"><%= r.heading %></a>
+          <div class="small text-body-secondary"><%= h.fmtDate(r.date) %> · <%= r.activityType %></div></li><% } %>
+      </ul>
+    </div></div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/footer') %>

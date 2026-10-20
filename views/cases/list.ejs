@@ -1,0 +1,71 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Cases</h1><p class="sub">All case files across offices</p></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/cases/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([k]) => k !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
+    <a class="btn btn-primary" href="/cases/new"><i class="bi bi-plus-lg"></i> New case</a>
+  </div>
+</div>
+
+<form class="filters" method="get" action="/cases" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search heading, case number, complaint" aria-label="Search cases">
+  <select class="form-select" name="status" aria-label="Status" data-autosubmit>
+    <option value="">All statuses</option>
+    <option value="open"<%= query.status === 'open' ? ' selected' : '' %>>All open cases</option>
+    <option value="concluded"<%= query.status === 'concluded' ? ' selected' : '' %>>All concluded cases</option>
+    <% for (const s of choices.caseStatuses) { %><option<%= query.status === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="type" aria-label="Type of case" data-autosubmit>
+    <option value="">All types</option>
+    <% for (const s of choices.caseTypes) { %><option<%= query.type === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="office" aria-label="Office" data-autosubmit>
+    <option value="">All offices</option>
+    <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="officer" aria-label="Officer" data-autosubmit>
+    <option value="">All officers</option>
+    <option value="me"<%= query.officer === 'me' ? ' selected' : '' %>>My cases</option>
+    <% for (const u of officers) { %><option value="<%= u.id %>"<%= query.officer === u.id ? ' selected' : '' %>><%= u.fullName || u.username %></option><% } %>
+  </select>
+  <select class="form-select" name="outcome" aria-label="Outcome" data-autosubmit>
+    <option value="">Any outcome</option>
+    <% for (const s of choices.caseOutcomes) { %><option<%= query.outcome === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <div class="form-check ms-1">
+    <input class="form-check-input" type="checkbox" name="confidential" value="1" id="f-conf" data-autosubmit<%= query.confidential === '1' ? ' checked' : '' %>>
+    <label class="form-check-label" for="f-conf">Confidential only</label>
+  </div>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+  <% if (Object.keys(query).some((k) => k !== 'page' && query[k])) { %><a class="btn btn-link" href="/cases">Clear</a><% } %>
+</form>
+
+<% if (!cases.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-folder2-open"></i>No cases match. <a href="/cases/new">Open a new case</a>.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr><th class="d-none d-md-table-cell">Case no.</th><th>Heading</th><th>Client</th><th class="d-none d-lg-table-cell">Other party</th><th>Status</th><th class="d-none d-md-table-cell">Office</th><th class="d-none d-xl-table-cell">Officer</th><th class="d-none d-md-table-cell">Updated</th></tr>
+    </thead>
+    <tbody>
+    <% for (const c of cases) { %>
+      <tr>
+        <td class="nowrap d-none d-md-table-cell"><a href="/cases/<%= c.id %>"><%= c.caseNumber %></a></td>
+        <td><a class="cell-strong" href="/cases/<%= c.id %>"><%= c.heading %></a><% if (c.restricted) { %> <i class="bi bi-lock-fill text-warning" title="Confidential case"></i><span class="visually-hidden">(confidential)</span><% } %>
+          <div class="small text-body-secondary d-md-none"><%= c.caseNumber %></div>
+          <div><% for (const t of (c.caseTypes || [])) { %><span class="tag"><%= t %></span><% } %></div></td>
+        <td><% (c.clientIds || []).forEach((id, i) => { const p = people[id]; if (!p) return; %><%= i ? ', ' : '' %><a href="/people/clients/<%= id %>"><%= h.fullName(p) %></a><% }) %></td>
+        <td class="d-none d-lg-table-cell"><% (c.defendantIds || []).forEach((id, i) => { const p = people[id]; if (!p) return; %><%= i ? ', ' : '' %><a href="/people/defendants/<%= id %>"><%= h.fullName(p) %></a><% }) %></td>
+        <td><span class="badge text-bg-<%= h.statusBadge(c.status) %> badge-status"><%= c.status %></span><% if (c.outcome) { %><div class="small text-body-secondary"><%= c.outcome %></div><% } %></td>
+        <td class="d-none d-md-table-cell"><%= c.office %></td>
+        <td class="d-none d-xl-table-cell"><%= users[c.officerId] ? (users[c.officerId].fullName || users[c.officerId].username) : '' %></td>
+        <td class="d-none d-md-table-cell nowrap"><%= h.fmtDate(c.updatedAt) %><div class="small text-body-secondary">Opened <%= h.fmtDate(c.openedOn) %></div></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+<div class="page-head"><div><h1>Password and security</h1></div></div>
+
+<div class="row g-3" style="max-width: 1000px;">
+  <div class="col-lg-7">
+    <% if (codes) { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title text-success"><i class="bi bi-check-circle"></i> Two-step verification is on</h2>
+      <p>Save these recovery codes somewhere safe, away from your phone (for example, written on paper in a locked drawer). Each code works once if you lose your phone. They will not be shown again.</p>
+      <ul class="code-list list-unstyled border rounded p-3 mb-3">
+        <% for (const c of codes) { %><li><%= c %></li><% } %>
+      </ul>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print codes</button>
+        <a class="btn btn-primary" href="/">I have saved them</a>
+      </div>
+    </div></div>
+    <% } else if (setup) { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title"><i class="bi bi-phone"></i> Turn on two-step verification</h2>
+      <% if (required) { %><div class="alert alert-warning py-2">KDLA requires two-step verification for your account.</div><% } %>
+      <p>After your password, you will also enter a 6-digit code from your phone. Someone who learns your password still cannot get in.</p>
+      <ol class="mb-3">
+        <li>Install a free authenticator app: <strong>Microsoft Authenticator</strong> or <strong>Google Authenticator</strong>.</li>
+        <li>In the app, add an account and scan this code:</li>
+      </ol>
+      <div class="qr mb-2" aria-label="QR code for your authenticator app"><%- setup.svg %></div>
+      <p class="small text-body-secondary">Cannot scan? Choose "enter a setup key" in the app and type: <code class="user-select-all"><%= setup.grouped %></code></p>
+      <form method="post" action="/account/security/enable" class="row g-2 align-items-end" novalidate>
+        <%- f.hidden(csrfToken) %>
+        <div class="col-sm-6">
+          <label class="form-label" for="code">3. Enter the 6-digit code the app shows</label>
+          <input class="form-control<%= error ? ' is-invalid' : '' %>" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <% if (error) { %><div class="invalid-feedback d-block"><%= error %></div><% } %>
+        </div>
+        <div class="col-sm-6"><button class="btn btn-primary" type="submit">Turn on</button></div>
+      </form>
+    </div></div>
+    <% } else { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title text-success"><i class="bi bi-shield-check"></i> Two-step verification is on</h2>
+      <p class="mb-3">You have <%= h.plural(recoveryLeft, 'recovery code') %> left.</p>
+      <form method="post" action="/account/security/recovery-codes" class="row g-2 align-items-end mb-3">
+        <%- f.hidden(csrfToken) %>
+        <div class="col-sm-6"><label class="form-label" for="pw1">Password</label><input class="form-control" type="password" id="pw1" name="password" autocomplete="current-password" required></div>
+        <div class="col-sm-6"><button class="btn btn-outline-primary" type="submit">Make new recovery codes</button></div>
+      </form>
+      <% if (!required) { %>
+      <form method="post" action="/account/security/disable" class="row g-2 align-items-end" data-confirm="Turn off two-step verification? Your account will be protected by your password only.">
+        <%- f.hidden(csrfToken) %>
+        <div class="col-sm-6"><label class="form-label" for="pw2">Password</label><input class="form-control" type="password" id="pw2" name="password" autocomplete="current-password" required></div>
+        <div class="col-sm-6"><button class="btn btn-outline-danger" type="submit">Turn off</button></div>
+      </form>
+      <% } %>
+    </div></div>
+    <% } %>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Password</h2>
+      <p class="small text-body-secondary">Changing your password signs you out on every other device and ends your API tokens.</p>
+      <a class="btn btn-outline-primary" href="/account/password">Change password</a>
+    </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Other devices</h2>
+      <p class="small text-body-secondary">Used a shared or lost computer or phone? Sign it out remotely.</p>
+      <form method="post" action="/account/security/sign-out-others">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-outline-secondary" type="submit">Sign out all other devices</button>
+      </form>
+    </div></div>
+    <div class="panel"><div class="panel-body small text-body-secondary">
+      You are signed out automatically after <%= config.sessionIdleMinutes %> minutes without activity, and after <%= config.sessionMaxHours %> hours in any case.
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

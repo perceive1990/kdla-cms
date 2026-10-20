@@ -1,0 +1,86 @@
+<%- include('../partials/header') %>
+<% const slugOf = { client: 'clients', defendant: 'defendants', attendee: 'attendees' }; const lbl = { client: 'Client', defendant: 'Other party', attendee: 'Attendee' }; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/people/<%= k.slug %>"><%= k.plural %></a><% if (!isNew) { %> / <a href="/people/<%= k.slug %>/<%= values.id %>"><%= h.fullName(values) %></a><% } %></div>
+    <h1><%= isNew ? 'Add ' + k.label.toLowerCase() : 'Edit ' + h.fullName(values) %></h1>
+  </div>
+</div>
+<% if (Object.keys(errors).length) { %><div class="alert alert-danger" role="alert">Please correct the highlighted fields.</div><% } %>
+
+<form method="post" action="<%= isNew ? '/people/' + k.slug : '/people/' + k.slug + '/' + values.id %>" novalidate>
+  <%- f.hidden(csrfToken, isNew ? null : values._etag) %>
+  <% const thenCase = isNew && (query.then === 'case' || values.then === 'case'); %>
+  <% if (thenCase) { %><input type="hidden" name="then" value="case"><% } %>
+
+  <% if (matches && (matches.duplicates.length || matches.conflicts.length)) { %>
+  <div class="callout <%= matches.conflicts.length ? 'callout-danger' : '' %> mb-3" role="alert">
+    <% if (matches.conflicts.length) { %>
+      <p class="mb-1"><strong><i class="bi bi-exclamation-diamond"></i> Possible conflict of interest.</strong>
+        <%= k.kind === 'client' ? 'Someone with this name or NRC is recorded as an other party (opponent) in a KDLA case.' : 'Someone with this name or NRC is a KDLA client.' %></p>
+      <ul class="mb-2">
+        <% for (const m of matches.conflicts) { %><li><a href="/people/<%= slugOf[m.kind] %>/<%= m.id %>" target="_blank" rel="noopener"><%= h.fullName(m) %></a> (<%= lbl[m.kind] %><%= m.nrc ? ', NRC ' + m.nrc : '' %>)</li><% } %>
+      </ul>
+    <% } %>
+    <% if (matches.duplicates.length) { %>
+      <p class="mb-1"><strong>This person may already be registered.</strong></p>
+      <ul class="mb-2">
+        <% for (const m of matches.duplicates) { %><li><a href="/people/<%= slugOf[m.kind] %>/<%= m.id %>" target="_blank" rel="noopener"><%= h.fullName(m) %></a><%= m.nrc ? ' (NRC ' + m.nrc + ')' : '' %>, registered <%= h.fmtDate(m.createdAt) %></li><% } %>
+      </ul>
+    <% } %>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="confirmMatches" name="confirmMatches" value="yes" required>
+      <label class="form-check-label" for="confirmMatches">I have checked these records and want to save this <%= k.label.toLowerCase() %> anyway</label>
+    </div>
+  </div>
+  <% } %>
+
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Personal details</h2>
+    <%- f.text('firstName', 'First name', values, errors, { required: true, col: 'col-md-6', autocomplete: 'off' }) %>
+    <%- f.text('lastName', 'Last name', values, errors, { required: true, col: 'col-md-6', autocomplete: 'off' }) %>
+    <%- f.text('nrc', 'NRC number', values, errors, { col: 'col-md-4', placeholder: '123456/78/1', help: 'Leave blank if the person has no NRC.' }) %>
+    <%- f.text('age', 'Age', values, errors, { type: 'number', min: 0, max: 120, col: 'col-md-2', inputmode: 'numeric' }) %>
+    <%- f.select('ageCategory', 'Age category', choices.ageCategories, values, errors, { required: true, col: 'col-md-3', help: 'Girl or Boy: under 18' }) %>
+    <%- f.select('civilStatus', 'Civil status', choices.civilStatuses, values, errors, { col: 'col-md-3' }) %>
+    <%- f.select('disability', 'Disability', choices.disability, values, errors, { col: 'col-md-4' }) %>
+    <%- f.text('contact', 'Contact', values, errors, { col: 'col-md-8', placeholder: 'Phone number, preferably. Any other helpful contact information.' }) %>
+    <%- f.text('location', 'Village or area', values, errors, { col: 'col-md-6' }) %>
+    <%- f.select('projectId', 'Project', projects.map((p) => ({ value: p.id, label: p.title })), values, errors, { col: 'col-md-6', blank: projects.length ? 'Select…' : 'No projects set up yet' }) %>
+  </div></div>
+
+  <% if (k.kind === 'client') { %>
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Client file</h2>
+    <%- f.text('caseNumber', 'Client file number', values, errors, { col: 'col-md-6', help: 'Your paper file reference, if any. Case numbers are generated automatically when a case is opened.' }) %>
+    <%- f.select('referralSource', 'Heard about paralegal services through', choices.activities, values, errors, { col: 'col-md-6' }) %>
+  </div></div>
+  <% } %>
+  <% if (k.kind === 'defendant') { %>
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Case against</h2>
+    <%- f.select('versusClientId', 'Client this person is in dispute with', clients.map((p) => ({ value: p.id, label: h.fullName(p) })), values, errors, { col: 'col-md-6' }) %>
+  </div></div>
+  <% } %>
+  <% if (k.kind === 'attendee') { %>
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title">Activity</h2>
+    <%- f.select('activity', 'Activity attended', choices.activities, values, errors, { col: 'col-md-6' }) %>
+  </div></div>
+  <% } %>
+
+  <% if (k.kind !== 'defendant') { %>
+  <div class="panel"><div class="panel-body row g-3">
+    <h2 class="panel-title"><i class="bi bi-shield-check"></i> Consent (Data Protection Act 2021)</h2>
+    <p class="small text-body-secondary mb-0">Explain to the person, in a language they understand, why KDLA records their information, who can see it, that it is stored securely on servers outside Zambia (Microsoft Azure), and that they can ask to see, correct or delete it.</p>
+    <%- include('../partials/yesno', { name: 'consentRecord', label: 'Agrees to KDLA recording and storing their information', value: values.consentRecord }) %>
+    <%- include('../partials/yesno', { name: 'consentShare', label: 'Agrees to KDLA sharing their details with a partner organisation when referring them', value: values.consentShare }) %>
+  </div></div>
+  <% } %>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit"><%= isNew ? (thenCase ? 'Save and open a case' : 'Save') : 'Save changes' %></button>
+    <a class="btn btn-outline-secondary" href="<%= isNew ? '/people/' + k.slug : '/people/' + k.slug + '/' + values.id %>">Cancel</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<div class="page-head"><div><h1>Data export</h1><p class="sub">Download a copy of all records for safekeeping or to move to another system.</p></div></div>
+<div class="row g-3" style="max-width: 1000px;">
+  <div class="col-lg-7">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">What is included</h2>
+      <table class="table table-compact mb-3">
+        <tbody>
+        <% for (const [name, n] of Object.entries(counts)) { %><tr><td><%= name %></td><td class="num-col"><%= n %></td></tr><% } %>
+        </tbody>
+      </table>
+      <p class="small text-body-secondary">Passwords and two-step verification secrets are never exported. Attached files are not included; they stay in storage and are listed by name.</p>
+      <form method="post" action="/admin/export" data-confirm="This file contains confidential client information. Store it securely and delete it when no longer needed. Continue?">
+        <%- f.hidden(csrfToken) %>
+        <button class="btn btn-primary" type="submit" data-keep><i class="bi bi-database-down"></i> Download export (JSON)</button>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body small">
+      <h2 class="panel-title">Backups</h2>
+      <p>Azure Cosmos DB also keeps its own automatic backups. You do not need to do anything for those.</p>
+      <p class="mb-0">The download is logged in the audit trail. Keep exported files encrypted or in a locked location, as required by the Data Protection Act 2021.</p>
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

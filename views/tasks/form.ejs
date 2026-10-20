@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<div class="page-head"><div><div class="crumbs"><a href="/tasks">Tasks and hearings</a></div><h1><%= isNew ? 'New task or hearing' : 'Edit task' %></h1></div></div>
+<% if (Object.keys(errors).length) { %><div class="alert alert-danger" role="alert">Please correct the highlighted fields.</div><% } %>
+<form method="post" action="<%= isNew ? '/tasks' : '/tasks/' + values.id %>" style="max-width: 820px;" novalidate>
+  <%- f.hidden(csrfToken) %>
+  <div class="panel"><div class="panel-body row g-3">
+    <%- f.text('title', 'What needs to happen', values, errors, { required: true, maxlength: 200, placeholder: 'e.g. Mediation with the headman at Fisenge' }) %>
+    <%- f.select('type', 'Type', choices.taskTypes, values, errors, { required: true, col: 'col-md-4', blank: false }) %>
+    <%- f.text('dueDate', 'Date', values, errors, { type: 'date', required: true, col: 'col-md-4' }) %>
+    <%- f.text('dueTime', 'Time (optional)', values, errors, { type: 'time', col: 'col-md-4' }) %>
+    <%- f.select('assigneeId', 'Responsible', users.map((u) => ({ value: u.id, label: u.fullName || u.username })), values, errors, { required: true, col: 'col-md-6' }) %>
+    <%- f.text('location', 'Where', values, errors, { col: 'col-md-6', placeholder: 'e.g. Kitwe Local Court' }) %>
+    <%- f.select('caseId', 'Case (optional)', cases.map((c) => ({ value: c.id, label: c.caseNumber + ' · ' + c.heading })), values, errors, { blank: 'Not linked to a case' }) %>
+    <%- f.textarea('notes', 'Notes', values, errors, { rows: 3 }) %>
+  </div></div>
+  <div class="d-flex flex-wrap gap-2 mt-3">
+    <button class="btn btn-primary" type="submit"><%= isNew ? 'Save' : 'Save changes' %></button>
+    <a class="btn btn-outline-secondary" href="<%= values.caseId ? '/cases/' + values.caseId + '#tasks' : '/tasks' %>">Cancel</a>
+  </div>
+</form>
+<% if (!isNew) { %>
+<form method="post" action="/tasks/<%= values.id %>/delete" class="mt-3" data-confirm="Delete this task?">
+  <%- f.hidden(csrfToken) %>
+  <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete task</button>
+</form>
+<% } %>
+<%- include('../partials/footer') %>

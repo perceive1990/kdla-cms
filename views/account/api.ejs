@@ -1,0 +1,77 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <h1>API access</h1>
+    <p class="sub">Let other programs, scripts and reports (for example Power BI) work with the case management system on your behalf.</p>
+  </div>
+  <div><a class="btn btn-outline-secondary" href="/api/docs"><i class="bi bi-book" aria-hidden="true"></i> API documentation</a></div>
+</div>
+
+<div class="row g-3" style="max-width: 1100px;">
+  <div class="col-lg-7">
+    <% if (!apiEnabled) { %>
+      <div class="callout mb-3">The API is switched off for this installation (setting API_ENABLED=false).</div>
+    <% } %>
+
+    <% if (newToken) { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title text-success"><i class="bi bi-check-circle" aria-hidden="true"></i> Token "<%= newToken.label %>" created</h2>
+      <p>Copy it now and keep it somewhere safe, such as a password manager. It will not be shown again. Anyone who has it can act as you until <%= h.fmtDate(newToken.expiresAt) %>.</p>
+      <div class="border rounded p-3 mb-2 token-new user-select-all" id="new-token"><%= newToken.token %></div>
+      <button class="btn btn-outline-primary btn-sm" type="button" data-copy="new-token"><i class="bi bi-clipboard" aria-hidden="true"></i> Copy token</button>
+      <p class="small text-body-secondary mt-3 mb-0">Send it with each request as the header <code>Authorization: Bearer</code> followed by the token.</p>
+    </div></div>
+    <% } %>
+
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Your tokens</h2>
+      <% if (!tokens.length) { %>
+        <p class="text-body-secondary mb-0">You have no API tokens. Programs that sign in with your username and password get a token that lasts <%= config.api.tokenHours %> hours; those appear here too.</p>
+      <% } else { %>
+      <div class="table-wrap">
+        <table class="table table-compact">
+          <thead><tr><th>Name</th><th>Type</th><th>Expires</th><th>Last used</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>
+            <% for (const t of tokens) { %>
+            <tr>
+              <td><div class="cell-strong"><%= t.label %></div><div class="text-body-secondary small">Ends in <code><%= t.hint %></code></div></td>
+              <td><%= t.kind === 'personal' ? 'Personal' : 'Sign-in' %></td>
+              <td class="nowrap"><%= h.fmtDate(t.expiresAt) %></td>
+              <td class="nowrap"><%= t.lastUsedAt ? h.fmtDateTime(t.lastUsedAt) : 'Not yet' %></td>
+              <td class="text-end">
+                <form method="post" action="/account/api/tokens/<%= t.id %>/revoke" data-confirm="Revoke &quot;<%= t.label %>&quot;? Anything using it will stop working.">
+                  <%- f.hidden(csrfToken) %>
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
+                </form>
+              </td>
+            </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+    </div></div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Create a personal token</h2>
+      <% if (blocked) { %>
+        <p class="mb-0">Finish setting up your account first (new password and, if required, two-step verification).</p>
+      <% } else if (apiEnabled) { %>
+      <p class="small text-body-secondary">For a report or script that runs on its own. It can do everything you can do, so give it a clear name and the shortest life that works.</p>
+      <form method="post" action="/account/api/tokens" class="row g-3" novalidate>
+        <%- f.hidden(csrfToken) %>
+        <%- f.text('label', 'Name', values, errors, { required: true, maxlength: 80, placeholder: 'For example: Power BI donor report' }) %>
+        <%- f.select('days', 'Ends after', dayChoices.map((d) => ({ value: d, label: `${d} days` })), values, errors, { required: true, blank: false }) %>
+        <%- f.text('password', 'Your password, to confirm', {}, errors, { type: 'password', required: true, autocomplete: 'current-password' }) %>
+        <div class="col-12"><button class="btn btn-primary" type="submit"><i class="bi bi-key" aria-hidden="true"></i> Create token</button></div>
+      </form>
+      <% } %>
+    </div></div>
+    <div class="panel"><div class="panel-body small text-body-secondary">
+      All tokens stop working when you change your password, turn two-step verification on or off, or sign out other devices, and when an administrator disables or resets your account. What a program does with your token is recorded in the audit trail as done by you through the API.
+    </div></div>
+  </div>
+</div>
+<%- include('../partials/footer') %>

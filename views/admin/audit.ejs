@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+<% const byId = Object.fromEntries(users.map((u) => [u.id, u])); %>
+<% const links = { cases: '/cases/', reports: '/reports/', referrals: '/referrals/', stakeholders: '/stakeholders/', rooms: '/rooms/', tasks: '/tasks/' }; %>
+<div class="page-head">
+  <div><h1>Audit trail</h1><p class="sub">Who did what, and when. Entries cannot be edited<%= retention ? ' and are kept for ' + retention + ' days' : '' %>.</p></div>
+</div>
+<form class="filters" method="get" action="/admin/audit">
+  <select class="form-select" name="userId" aria-label="Person" data-autosubmit>
+    <option value="">Everyone</option>
+    <% for (const u of users) { %><option value="<%= u.id %>"<%= query.userId === u.id ? ' selected' : '' %>><%= u.fullName || u.username %></option><% } %>
+  </select>
+  <select class="form-select" name="action" aria-label="Action" data-autosubmit>
+    <option value="">All actions</option>
+    <% for (const a of actions) { %><option value="<%= a %>"<%= query.action === a ? ' selected' : '' %>><%= a.replace('_', ' ') %></option><% } %>
+  </select>
+  <select class="form-select" name="entity" aria-label="Record type" data-autosubmit>
+    <option value="">All record types</option>
+    <% for (const e of entities) { %><option value="<%= e %>"<%= query.entity === e ? ' selected' : '' %>><%= e %></option><% } %>
+  </select>
+  <input class="form-control" type="date" name="from" value="<%= query.from || '' %>" aria-label="From date">
+  <input class="form-control" type="date" name="to" value="<%= query.to || '' %>" aria-label="To date">
+  <% if (query.entityId) { %><input type="hidden" name="entityId" value="<%= query.entityId %>"><% } %>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+  <% if (Object.keys(query).some((k) => k !== 'page' && query[k])) { %><a class="btn btn-link" href="/admin/audit">Clear</a><% } %>
+</form>
+<% if (query.entityId) { %><p class="small">Showing entries for one record. <a href="/admin/audit">Show all</a></p><% } %>
+<% if (!entries.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-clock-history"></i>No entries match.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-compact align-middle">
+    <thead><tr><th>When</th><th>Who</th><th>Action</th><th>What</th><th class="d-none d-md-table-cell">From</th></tr></thead>
+    <tbody>
+    <% for (const e of entries) { %>
+      <tr class="<%= e.action === 'login_failed' ? 'table-warning' : '' %>">
+        <td class="nowrap"><%= h.fmtDateTime(e.at) %></td>
+        <td><%= byId[e.userId] ? (byId[e.userId].fullName || byId[e.userId].username) : (e.username || '—') %></td>
+        <td><span class="tag tag-muted"><%= String(e.action).replace('_', ' ') %></span><% if (e.via === 'api') { %> <span class="tag" title="Done through the API">API</span><% } %></td>
+        <td><%= e.summary %><% if (e.entityId && links[e.entity] && e.action !== 'delete') { %> <a class="small" href="<%= links[e.entity] + e.entityId %>">open</a><% } %></td>
+        <td class="d-none d-md-table-cell small text-body-secondary"><%= e.ip %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

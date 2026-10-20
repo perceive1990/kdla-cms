@@ -1,0 +1,62 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs d-print-none"><a href="/reports">Activity reports</a></div>
+    <h1><%= r.heading %></h1>
+    <p class="sub"><%= r.activityType %> · <%= h.fmtDate(r.date) %><%= r.location ? ' · ' + r.location : '' %><%= r.district ? ' · ' + r.district : '' %><%= r.activityNumber ? ' · Activity ' + r.activityNumber : '' %></p>
+  </div>
+  <div class="d-flex gap-2 d-print-none">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <a class="btn btn-outline-primary" href="/reports/<%= r.id %>/attendees"><i class="bi bi-person-lines-fill"></i> Add attendance register</a>
+    <a class="btn btn-primary" href="/reports/<%= r.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <% for (const [label, key] of [['Introduction', 'introduction'], ['Objectives', 'objectives'], ['Implementation of the activity', 'implementation'], ['Immediate results', 'immediateResults'], ['Challenges', 'challenges'], ['Recommendations', 'recommendations']]) { %>
+      <% if (r[key]) { %>
+      <div class="panel"><div class="panel-body">
+        <h2 class="panel-title"><%= label %></h2>
+        <p class="prose mb-0"><%= r[key] %></p>
+      </div></div>
+      <% } %>
+    <% } %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Files</h2>
+      <%- include('../partials/attachments', { list: r.attachments, entity: 'reports', docId: r.id, users }) %>
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Participation</h2>
+      <dl class="dl dl-tight">
+        <% for (const b of byCategory) { %><dt><%= b.label %></dt><dd class="text-end"><%= b.count %></dd><% } %>
+        <dt>With a disability</dt><dd class="text-end"><%= disabledCount %></dd>
+        <dt>Registered attendees</dt><dd class="text-end fw-semibold"><%= attendees.length %></dd>
+        <% if (r.otherParticipants) { %><dt>Other participants</dt><dd class="text-end"><%= r.otherParticipants %></dd><% } %>
+      </dl>
+    </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Attendees</h2>
+      <% if (!attendees.length) { %><p class="text-body-secondary mb-2">None registered.</p><a class="small" href="/reports/<%= r.id %>/attendees">Add the attendance register</a><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const a of attendees) { %><li class="py-1"><a href="/people/attendees/<%= a.id %>"><%= h.fullName(a) %></a> <span class="text-body-secondary small"><%= a.ageCategory %></span></li><% } %>
+      </ul>
+    </div></div>
+    <div class="panel"><div class="panel-body small">
+      <dl class="dl" style="grid-template-columns: 110px 1fr;">
+        <dt>Compiled by</dt><dd><%= users[r.compiledById] ? (users[r.compiledById].fullName || users[r.compiledById].username) : '—' %></dd>
+        <dt>Project</dt><dd><%= project ? project.title : '—' %></dd>
+        <dt>Last updated</dt><dd><%= h.fmtDateTime(r.updatedAt) %></dd>
+      </dl>
+    </div></div>
+    <% if (user.role === 'admin') { %>
+    <form method="post" action="/reports/<%= r.id %>/delete" class="mt-3 d-print-none" data-confirm="Delete this report and its files?">
+      <%- f.hidden(csrfToken) %>
+      <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash"></i> Delete report</button>
+    </form>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/footer') %>

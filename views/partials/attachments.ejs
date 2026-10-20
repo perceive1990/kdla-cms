@@ -1,0 +1,19 @@
+<%# expects: list (attachments), entity ('cases'|'reports'), docId, users %>
+<% if (list && list.length) { %>
+<ul class="list-unstyled mb-0">
+  <% for (const a of list) { %>
+  <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+    <i class="bi bi-paperclip text-muted"></i>
+    <a href="/files/<%= entity %>/<%= docId %>/<%= a.id %>" target="_blank" rel="noopener"><%= a.name %></a>
+    <span class="text-muted small"><%= h.fmtBytes(a.size) %> · <%= h.fmtDate(a.uploadedAt) %><%= users && users[a.uploadedBy] ? ' · ' + (users[a.uploadedBy].fullName || users[a.uploadedBy].username) : '' %></span>
+    <a class="ms-auto small" href="/files/<%= entity %>/<%= docId %>/<%= a.id %>?download=1">Download</a>
+    <form method="post" action="/files/<%= entity %>/<%= docId %>/<%= a.id %>/delete" data-confirm="Remove <%= a.name %>?" class="d-print-none">
+      <%- f.hidden(csrfToken) %>
+      <button class="btn btn-link btn-sm text-danger p-0" type="submit" aria-label="Remove <%= a.name %>"><i class="bi bi-x-lg"></i></button>
+    </form>
+  </li>
+  <% } %>
+</ul>
+<% } else { %>
+<p class="text-muted mb-0">No files attached.</p>
+<% } %>

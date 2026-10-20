@@ -1,0 +1,11 @@
+<%- include('partials/header') %>
+<div class="<%= user ? '' : 'login-wrap' %>">
+  <div class="panel" style="max-width: 640px;">
+    <div class="panel-body">
+      <h1 class="h4"><%= title %></h1>
+      <p class="prose mb-3"><%= message %></p>
+      <a class="btn btn-primary" href="/">Go to the dashboard</a>
+    </div>
+  </div>
+</div>
+<%- include('partials/footer') %>

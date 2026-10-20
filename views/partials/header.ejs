@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme-mode="<%= theme.mode %>" data-bs-theme="<%= theme.mode === 'dark' ? 'dark' : 'light' %>" data-accent="<%= theme.accent %>" data-text-size="<%= theme.textSize %>">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <meta name="theme-color" content="#1f6b3a">
+  <title><%= title ? title + ' · ' : '' %><%= config.appName %></title>
+  <script src="/static/js/theme.js?v=<%= assetVersion %>"></script>
+  <link rel="icon" type="image/png" href="/static/images/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/images/icon-192.png">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=<%= assetVersion %>">
+</head>
+<body>
+<a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-light" href="#main">Skip to content</a>
+<% if (user) { %>
+<header class="topbar d-print-none">
+  <button class="btn btn-link text-white d-lg-none p-0 me-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidenav" aria-controls="sidenav" aria-label="Open menu">
+    <i class="bi bi-list fs-3"></i>
+  </button>
+  <a class="brand" href="/">
+    <img src="/static/images/logo.jpg" alt="" width="34" height="28">
+    <span><%= config.orgName %> <span class="d-none d-sm-inline fw-normal opacity-75">Case Management</span></span>
+  </a>
+  <form class="topbar-search d-none d-md-flex" action="/search" method="get" role="search">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input class="form-control form-control-sm" type="search" name="q" placeholder="Search cases, clients, NRC…" aria-label="Search" value="<%= path === '/search' ? (query.q || '') : '' %>">
+  </form>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <button class="icon-btn" type="button" id="theme-toggle" data-mode="<%= theme.mode %>" aria-label="Switch between light and dark mode" title="Light or dark mode">
+      <i class="bi bi-moon-stars" aria-hidden="true"></i>
+    </button>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-person-circle" aria-hidden="true"></i> <span class="d-none d-sm-inline"><%= user.fullName || user.username %></span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><span class="dropdown-item-text small text-body-secondary"><%= user.username %> · <%= user.role === 'admin' ? 'Administrator' : 'Officer' %></span></li>
+        <li><a class="dropdown-item" href="/account/appearance"><i class="bi bi-palette"></i> Appearance</a></li>
+        <li><a class="dropdown-item" href="/account/security"><i class="bi bi-shield-lock"></i> Password and security</a></li>
+        <% if (config.api.enabled) { %><li><a class="dropdown-item" href="/account/api"><i class="bi bi-key"></i> API access</a></li><% } %>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <form action="/logout" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i> Log out</button>
+          </form>
+        </li>
+      </ul>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="offcanvas-lg offcanvas-start sidenav d-print-none" tabindex="-1" id="sidenav" aria-label="Main">
+    <div class="offcanvas-header d-lg-none">
+      <strong><%= config.orgName %></strong>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidenav" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body flex-column">
+      <%
+        const counts = locals.navCounts || {};
+        const nav = [
+          { href: '/', icon: 'speedometer2', label: 'Dashboard', exact: true },
+          { href: '/tasks', icon: 'calendar-check', label: 'Tasks and hearings', badge: counts.overdue },
+          { href: '/cases', icon: 'folder2-open', label: 'Cases' },
+          { href: '/referrals', icon: 'arrow-left-right', label: 'Referrals' },
+          { href: '/conflicts', icon: 'exclamation-diamond', label: 'Conflict check', exact: true },
+          { section: 'Beneficiaries' },
+          { href: '/people/clients', icon: 'person-vcard', label: 'Clients' },
+          { href: '/people/defendants', icon: 'person-x', label: 'Other parties' },
+          { href: '/people/attendees', icon: 'people', label: 'Activity attendees' },
+          { href: '/people', icon: 'list-ul', label: 'All beneficiaries', exact: true },
+          { section: 'Programmes' },
+          { href: '/reports', icon: 'journal-text', label: 'Activity reports' },
+          { href: '/statistics', icon: 'bar-chart', label: 'Statistics' },
+          { href: '/stakeholders', icon: 'building', label: 'Stakeholders' },
+          { href: '/rooms', icon: 'chat-square-text', label: 'Consultation rooms' },
+        ];
+        if (user.role === 'admin') {
+          nav.push({ section: 'Administration' },
+            { href: '/admin/users', icon: 'person-gear', label: 'Staff accounts' },
+            { href: '/admin/projects', icon: 'kanban', label: 'Projects' },
+            { href: '/admin/audit', icon: 'clock-history', label: 'Audit trail' },
+            { href: '/admin/export', icon: 'database-down', label: 'Data export' });
+        }
+      %>
+      <ul class="nav flex-column">
+        <% for (const item of nav) { %>
+          <% if (item.section) { %>
+            <li class="nav-section"><%= item.section %></li>
+          <% } else {
+               const active = item.exact ? path === item.href : (path === item.href || path.startsWith(item.href + '/'));
+          %>
+            <li class="nav-item">
+              <a class="nav-link<%= active ? ' active' : '' %>" href="<%= item.href %>"<%- active ? ' aria-current="page"' : '' %>>
+                <i class="bi bi-<%= item.icon %>" aria-hidden="true"></i> <%= item.label %>
+                <% if (item.badge) { %><span class="badge rounded-pill text-bg-danger count" title="Overdue"><%= item.badge %><span class="visually-hidden"> overdue</span></span><% } %>
+              </a>
+            </li>
+          <% } %>
+        <% } %>
+      </ul>
+      <form class="d-md-none mt-3 px-2" action="/search" method="get" role="search">
+        <input class="form-control form-control-sm" type="search" name="q" placeholder="Search…" aria-label="Search">
+      </form>
+    </div>
+  </nav>
+  <main class="content" id="main">
+<% } else { %>
+<main class="content content-guest" id="main">
+<% } %>
+    <% for (const fl of flashes) { %>
+      <div class="alert alert-<%= fl.type %> alert-dismissible fade show d-print-none" role="alert">
+        <%= fl.message %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <% } %>

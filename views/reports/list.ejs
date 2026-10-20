@@ -1,0 +1,43 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Activity reports</h1><p class="sub">Community meetings, trainings, radio programmes and other outreach</p></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/reports/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([k]) => k !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
+    <a class="btn btn-primary" href="/reports/new"><i class="bi bi-plus-lg"></i> New report</a>
+  </div>
+</div>
+<form class="filters" method="get" action="/reports" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search reports" aria-label="Search reports">
+  <select class="form-select" name="activityType" aria-label="Activity" data-autosubmit>
+    <option value="">All activities</option>
+    <% for (const s of choices.activities) { %><option<%= query.activityType === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="district" aria-label="District" data-autosubmit>
+    <option value="">All districts</option>
+    <% for (const s of choices.districts) { %><option<%= query.district === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+</form>
+<% if (!reports.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-journal-text"></i>No reports found. <a href="/reports/new">Write the first report</a>.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Date</th><th>Heading</th><th>Activity</th><th class="d-none d-md-table-cell">District</th><th class="text-end">Attendees</th><th class="d-none d-lg-table-cell">Compiled by</th></tr></thead>
+    <tbody>
+    <% for (const r of reports) { %>
+      <tr>
+        <td class="nowrap"><%= h.fmtDate(r.date) %></td>
+        <td><a class="cell-strong" href="/reports/<%= r.id %>"><%= r.heading %></a><%= r.activityNumber ? '' : '' %></td>
+        <td><%= r.activityType %></td>
+        <td class="d-none d-md-table-cell"><%= r.district %></td>
+        <td class="text-end"><%= (r.attendeeIds || []).length + (r.otherParticipants || 0) %></td>
+        <td class="d-none d-lg-table-cell"><%= users[r.compiledById] ? (users[r.compiledById].fullName || users[r.compiledById].username) : '' %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

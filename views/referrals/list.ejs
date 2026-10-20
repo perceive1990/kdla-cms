@@ -1,0 +1,33 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Referrals</h1><p class="sub">Cases referred to partner organisations, with follow ups</p></div>
+  <a class="btn btn-primary" href="/referrals/new"><i class="bi bi-plus-lg"></i> New referral</a>
+</div>
+<form class="filters" method="get" action="/referrals">
+  <select class="form-select" name="followUp" aria-label="Follow up" data-autosubmit>
+    <option value="">All referrals</option>
+    <% for (const s of choices.followUpNeeds) { %><option<%= query.followUp === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+</form>
+<% if (!referrals.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-arrow-left-right"></i>No referrals found.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Date</th><th>Case</th><th>Referred to</th><th>Follow up</th><th class="text-end">Follow ups done</th></tr></thead>
+    <tbody>
+      <% for (const r of referrals) { const c = cases[r.caseId]; const o = orgs[r.organizationId]; %>
+      <tr>
+        <td class="nowrap"><a href="/referrals/<%= r.id %>"><%= h.fmtDate(r.createdAt) %></a></td>
+        <td><% if (c) { %><a class="cell-strong" href="/cases/<%= c.id %>"><%= c.heading %></a><% if (c.restricted) { %> <i class="bi bi-lock-fill text-warning" title="Confidential"></i><% } %><div class="small text-body-secondary"><%= c.caseNumber %> · <%= c.status %></div><% } else { %><span class="text-body-secondary">Case removed</span><% } %></td>
+        <td><%= o ? o.name : '—' %></td>
+        <td><span class="badge text-bg-<%= r.followUp === 'Needs follow up' ? 'warning' : 'secondary' %>"><%= r.followUp %></span></td>
+        <td class="text-end"><a href="/referrals/<%= r.id %>"><%= (r.followUps || []).length %></a></td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/pager') %>
+<%- include('../partials/footer') %>

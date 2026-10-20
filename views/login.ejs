@@ -1,0 +1,31 @@
+<%- include('partials/header') %>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img class="logo mb-3" src="/static/images/logo.jpg" alt="<%= config.orgName %> logo">
+      <h1 class="h4 mb-1"><%= config.appName %></h1>
+      <p class="text-body-secondary mb-0"><%= config.orgFullName %></p>
+    </div>
+    <div class="panel">
+      <div class="panel-body">
+        <% if (error) { %>
+          <div class="alert alert-danger py-2" role="alert"><%= error %></div>
+        <% } else if (notice) { %>
+          <div class="alert alert-info py-2" role="status"><%= notice %></div>
+        <% } %>
+        <form method="post" action="/login" class="row g-3">
+          <%- f.hidden(csrfToken) %>
+          <input type="hidden" name="next" value="<%= next %>">
+          <%- f.text('username', 'Username', { username }, {}, { required: true, autocomplete: 'username' }) %>
+          <%- f.text('password', 'Password', {}, {}, { type: 'password', required: true, autocomplete: 'current-password' }) %>
+          <div class="col-12 d-grid">
+            <button type="submit" class="btn btn-primary">Log in</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <p class="text-center text-body-secondary small mt-3 mb-0">Forgot your password? Ask an administrator to reset it.<br>
+      This system holds confidential client information. Authorised staff only.</p>
+  </div>
+</div>
+<%- include('partials/footer') %>
