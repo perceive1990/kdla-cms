@@ -97,14 +97,21 @@ fi
 CLIENT_ID=$(az identity show --name "$IDENTITY" --resource-group "$RG" --query clientId -o tsv)
 PRINCIPAL_ID=$(az identity show --name "$IDENTITY" --resource-group "$RG" --query principalId -o tsv)
 
-SUBJECT="repo:${REPO}:ref:refs/heads/${BRANCH}"
-CREDENTIAL="github-$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9_-' '-')"
-FC_ACTION=create
-az identity federated-credential show --name "$CREDENTIAL" --identity-name "$IDENTITY" --resource-group "$RG" \
-  --output none 2>/dev/null && FC_ACTION=update
-az identity federated-credential "$FC_ACTION" --name "$CREDENTIAL" --identity-name "$IDENTITY" --resource-group "$RG" \
-  --issuer "https://token.actions.githubusercontent.com" --subject "$SUBJECT" \
-  --audiences "api://AzureADTokenExchange" --output none
+# GitHub names the repository in its sign-in token either by name (repo:owner/name) or, for newer
+# repositories, with its permanent numeric ids too (repo:owner@id/name@id). Both are accepted.
+OWNER_ID=$(gh api "repos/$REPO" --jq .owner.id)
+REPO_ID=$(gh api "repos/$REPO" --jq .id)
+SAFE_BRANCH="$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9_-' '-')"
+add_credential() {
+  local name="$1" subject="$2" action=create
+  az identity federated-credential show --name "$name" --identity-name "$IDENTITY" --resource-group "$RG" \
+    --output none 2>/dev/null && action=update
+  az identity federated-credential "$action" --name "$name" --identity-name "$IDENTITY" --resource-group "$RG" \
+    --issuer "https://token.actions.githubusercontent.com" --subject "$subject" \
+    --audiences "api://AzureADTokenExchange" --output none
+}
+add_credential "github-$SAFE_BRANCH" "repo:${REPO}:ref:refs/heads/${BRANCH}"
+add_credential "github-ids-$SAFE_BRANCH" "repo:${REPO%%/*}@${OWNER_ID}/${REPO#*/}@${REPO_ID}:ref:refs/heads/${BRANCH}"
 
 echo "Allowing the identity to deploy to $APP only..."
 ROLE_OK=no

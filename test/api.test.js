@@ -443,6 +443,15 @@ test('stakeholders, referrals and follow ups', async () => {
   r = await api('POST', '/stakeholders', { token: o1, body: { name: 'Legal Aid Board', contactPerson: 'Mrs Zulu', phone: '0977000000' } });
   assert.strictEqual(r.status, 201);
   const org = r.json;
+  // Partner organisations on an activity report
+  r = await api('POST', '/reports', {
+    token: o1, body: { activityType: 'Training Program', heading: 'Paralegal training', introduction: 'I', objectives: 'O', implementation: 'M', partnerIds: [org.id] },
+  });
+  assert.strictEqual(r.status, 201, r.text);
+  assert.deepStrictEqual(r.json.partnerIds, [org.id]);
+  r = await api('POST', '/reports', { token: o1, body: { activityType: 'Training Program', heading: 'X', introduction: 'I', objectives: 'O', implementation: 'M', partnerIds: ['nope'] } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.partnerIds);
   r = await api('POST', '/referrals', { token: o1, body: { caseId, organizationId: org.id, reason: 'Needs court representation' } });
   assert.strictEqual(r.status, 201, r.text);
   const ref = r.json;

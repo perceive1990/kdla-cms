@@ -5,7 +5,7 @@
 #   - (optional) Storage account for case file attachments
 #
 # Easiest on Windows: open Azure Cloud Shell (Bash) in the Azure portal, upload the project zip,
-#   unzip -o kdla-case-management-v2.2.1.zip && cd kdla-cms && bash infra/provision.sh
+#   unzip -o kdla-case-management-v2.2.2.zip && cd kdla-cms && bash infra/provision.sh
 # To deploy from GitHub afterwards (every push to main), run infra/github-setup.sh as well (see README).
 # Elsewhere: install the Azure CLI (https://aka.ms/azcli), run `az login`, then run this from the project folder.
 #
@@ -38,6 +38,14 @@ APP="${APP:-${PREFIX}-${SUFFIX}}"           # becomes https://<APP>.azurewebsite
 STORAGE="${STORAGE:-kdlacms${SUFFIX}}"
 
 echo "Subscription: $(az account show --query name -o tsv)"
+
+# New subscriptions must register each Azure service before first use; otherwise Azure answers "SubscriptionNotFound".
+for ns in Microsoft.DocumentDB Microsoft.Web Microsoft.Storage; do
+  if [ "$(az provider show --namespace "$ns" --query registrationState -o tsv 2>/dev/null)" != "Registered" ]; then
+    echo "Switching on $ns for this subscription (one time, a minute or two)..."
+    az provider register --namespace "$ns" --wait --output none
+  fi
+done
 echo "Resource group: $RG ($LOCATION)"
 az group create --name "$RG" --location "$LOCATION" --output none
 

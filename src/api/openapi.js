@@ -93,7 +93,8 @@ const reportFields = {
   challenges: S('Challenges'),
   recommendations: S('Recommendations'),
   attendeeIds: ids('registered attendees (people of kind "attendee")'),
-  otherParticipants: I('Participants who were not registered individually', { minimum: 0 }),
+  partnerIds: ids('partner organisations (stakeholders) involved in the activity'),
+  otherParticipants: I('Head count of participants not registered individually', { minimum: 0 }),
   compiledById: S('Who compiled the report (a user id). Defaults to you'),
 };
 

@@ -33,6 +33,16 @@
         <% } %>
       </ul>
     </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Activities as a partner (<%= reports.length %>)</h2>
+      <% if (!reports.length) { %><p class="text-muted mb-0">None yet.</p><% } %>
+      <ul class="list-unstyled mb-0">
+        <% for (const rp of reports) { %>
+        <li class="py-2 border-bottom"><a href="/reports/<%= rp.id %>"><%= rp.heading %></a>
+          <div class="small text-muted"><%= h.fmtDate(rp.date) %> · <%= rp.activityType %></div></li>
+        <% } %>
+      </ul>
+    </div></div>
   </div>
 </div>
 <%- include('../partials/footer') %>

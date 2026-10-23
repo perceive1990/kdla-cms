@@ -12,12 +12,13 @@ const {
 const router = express.Router();
 
 async function formLists(db) {
-  const [attendees, users, projects] = await Promise.all([
+  const [attendees, users, projects, partners] = await Promise.all([
     db.find('people', { where: { kind: 'attendee' }, fields: ['id', 'firstName', 'lastName', 'activity'], orderBy: ['lastName', 'ASC'] }),
     db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
     db.find('projects', { fields: ['id', 'title'], orderBy: ['title', 'ASC'] }),
+    db.find('stakeholders', { fields: ['id', 'name'], orderBy: ['name', 'ASC'] }),
   ]);
-  return { attendees, users, projects };
+  return { attendees, users, projects, partners };
 }
 
 router.get('/', async (req, res) => {
@@ -33,6 +34,7 @@ router.get('/export.csv', async (req, res) => {
   const reports = await req.db.find('reports', { ...svc.reportQuery(req.query), orderBy: ['date', 'ASC'] });
   const users = await mapByIds(req.db, 'users', reports.map((r) => r.compiledById));
   const att = await mapByIds(req.db, 'people', reports.flatMap((r) => r.attendeeIds || []));
+  const orgs = await mapByIds(req.db, 'stakeholders', reports.flatMap((r) => r.partnerIds || []));
   const byCat = (r, cat) => (r.attendeeIds || []).filter((id) => att[id] && att[id].ageCategory === cat).length;
   const disabled = (r) => (r.attendeeIds || []).filter((id) => att[id] && att[id].disability === 'Disabled').length;
   const csv = toCsv([
@@ -42,6 +44,7 @@ router.get('/export.csv', async (req, res) => {
     { label: 'Heading', value: 'heading' },
     { label: 'District', value: 'district' },
     { label: 'Venue', value: 'location' },
+    { label: 'Partner organisations', value: (r) => (r.partnerIds || []).map((id) => orgs[id] && orgs[id].name).filter(Boolean) },
     { label: 'Registered attendees', value: (r) => (r.attendeeIds || []).length },
     ...choices.ageCategories.map((cat) => ({ label: `Attendees: ${cat}`, value: (r) => byCat(r, cat) })),
     { label: 'Attendees with a disability', value: disabled },
@@ -75,8 +78,9 @@ router.get('/:id', async (req, res) => {
   attendees.sort((a, b) => fullName(a).localeCompare(fullName(b)));
   const users = await mapByIds(req.db, 'users', [r.compiledById, ...(r.attachments || []).map((a) => a.uploadedBy)]);
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
+  const partners = Object.values(await mapByIds(req.db, 'stakeholders', r.partnerIds || [])).sort((a, b) => a.name.localeCompare(b.name));
   return res.render('reports/show', {
-    title: r.heading, r, attendees, users, project,
+    title: r.heading, r, attendees, users, project, partners,
     byCategory: tally(attendees, 'ageCategory', choices.ageCategories),
     disabledCount: attendees.filter((a) => a.disability === 'Disabled').length,
   });
