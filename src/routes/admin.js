@@ -1,9 +1,11 @@
 'use strict';
 const express = require('express');
 const config = require('../config');
+const choices = require('../choices');
 const { requireAdmin } = require('../auth');
 const dir = require('../services/directory');
 const adm = require('../services/admin');
+const lists = require('../lists');
 const { pagination, today } = require('../helpers');
 
 const router = express.Router();
@@ -95,6 +97,33 @@ router.post('/projects/:id/delete', async (req, res) => {
   }
   req.flash('success', 'Project deleted.');
   return res.redirect('/admin/projects');
+});
+
+// ---------- Drop-down lists (districts and offices) ----------
+async function listsPage(req, res, extra = {}) {
+  const sections = [];
+  for (const [key, def] of Object.entries(lists.EDITABLE)) {
+    sections.push({
+      key, label: def.label, values: choices[key], used: await lists.usage(req.db, key), usedIn: def.used.map((u) => u[2]).join(' and '),
+    });
+  }
+  res.status(extra.status || 200).render('admin/lists', {
+    title: 'Drop-down lists', sections, errors: {}, drafts: {}, ...extra,
+  });
+}
+
+router.get('/lists', (req, res) => listsPage(req, res));
+
+router.post('/lists/:key', async (req, res) => {
+  const { key } = req.params;
+  if (!lists.EDITABLE[key]) return res.redirect('/admin/lists');
+  const parsed = lists.parseList(req.body.values);
+  if (parsed.error) return listsPage(req, res, { status: 400, errors: { [key]: parsed.error }, drafts: { [key]: req.body.values } });
+  const { added, removed } = await lists.saveList(req, key, parsed.values);
+  const label = lists.EDITABLE[key].label;
+  const parts = [added.length && `added ${added.join(', ')}`, removed.length && `removed ${removed.join(', ')}`].filter(Boolean);
+  req.flash('success', `${label} saved${parts.length ? `: ${parts.join('; ')}` : ''}.`);
+  return res.redirect('/admin/lists');
 });
 
 // ---------- Audit trail ----------

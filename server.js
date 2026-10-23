@@ -4,6 +4,7 @@ const { getDb } = require('./src/db');
 const { createApp } = require('./src/app');
 const { runMigrations } = require('./src/migrations');
 const { ensureBootstrapAdmin } = require('./scripts/lib');
+const { loadLists } = require('./src/lists');
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled promise rejection:', err);
@@ -14,6 +15,7 @@ async function main() {
   await db.init();
   await runMigrations(db);
   await ensureBootstrapAdmin(db);
+  await loadLists(db);
   const app = createApp();
   const server = app.listen(config.port, () => {
     console.log(`${config.appName} listening on port ${config.port} (db: ${config.dbDriver}, env: ${config.isProd ? 'production' : 'development'})`);

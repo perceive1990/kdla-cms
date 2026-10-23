@@ -1,6 +1,6 @@
 {
   "name": "kdla-case-management",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "KDLA Case Management System: Node.js, Express and Azure Cosmos DB (NoSQL), with a JSON REST API",
   "main": "server.js",
   "private": true,
