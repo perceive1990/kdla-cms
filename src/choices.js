@@ -3,7 +3,7 @@
 // Values are stored as text, so existing records keep their value if an option is renamed.
 
 module.exports = {
-  offices: ['Fisenge Office', 'Chief Nkana', 'Kakolo Office', 'Kwancha Office', 'Kitwe Main Office', 'Digital'],
+  offices: ['Fisenge Office', 'Chief Nkana', 'Kakolo Office', 'Kwacha Office', 'Kitwe Main Office', 'Digital'],
 
   districts: ['Lufwanyama District', 'Luanshya District', 'Kitwe District'],
 
