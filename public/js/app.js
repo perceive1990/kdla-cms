@@ -129,6 +129,34 @@
     btn.addEventListener('click', function () { window.print(); });
   });
 
+  // Formatted text boxes (activity reports): fonts, sizes, bold, lists, alignment.
+  if (window.Quill) {
+    var toolbar = [
+      [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
+      [{ header: [2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+      [{ align: [] }],
+      ['link', 'clean'],
+    ];
+    document.querySelectorAll('textarea[data-rich]').forEach(function (source) {
+      var box = document.createElement('div');
+      box.className = 'rich-editor';
+      box.innerHTML = source.value; // already cleaned by the server
+      source.insertAdjacentElement('afterend', box);
+      source.hidden = true;
+      var editor = new window.Quill(box, { theme: 'snow', modules: { toolbar: toolbar } });
+      var label = document.getElementById(source.id + '-label');
+      if (label) {
+        editor.root.setAttribute('aria-labelledby', label.id);
+        label.addEventListener('click', function () { editor.focus(); });
+      }
+      source.form.addEventListener('submit', function () {
+        source.value = editor.getText().trim() ? editor.root.innerHTML : '';
+      });
+    });
+  }
+
   // Copy buttons: data-copy="id of the element whose text is copied"
   document.querySelectorAll('[data-copy]').forEach(function (btn) {
     btn.addEventListener('click', function () {

@@ -248,6 +248,42 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .letter-head img { width: 64px; height: auto; }
 .letter p { margin-bottom: .8rem; }
 
+/* Formatted report text (editor classes) */
+.rich { overflow-wrap: anywhere; }
+.rich > :last-child { margin-bottom: 0; }
+.rich p { margin-bottom: .6rem; }
+.rich h2 { font-size: 1.15rem; margin: .8rem 0 .4rem; }
+.rich h3 { font-size: 1.02rem; margin: .7rem 0 .35rem; }
+.rich ol, .rich ul { padding-left: 1.5rem; margin-bottom: .6rem; }
+.rich li[data-list="bullet"] { list-style-type: disc; }
+.rich li[data-list="ordered"] { list-style-type: decimal; }
+.rich .ql-ui { display: none; }
+.rich .ql-size-small { font-size: .8em; }
+.rich .ql-size-large { font-size: 1.4em; }
+.rich .ql-size-huge { font-size: 2em; }
+.rich .ql-font-serif { font-family: Georgia, "Times New Roman", serif; }
+.rich .ql-font-monospace { font-family: var(--bs-font-monospace); }
+.rich .ql-align-center { text-align: center; }
+.rich .ql-align-right { text-align: right; }
+.rich .ql-align-justify { text-align: justify; }
+.rich .ql-indent-1 { padding-left: 2em; } .rich .ql-indent-2 { padding-left: 4em; } .rich .ql-indent-3 { padding-left: 6em; }
+.rich-editor { background: var(--surface); color: var(--ink); }
+.ql-toolbar.ql-snow { border-color: var(--line); border-radius: 6px 6px 0 0; background: var(--surface-2); }
+.ql-container.ql-snow { height: auto; border-color: var(--line); border-radius: 0 0 6px 6px; font-family: inherit; font-size: 1rem; }
+.ql-editor { min-height: 7rem; }
+.is-invalid + .ql-toolbar, .is-invalid + .ql-toolbar + .ql-container { border-color: var(--bs-danger); }
+[data-bs-theme="dark"] .ql-snow .ql-stroke { stroke: var(--ink); }
+[data-bs-theme="dark"] .ql-snow .ql-fill { fill: var(--ink); }
+[data-bs-theme="dark"] .ql-snow .ql-picker { color: var(--ink); }
+[data-bs-theme="dark"] .ql-snow .ql-picker-options { background: var(--surface); }
+
+/* Photo gallery on activity reports */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .75rem; }
+.gallery-item { display: block; text-decoration: none; color: var(--muted); }
+.gallery-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
+.gallery-caption { display: block; font-size: .78rem; margin-top: .25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media print { .gallery { grid-template-columns: repeat(3, 1fr); } .gallery-item img { break-inside: avoid; } }
+
 /* API documentation and tokens */
 .api-toc { position: sticky; top: 1rem; }
 .api-toc li { padding: .15rem 0; }

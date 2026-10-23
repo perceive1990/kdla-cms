@@ -321,7 +321,22 @@ test('full workflow: client, conflict checks, case, diary, tasks, referral, repo
   r = await a.post(`/reports/${reportId}/attendees`, { 'rows[0][firstName]': 'Bad', 'rows[0][lastName]': 'Row', 'rows[0][ageCategory]': 'Boy', 'rows[0][age]': '30' }, `/reports/${reportId}/attendees`);
   assert.strictEqual(r.status, 400);
   assert.match(r.text, /Row 1:/);
+  // Formatted text and the photo gallery
+  r = await a.req(`/reports/${reportId}/edit`);
+  assert.match(r.text, /\/vendor\/quill\/quill\.js/);
+  assert.match(r.text, /data-rich/);
+  r = await a.postMultipart(`/reports/${reportId}`, {
+    activityType: 'Community Meeting', heading: 'Land rights meeting, Fisenge', date: today(-1), district: 'Kitwe District', location: 'Fisenge hall',
+    introduction: '<p>Intro with <strong>bold</strong> and <span class="ql-size-large">large</span> text<script>x()</script></p>',
+    objectives: 'Objectives', implementation: '<p>Implementation</p>', compiledById: await userId('admin'), attendeeIds: (await db().get('reports', reportId)).attendeeIds,
+  }, [{ name: 'meeting-photo.png', type: 'image/png', content: Buffer.from('89504e470d0a1a0a', 'hex') }], `/reports/${reportId}/edit`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
   r = await a.req(`/reports/${reportId}`);
+  assert.match(r.text, /<strong>bold<\/strong>/);
+  assert.match(r.text, /class="ql-size-large"/);
+  assert.ok(!r.text.includes('x()</script>'));
+  assert.match(r.text, /Photos \(1\)/);
+  assert.match(r.text, /<img src="\/files\/reports\//);
   assert.match(r.text, /Ruth Chanda/);
   assert.match(r.text, /With a disability/);
 

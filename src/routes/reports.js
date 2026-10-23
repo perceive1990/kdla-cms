@@ -4,6 +4,7 @@ const choices = require('../choices');
 const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
 const svc = require('../services/reports');
+const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
   mapByIds, pagination, toCsv, sendCsv, fullName, tally, today,
@@ -18,7 +19,9 @@ async function formLists(db) {
     db.find('projects', { fields: ['id', 'title'], orderBy: ['title', 'ASC'] }),
     db.find('stakeholders', { fields: ['id', 'name'], orderBy: ['name', 'ASC'] }),
   ]);
-  return { attendees, users, projects, partners };
+  return {
+    attendees, users, projects, partners, richEditor: true,
+  };
 }
 
 router.get('/', async (req, res) => {
@@ -49,7 +52,7 @@ router.get('/export.csv', async (req, res) => {
     ...choices.ageCategories.map((cat) => ({ label: `Attendees: ${cat}`, value: (r) => byCat(r, cat) })),
     { label: 'Attendees with a disability', value: disabled },
     { label: 'Other participants (unregistered)', value: 'otherParticipants' },
-    { label: 'Immediate results', value: 'immediateResults' },
+    { label: 'Immediate results', value: (r) => rich.toText(r.immediateResults) },
     { label: 'Compiled by', value: (r) => (users[r.compiledById] ? users[r.compiledById].fullName || users[r.compiledById].username : '') },
   ], reports);
   audit(req, 'export', 'reports', null, `Exported ${reports.length} reports to CSV`);

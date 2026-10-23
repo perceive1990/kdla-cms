@@ -11,6 +11,7 @@ const config = require('./config');
 const choices = require('./choices');
 const helpers = require('./helpers');
 const form = require('./form');
+const rich = require('./richtext');
 const { getDb } = require('./db');
 const DbSessionStore = require('./session-store');
 const { flash, csrf, multipart, safeBack } = require('./middleware');
@@ -51,7 +52,7 @@ function createApp() {
   // Base values every page needs, set first so even error pages can render.
   app.use((req, res, next) => {
     Object.assign(res.locals, {
-      config, choices, h: helpers, f: form, path: req.path, query: req.query, title: '',
+      config, choices, h: helpers, f: form, rich, path: req.path, query: req.query, title: '',
       user: null, flashes: [], csrfToken: '', assetVersion: version, theme: themeOf(null),
     });
     req.db = db;
@@ -79,6 +80,7 @@ function createApp() {
   const staticOpts = { maxAge: config.isProd ? '30d' : 0, immutable: config.isProd };
   app.use('/static', express.static(path.join(ROOT, 'public'), staticOpts));
   app.use('/vendor/bootstrap', express.static(path.join(ROOT, 'node_modules', 'bootstrap', 'dist'), staticOpts));
+  app.use('/vendor/quill', express.static(path.join(ROOT, 'node_modules', 'quill', 'dist'), staticOpts));
   app.use('/vendor/bootstrap-icons', express.static(path.join(ROOT, 'node_modules', 'bootstrap-icons', 'font'), staticOpts));
 
   app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /\n'));

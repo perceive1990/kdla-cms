@@ -18,11 +18,25 @@
       <% if (r[key]) { %>
       <div class="panel"><div class="panel-body">
         <h2 class="panel-title"><%= label %></h2>
-        <p class="prose mb-0"><%= r[key] %></p>
+        <div class="rich"><%- rich.toHtml(r[key]) %></div>
       </div></div>
       <% } %>
     <% } %>
+    <% const photos = (r.attachments || []).filter((a) => /^image\/(png|jpe?g|gif|webp)$/.test(a.type || '')); %>
+    <% if (photos.length) { %>
     <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Photos (<%= photos.length %>)</h2>
+      <div class="gallery">
+        <% for (const p of photos) { %>
+        <a class="gallery-item" href="/files/reports/<%= r.id %>/<%= p.id %>" target="_blank" rel="noopener">
+          <img src="/files/reports/<%= r.id %>/<%= p.id %>" alt="<%= p.name %>" loading="lazy">
+          <span class="gallery-caption"><%= p.name.replace(/\.[a-z0-9]+$/i, '') %></span>
+        </a>
+        <% } %>
+      </div>
+    </div></div>
+    <% } %>
+    <div class="panel d-print-none"><div class="panel-body">
       <h2 class="panel-title">Files</h2>
       <%- include('../partials/attachments', { list: r.attachments, entity: 'reports', docId: r.id, users }) %>
     </div></div>
