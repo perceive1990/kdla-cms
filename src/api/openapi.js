@@ -78,6 +78,7 @@ const taskFields = {
   notes: S('Notes'),
 };
 
+const RICH = 'Plain text, or formatted HTML (p, strong, em, u, lists, h2, h3, links, and the editor classes ql-size-*, ql-font-* and ql-align-*); anything else is removed.';
 const reportFields = {
   activityType: E(choices.activities),
   heading: S('Heading'),
@@ -86,12 +87,12 @@ const reportFields = {
   district: E(['', ...choices.districts]),
   location: S('Venue'),
   projectId: S('Project'),
-  introduction: S('Introduction'),
-  objectives: S('Objectives'),
-  implementation: S('How the activity was carried out'),
-  immediateResults: S('Immediate results'),
-  challenges: S('Challenges'),
-  recommendations: S('Recommendations'),
+  introduction: S(`Introduction. ${RICH}`),
+  objectives: S(`Objectives. ${RICH}`),
+  implementation: S(`How the activity was carried out. ${RICH}`),
+  immediateResults: S(`Immediate results. ${RICH}`),
+  challenges: S(`Challenges. ${RICH}`),
+  recommendations: S(`Recommendations. ${RICH}`),
   attendeeIds: ids('registered attendees (people of kind "attendee")'),
   partnerIds: ids('partner organisations (stakeholders) involved in the activity'),
   otherParticipants: I('Head count of participants not registered individually', { minimum: 0 }),

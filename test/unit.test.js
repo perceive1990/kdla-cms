@@ -61,3 +61,18 @@ test('dates, names, NRC and age categories', () => {
   assert.strictEqual(ageCategoryProblem(17, 'Girl'), null);
   assert.strictEqual(ageCategoryProblem(null, 'Man'), null);
 });
+
+test('formatted report text keeps safe formatting and removes anything else', () => {
+  const rich = require('../src/richtext');
+  const dirty = '<p>Hello <script>alert(1)</script><span class="ql-size-large evil" onclick="steal()">big</span> '
+    + '<a href="javascript:alert(1)">bad</a> <a href="https://kdla.example">good</a><img src="x" onerror="y"></p><ol><li data-list="bullet">one</li></ol>';
+  const clean = rich.clean(dirty);
+  assert.ok(!/script|onclick|onerror|javascript:|<img|evil/.test(clean), clean);
+  assert.match(clean, /class="ql-size-large"/);
+  assert.match(clean, /<li data-list="bullet">one<\/li>/);
+  assert.match(clean, /href="https:\/\/kdla\.example" rel="noopener noreferrer" target="_blank"/);
+  assert.strictEqual(rich.clean('<p><br></p>'), '', 'an empty editor counts as empty');
+  assert.strictEqual(rich.clean('Plain text <b>stays</b> text'), 'Plain text <b>stays</b> text');
+  assert.strictEqual(rich.toHtml('Line one\nline two\n\nNext <para>'), '<p>Line one<br>line two</p><p>Next &lt;para&gt;</p>');
+  assert.strictEqual(rich.toText('<p>A &amp; B</p><ul><li data-list="bullet">x</li></ul>'), 'A & B\nx');
+});

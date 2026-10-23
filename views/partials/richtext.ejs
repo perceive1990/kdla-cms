@@ -1,0 +1,7 @@
+<%# Formatted text box (fonts, sizes, bold, lists). The editor writes HTML into the hidden textarea on save;
+    without JavaScript the textarea itself is shown and plain text still works. %>
+<div class="col-12">
+  <label class="form-label" id="<%= name %>-label" for="<%= name %>"><%= label %><% if (locals.required) { %> <span class="text-danger" aria-hidden="true">*</span><% } %></label>
+  <textarea class="form-control rich-source<%= errors[name] ? ' is-invalid' : '' %>" id="<%= name %>" name="<%= name %>" rows="<%= locals.rows || 5 %>" data-rich<%= locals.required ? ' required' : '' %>><%= rich.toHtml(values[name]) %></textarea>
+  <% if (errors[name]) { %><div class="invalid-feedback d-block"><%= errors[name] %></div><% } %>
+</div>

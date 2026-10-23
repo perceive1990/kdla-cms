@@ -8,6 +8,9 @@ const {
 } = require('../helpers');
 const { removeAttachments } = require('./attachments');
 const { notFound } = require('./errors');
+const rich = require('../richtext');
+
+const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'challenges', 'recommendations'];
 
 function readReport(body) {
   return {
@@ -18,12 +21,13 @@ function readReport(body) {
     district: str(body.district),
     location: str(body.location, 200),
     projectId: str(body.projectId),
-    introduction: str(body.introduction, 4000),
-    objectives: str(body.objectives, 2000),
-    implementation: str(body.implementation, 8000),
-    immediateResults: str(body.immediateResults, 4000),
-    challenges: str(body.challenges, 4000),
-    recommendations: str(body.recommendations, 4000),
+    // Formatted text from the report editor (safe HTML), or plain text.
+    introduction: rich.clean(body.introduction),
+    objectives: rich.clean(body.objectives),
+    implementation: rich.clean(body.implementation),
+    immediateResults: rich.clean(body.immediateResults),
+    challenges: rich.clean(body.challenges),
+    recommendations: rich.clean(body.recommendations),
     attendeeIds: [...new Set(arr(body.attendeeIds))],
     partnerIds: [...new Set(arr(body.partnerIds))],
     otherParticipants: intOrNull(body.otherParticipants),
@@ -147,5 +151,5 @@ async function addAttendees(req, r, rawRows, consent = {}) {
 }
 
 module.exports = {
-  readReport, validateReport, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
+  RICH_FIELDS, readReport, validateReport, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
 };

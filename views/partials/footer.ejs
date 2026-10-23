@@ -3,6 +3,7 @@
 </div>
 <% } %>
 <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<% if (locals.richEditor) { %><script src="/vendor/quill/quill.js"></script><% } %>
 <script src="/static/js/app.js?v=<%= assetVersion %>"></script>
 </body>
 </html>

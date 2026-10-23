@@ -13,6 +13,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <% if (locals.richEditor) { %><link rel="stylesheet" href="/vendor/quill/quill.snow.css"><% } %>
   <link rel="stylesheet" href="/static/css/app.css?v=<%= assetVersion %>">
 </head>
 <body>

@@ -99,8 +99,8 @@ module.exports = {
     return `<div class="${opts.col || 'col-12'}">
   <label class="form-label" for="attachments">${esc(opts.label || 'Attach files')}</label>
   <input class="form-control" type="file" id="attachments" name="attachments" multiple
-    accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.ods,.txt,.csv,.png,.jpg,.jpeg,.webp,.zip">
-  <div class="form-text">Up to 5 files, ${opts.maxMb || 10} MB each. PDF, Word, Excel, images or text.</div>
+    accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.ods,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp,.zip">
+  <div class="form-text">Up to 5 files, ${opts.maxMb || 10} MB each. PDF, Word, Excel, images or text.${opts.help ? ` ${esc(opts.help)}` : ''}</div>
 </div>`;
   },
 
