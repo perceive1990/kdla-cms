@@ -517,3 +517,32 @@ test('admin deletes a case with its diary, tasks and referrals', async () => {
   assert.strictEqual((await db().find('caseNotes', { where: { caseId: ctx.caseId } })).length, 0);
   assert.strictEqual((await db().find('tasks', { where: { caseId: ctx.caseId } })).length, 0);
 });
+
+test('administrators manage the districts and offices lists', async () => {
+  const choices = require('../src/choices');
+  const { loadLists } = require('../src/lists');
+  const before = [...choices.districts];
+  let r = await ctx.admin.req('/admin/lists');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Kitwe District/);
+  r = await ctx.admin.post('/admin/lists/districts', { values: '   \n' }, '/admin/lists');
+  assert.strictEqual(r.status, 400, 'an empty list is refused');
+  r = await ctx.admin.post('/admin/lists/districts', { values: 'Kitwe District\nMufulira District\nkitwe district\n' }, '/admin/lists');
+  assert.strictEqual(r.status, 302);
+  assert.deepStrictEqual(choices.districts, ['Kitwe District', 'Mufulira District'], 'repeats are dropped');
+  // The saved list survives a restart.
+  choices.districts.splice(0, choices.districts.length, ...before);
+  await loadLists(db());
+  assert.deepStrictEqual(choices.districts, ['Kitwe District', 'Mufulira District']);
+  r = await ctx.admin.req('/reports/new');
+  assert.match(r.text, /Mufulira District/);
+  assert.ok(!r.text.includes('<option value="Lufwanyama District"'), 'removed districts are no longer offered');
+  await createUser(db(), { username: 'officer3', password: 'officer-password-3', fullName: 'List Tester' });
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  r = await o.req('/admin/lists');
+  assert.strictEqual(r.status, 403, 'officers cannot change the lists');
+  r = await ctx.admin.post('/admin/lists/offices', { values: [...choices.offices, 'Luanshya Office'].join('\n') }, '/admin/lists');
+  assert.strictEqual(r.status, 302);
+  assert.ok(choices.offices.includes('Luanshya Office'));
+});

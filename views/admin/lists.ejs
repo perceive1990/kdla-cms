@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Drop-down lists</h1><p class="sub">Add, rename, remove or reorder the districts and offices that staff choose from</p></div>
+</div>
+<div class="row g-3" style="max-width: 1100px;">
+  <% for (const s of sections) { %>
+  <div class="col-lg-6">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title"><%= s.label %></h2>
+      <form method="post" action="/admin/lists/<%= s.key %>" class="row g-2" novalidate>
+        <%- f.hidden(csrfToken) %>
+        <div class="col-12">
+          <label class="form-label" for="list-<%= s.key %>">One per line, in the order they should appear</label>
+          <textarea class="form-control<%= errors[s.key] ? ' is-invalid' : '' %>" id="list-<%= s.key %>" name="values" rows="<%= Math.max(6, s.values.length + 2) %>"><%= drafts[s.key] !== undefined ? drafts[s.key] : s.values.join('\n') %></textarea>
+          <% if (errors[s.key]) { %><div class="invalid-feedback d-block"><%= errors[s.key] %></div><% } %>
+        </div>
+        <div class="col-12"><button class="btn btn-primary" type="submit">Save <%= s.label.toLowerCase() %></button></div>
+      </form>
+      <h3 class="h6 mt-4">In use</h3>
+      <ul class="list-unstyled small mb-2">
+        <% for (const v of s.values) { %><li><%= v %>: <%= s.used[v] || 0 %></li><% } %>
+        <% for (const [v, n] of Object.entries(s.used).filter(([v]) => !s.values.includes(v))) { %><li class="text-warning-emphasis"><%= v %> (no longer in the list): <%= n %></li><% } %>
+      </ul>
+      <p class="small text-body-secondary mb-0">Counts are <%= s.usedIn %>. Removing or renaming an entry does not change records already saved; they keep the old name, and it no longer appears in filters. Choose the current name when you next edit such a record.</p>
+    </div></div>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/footer') %>

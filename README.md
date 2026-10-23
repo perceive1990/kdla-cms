@@ -235,7 +235,9 @@ Each person chooses light, dark or automatic mode, a colour and the text size un
 
 ## Changing drop-down options
 
-All lists (offices, districts, case types, legal services, activities, statuses, outcomes, diary entry types and task types) are in `src/choices.js`. Edit the file and redeploy. Existing records keep their stored value. The API returns the current lists at `GET /api/v1/choices`.
+**Districts and offices:** administrators change these in the app under **Administration > Drop-down lists** (one per line). The page shows how many records use each entry. Saved records keep their value when an entry is renamed or removed.
+
+**Other lists** (case types, legal services, activities, statuses, outcomes, diary entry types and task types) are in `src/choices.js`. Edit the file on GitHub and the change deploys automatically. Existing records keep their stored value. The API returns the current lists at `GET /api/v1/choices`.
 
 ## Configuration reference
 
