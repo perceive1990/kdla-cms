@@ -145,10 +145,10 @@ Every change pushed to the `main` branch of your GitHub repository is tested and
 
 1. On GitHub, create a repository for the code, or use an existing one. If it is new, leave it empty (no README, .gitignore or licence) and the setup uploads the code for you.
 2. Sign in to the [Azure portal](https://portal.azure.com) and open **Cloud Shell** (the `>_` icon at the top). Choose **Bash**.
-3. Upload `kdla-case-management-v2.2.1.zip` with the **Upload** button, then run, with your own GitHub account and repository name:
+3. Upload `kdla-case-management-v2.2.2.zip` with the **Upload** button, then run, with your own GitHub account and repository name:
 
    ```bash
-   unzip -o kdla-case-management-v2.2.1.zip && cd kdla-cms && bash infra/github-setup.sh perceive1990/kdla-cms
+   unzip -o kdla-case-management-v2.2.2.zip && cd kdla-cms && bash infra/github-setup.sh perceive1990/kdla-cms
    ```
 
 4. When the script shows a one-time code, open [github.com/login/device](https://github.com/login/device), enter the code and approve.
@@ -172,10 +172,10 @@ The repository can be public: the code contains no passwords or keys, which stay
 **On Windows, use Azure Cloud Shell** (nothing to install):
 
 1. Sign in to the [Azure portal](https://portal.azure.com) and open **Cloud Shell** (the `>_` icon at the top). Choose **Bash**.
-2. Upload `kdla-case-management-v2.2.1.zip` with the **Upload** button, then run:
+2. Upload `kdla-case-management-v2.2.2.zip` with the **Upload** button, then run:
 
    ```bash
-   unzip -o kdla-case-management-v2.2.1.zip && cd kdla-cms && bash infra/provision.sh
+   unzip -o kdla-case-management-v2.2.2.zip && cd kdla-cms && bash infra/provision.sh
    ```
 
 On Mac or Linux you can instead install the [Azure CLI](https://aka.ms/azcli) and Node.js, run `az login`, and run `bash infra/provision.sh` in the project folder.

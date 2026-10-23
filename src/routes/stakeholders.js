@@ -32,7 +32,8 @@ router.get('/:id', async (req, res) => {
   const s = await dir.getStakeholder(req.db, req.params.id);
   const referrals = await req.db.find('referrals', { where: { organizationId: s.id }, orderBy: ['createdAt', 'DESC'] });
   const cases = visibleMap(req.user, await mapByIds(req.db, 'cases', referrals.map((r) => r.caseId)));
-  return res.render('stakeholders/show', { title: s.name, s, referrals, cases });
+  const reports = await req.db.find('reports', { where: { partnerIds: { $contains: s.id } }, fields: ['id', 'heading', 'date', 'activityType'], orderBy: ['date', 'DESC'] });
+  return res.render('stakeholders/show', { title: s.name, s, referrals, cases, reports });
 });
 
 router.get('/:id/edit', async (req, res) => {

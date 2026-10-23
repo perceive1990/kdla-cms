@@ -34,7 +34,7 @@
         <% for (const b of byCategory) { %><dt><%= b.label %></dt><dd class="text-end"><%= b.count %></dd><% } %>
         <dt>With a disability</dt><dd class="text-end"><%= disabledCount %></dd>
         <dt>Registered attendees</dt><dd class="text-end fw-semibold"><%= attendees.length %></dd>
-        <% if (r.otherParticipants) { %><dt>Other participants</dt><dd class="text-end"><%= r.otherParticipants %></dd><% } %>
+        <% if (r.otherParticipants) { %><dt>Not individually registered</dt><dd class="text-end"><%= r.otherParticipants %></dd><% } %>
       </dl>
     </div></div>
     <div class="panel"><div class="panel-body">
@@ -48,6 +48,7 @@
       <dl class="dl" style="grid-template-columns: 110px 1fr;">
         <dt>Compiled by</dt><dd><%= users[r.compiledById] ? (users[r.compiledById].fullName || users[r.compiledById].username) : '—' %></dd>
         <dt>Project</dt><dd><%= project ? project.title : '—' %></dd>
+        <dt>Partners</dt><dd><% if (!partners.length) { %>—<% } %><% partners.forEach((o, i) => { %><%= i ? ', ' : '' %><a href="/stakeholders/<%= o.id %>"><%= o.name %></a><% }) %></dd>
         <dt>Last updated</dt><dd><%= h.fmtDateTime(r.updatedAt) %></dd>
       </dl>
     </div></div>

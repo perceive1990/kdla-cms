@@ -25,6 +25,7 @@ function readReport(body) {
     challenges: str(body.challenges, 4000),
     recommendations: str(body.recommendations, 4000),
     attendeeIds: [...new Set(arr(body.attendeeIds))],
+    partnerIds: [...new Set(arr(body.partnerIds))],
     otherParticipants: intOrNull(body.otherParticipants),
     compiledById: str(body.compiledById),
   };
@@ -45,6 +46,8 @@ async function validateReport(db, v) {
   if (v.projectId && !(await db.get('projects', v.projectId))) e.projectId = 'Select a valid project.';
   const att = await mapByIds(db, 'people', v.attendeeIds);
   if (v.attendeeIds.some((id) => !att[id] || att[id].kind !== 'attendee')) e.attendeeIds = 'One of the selected attendees no longer exists.';
+  const partners = await mapByIds(db, 'stakeholders', v.partnerIds);
+  if (v.partnerIds.some((id) => !partners[id])) e.partnerIds = 'One of the selected partner organisations no longer exists.';
   return e;
 }
 

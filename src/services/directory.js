@@ -61,6 +61,8 @@ async function updateStakeholder(req, s, v, { ifMatch } = {}) {
 async function deleteStakeholder(req, s) {
   const n = await req.db.count('referrals', { where: { organizationId: s.id } });
   if (n > 0) throw new HttpError(409, 'in_use', `${s.name} has ${n} referral(s) and cannot be deleted. Remove those referrals first.`);
+  const linked = await req.db.find('reports', { where: { partnerIds: { $contains: s.id } } });
+  for (const r of linked) await req.db.replace('reports', { ...r, partnerIds: r.partnerIds.filter((x) => x !== s.id), updatedAt: now() });
   await req.db.remove('stakeholders', s.id);
   audit(req, 'delete', 'stakeholders', s.id, `Deleted organisation ${s.name}`);
 }
