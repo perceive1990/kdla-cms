@@ -4,19 +4,19 @@
 /* ---------- Accent colours ---------- */
 :root, [data-accent="green"] {
   --accent: #1f6b3a; --accent-dark: #154d29; --accent-rgb: 31, 107, 58;
-  --accent-on-dark: #7fd09c; --accent-on-dark-rgb: 127, 208, 156; --topbar-dark: #14402a;
+  --accent-on-dark: #7fd09c; --accent-on-dark-rgb: 127, 208, 156; --topbar-dark: #14402a; --viz-dark: #3fa36a;
 }
 [data-accent="blue"] {
   --accent: #1d5fa8; --accent-dark: #164a83; --accent-rgb: 29, 95, 168;
-  --accent-on-dark: #8fbcf2; --accent-on-dark-rgb: 143, 188, 242; --topbar-dark: #143a63;
+  --accent-on-dark: #8fbcf2; --accent-on-dark-rgb: 143, 188, 242; --topbar-dark: #143a63; --viz-dark: #3d8fd6;
 }
 [data-accent="terracotta"] {
   --accent: #a8461d; --accent-dark: #833615; --accent-rgb: 168, 70, 29;
-  --accent-on-dark: #f2a47e; --accent-on-dark-rgb: 242, 164, 126; --topbar-dark: #5e2a12;
+  --accent-on-dark: #f2a47e; --accent-on-dark-rgb: 242, 164, 126; --topbar-dark: #5e2a12; --viz-dark: #d0703f;
 }
 [data-accent="plum"] {
   --accent: #6d3a80; --accent-dark: #552c64; --accent-rgb: 109, 58, 128;
-  --accent-on-dark: #d3a6e3; --accent-on-dark-rgb: 211, 166, 227; --topbar-dark: #3f2249;
+  --accent-on-dark: #d3a6e3; --accent-on-dark-rgb: 211, 166, 227; --topbar-dark: #3f2249; --viz-dark: #a874c2;
 }
 
 /* ---------- Light mode (default) ---------- */
@@ -283,6 +283,49 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .gallery-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
 .gallery-caption { display: block; font-size: .78rem; margin-top: .25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media print { .gallery { grid-template-columns: repeat(3, 1fr); } .gallery-item img { break-inside: avoid; } }
+
+/* Charts (server-drawn SVG) */
+.viz { width: 100%; height: auto; display: block; overflow: visible; font-size: 13px; }
+.viz-bar { fill: var(--accent); }
+/* Dark bar steps chosen for the dark surface (lightness band and 3:1 contrast checked). */
+[data-bs-theme="dark"] .viz-bar { fill: var(--viz-dark); }
+.viz-track { fill: var(--hover); }
+.viz-hit { fill: transparent; }
+.viz-row:hover .viz-hit { fill: var(--hover); }
+.viz-row:hover .viz-bar { opacity: .85; }
+.viz-label { fill: var(--ink); }
+.viz-value { fill: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.viz-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-grid { stroke: var(--line); stroke-width: 1; }
+.viz-baseline { stroke: var(--muted); stroke-width: 1; }
+.viz-meter { max-width: 320px; }
+
+/* Infographic */
+.infographic { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; max-width: 1100px; }
+.ig-head { display: flex; gap: 1rem; align-items: center; border-bottom: 3px solid var(--accent); padding-bottom: 1rem; margin-bottom: 1.25rem; }
+.ig-head img { border-radius: 6px; background: #fff; object-fit: contain; }
+.ig-head h2 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.ig-head p { margin: .2rem 0 0; color: var(--muted); }
+.ig-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.ig-tile { border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; background: var(--surface-2); }
+.ig-tile i { font-size: 1.4rem; color: var(--accent-text); }
+.ig-num { font-size: 2.1rem; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: .25rem; }
+.ig-label { font-weight: 600; }
+.ig-note { color: var(--muted); font-size: .82rem; }
+.ig-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.ig-card { border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; break-inside: avoid; }
+.ig-card h3 { font-size: 1rem; font-weight: 650; margin: 0 0 .75rem; }
+.ig-wide { grid-column: 1 / -1; }
+.ig-big { font-size: 2.4rem; font-weight: 750; color: var(--accent-text); line-height: 1; margin-bottom: .5rem; }
+.ig-foot { margin-top: 1rem; color: var(--muted); font-size: .78rem; }
+@media (max-width: 767.98px) { .ig-grid { grid-template-columns: 1fr; } .infographic { padding: 1rem; } }
+@media print {
+  .infographic { border: 0; padding: 0; max-width: none; }
+  .ig-tiles { grid-template-columns: repeat(3, 1fr); }
+  .ig-tile, .ig-card { border-color: #ccc; background: #fff; }
+  .viz-bar { fill: var(--accent) !important; }
+  @page { size: A4; margin: 12mm; }
+}
 
 /* API documentation and tokens */
 .api-toc { position: sticky; top: 1rem; }

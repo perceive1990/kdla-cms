@@ -76,3 +76,12 @@ test('formatted report text keeps safe formatting and removes anything else', ()
   assert.strictEqual(rich.toHtml('Line one\nline two\n\nNext <para>'), '<p>Line one<br>line two</p><p>Next &lt;para&gt;</p>');
   assert.strictEqual(rich.toText('<p>A &amp; B</p><ul><li data-list="bullet">x</li></ul>'), 'A & B\nx');
 });
+
+test('chart helpers escape labels and count by month', () => {
+  const charts = require('../src/charts');
+  const svg = charts.hbars([{ label: '<b>x</b>', count: 3 }, { label: 'y', count: 0 }], { title: 't' });
+  assert.ok(svg.includes('&lt;b&gt;x&lt;/b&gt;') && !svg.includes('<b>'));
+  const m = charts.monthly(['2026-01-05', '2026-01-20', '2026-03-01', '2025-12-31'], '2026-01-01', '2026-03-31');
+  assert.deepStrictEqual(m.map((x) => x.count), [2, 0, 1]);
+  assert.match(charts.meter(150), /100%/);
+});
