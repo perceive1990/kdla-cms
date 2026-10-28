@@ -561,3 +561,15 @@ test('administrators manage the districts and offices lists', async () => {
   assert.strictEqual(r.status, 302);
   assert.ok(choices.offices.includes('Luanshya Office'));
 });
+
+test('infographic page draws the period summary', async () => {
+  let r = await ctx.admin.req(`/statistics/infographic?from=${today().slice(0, 4)}-01-01&to=${today()}`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /in numbers/);
+  assert.match(r.text, /<svg class="viz"/);
+  assert.match(r.text, /Cases opened each month/);
+  r = await ctx.admin.req('/statistics/infographic?from=2026-12-31&to=2026-01-01');
+  assert.match(r.text, /start date must be before/);
+  r = await ctx.admin.req('/statistics');
+  assert.match(r.text, /\/statistics\/infographic\?/);
+});
