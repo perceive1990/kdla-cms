@@ -1,14 +1,21 @@
 'use strict';
 const express = require('express');
 const { str, mapByIds, fmtDateTime } = require('../helpers');
-const { visibleWhere, visibleCase } = require('../access');
+const { visibleWhere, visibleCase, visibleMap } = require('../access');
 const svc = require('../services/rooms');
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
-  const rooms = await req.db.find('rooms', { ...svc.roomQuery(req.user), orderBy: ['lastMessageAt', 'DESC'] });
-  res.render('rooms/list', { title: 'Consultation rooms', rooms });
+  const all = await req.db.find('rooms', { ...svc.roomQuery(req.user), orderBy: ['lastMessageAt', 'DESC'] });
+  const kind = svc.KINDS.some((k) => k.value === req.query.kind) ? req.query.kind : '';
+  const rooms = kind ? all.filter((r) => svc.kindOf(r) === kind) : all;
+  const counts = { all: all.length };
+  for (const k of svc.KINDS) counts[k.value] = all.filter((r) => svc.kindOf(r) === k.value).length;
+  const cases = visibleMap(req.user, await mapByIds(req.db, 'cases', rooms.map((r) => r.caseId).filter(Boolean)));
+  res.render('rooms/list', {
+    title: 'Consultation rooms', rooms, kind, kinds: svc.KINDS, kindOf: svc.kindOf, counts, cases,
+  });
 });
 
 const caseOptions = (req) => req.db.find('cases', {
@@ -17,7 +24,10 @@ const caseOptions = (req) => req.db.find('cases', {
 
 router.get('/new', async (req, res) => {
   const cases = await caseOptions(req);
-  res.render('rooms/form', { title: 'New consultation room', values: { caseId: str(req.query.case) }, errors: {}, cases });
+  const kind = req.query.kind === 'management' ? 'management' : 'case';
+  res.render('rooms/form', {
+    title: 'New consultation room', values: { kind, caseId: str(req.query.case) }, errors: {}, cases, kinds: svc.KINDS,
+  });
 });
 
 router.post('/', async (req, res) => {
@@ -25,7 +35,9 @@ router.post('/', async (req, res) => {
   const errors = await svc.validateRoom(req, v);
   if (Object.keys(errors).length) {
     const cases = await caseOptions(req);
-    return res.status(400).render('rooms/form', { title: 'New consultation room', values: v, errors, cases });
+    return res.status(400).render('rooms/form', {
+      title: 'New consultation room', values: v, errors, cases, kinds: svc.KINDS,
+    });
   }
   const doc = await svc.createRoom(req, v);
   req.flash('success', 'Room created. Add colleagues so they can join the discussion.');
@@ -40,7 +52,7 @@ router.get('/:id', async (req, res) => {
   Object.assign(byId, await mapByIds(req.db, 'users', messages.map((m) => m.senderId).filter((id) => !byId[id])));
   const c = room.caseId ? visibleCase(req.user, await req.db.get('cases', room.caseId)) : null;
   res.render('rooms/show', {
-    title: room.name, room, messages, users: byId, nonMembers: users.filter((u) => !(room.memberIds || []).includes(u.id)), c,
+    title: room.name, room, kind: svc.kindOf(room), messages, users: byId, nonMembers: users.filter((u) => !(room.memberIds || []).includes(u.id)), c,
   });
 });
 

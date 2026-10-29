@@ -5,7 +5,8 @@
     <div class="crumbs"><a href="/rooms">Consultation rooms</a></div>
     <h1><%= room.name %></h1>
     <% if (room.description) { %><p class="sub prose"><%= room.description %></p><% } %>
-    <% if (c) { %><p class="sub">Case: <a href="/cases/<%= c.id %>"><%= c.caseNumber %> · <%= c.heading %></a></p><% } %>
+    <p class="sub mb-1"><span class="badge <%= kind === 'case' ? 'text-bg-success' : 'text-bg-secondary' %>"><i class="bi <%= kind === 'case' ? 'bi-folder2-open' : 'bi-briefcase' %>"></i> <%= kind === 'case' ? 'Case consultation' : 'Management issue' %></span>
+    <% if (c) { %> <a href="/cases/<%= c.id %>"><%= c.caseNumber %> · <%= c.heading %></a><% } %></p>
   </div>
 </div>
 <div class="row g-3">

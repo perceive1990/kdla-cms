@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const roomsSvc = require('../services/rooms');
 const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
 const { checkCase } = require('../conflicts');
@@ -97,8 +98,10 @@ router.get('/:id', async (req, res) => {
     req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
   ]);
   const minutes = notes.reduce((sum, n) => sum + (n.minutes || 0), 0);
+  const caseRooms = await req.db.find('rooms', { where: { caseId: c.id }, orderBy: ['lastMessageAt', 'DESC'] });
+  const rooms = caseRooms.filter((r) => roomsSvc.canSeeRoom(r, req.user));
   return res.render('cases/show', {
-    title: c.heading, c, people, users, referrals, orgs, notes, tasks, conflicts, staff, minutes,
+    title: c.heading, c, people, users, referrals, orgs, notes, tasks, conflicts, staff, minutes, rooms, roomsHidden: caseRooms.length - rooms.length,
     daysOpen: daysBetween(c.openedOn, c.closedOn || today()),
     noteValues: { date: today(), type: 'Meeting with client' }, noteErrors: {},
   });

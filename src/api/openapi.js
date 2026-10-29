@@ -247,9 +247,11 @@ const schemas = {
     resetTwoStep: B('Turn off two-step verification, for a lost phone'),
   }),
   Room: obj({
-    ...record, name: S('Topic'), description: S('Description'), caseId: S('Related case'), memberIds: ids('members'), createdBy: S('User id'), lastMessageAt: T('Last message'),
+    ...record, kind: E(['case', 'management']), name: S('Topic'), description: S('Description'), caseId: S('Related case'), memberIds: ids('members'), createdBy: S('User id'), lastMessageAt: T('Last message'),
   }),
-  RoomInput: obj({ name: S('Topic'), description: S('Description'), caseId: S('Related case (optional)') }, ['name']),
+  RoomInput: obj({
+    kind: E(['case', 'management']), name: S('Topic'), description: S('Description'), caseId: S('The case to consult on: required when kind is case (the default), ignored for management'),
+  }, ['name']),
   Message: obj({
     id: S('Id'), roomId: S('Room id'), senderId: S('User id'), senderName: S('Name'), content: S('Text'), createdAt: T('Sent at'), mine: B('Sent by you'),
   }),
@@ -541,7 +543,9 @@ op('get', '/search', 'Reference', 'Search cases, people, reports and organisatio
   query: [q('q', 'At least 2 characters')], ok: obj({ term: S('Term'), cases: A({ type: 'object' }), people: A({ type: 'object' }), reports: A({ type: 'object' }), stakeholders: A({ type: 'object' }) }), errors: V,
 });
 
-op('get', '/rooms', 'Consultation rooms', 'Rooms you are a member of (administrators see all)', { ok: plainList('Room') });
+op('get', '/rooms', 'Consultation rooms', 'Rooms you are a member of (administrators see all)', {
+  query: [q('kind', 'case or management'), q('caseId', 'Only rooms about this case')], ok: plainList('Room'),
+});
 op('post', '/rooms', 'Consultation rooms', 'Create a room', { body: ref('RoomInput'), status: 201, ok: ref('Room'), errors: V });
 op('get', '/rooms/{id}', 'Consultation rooms', 'Get a room', { ok: ref('Room'), errors: NF });
 op('delete', '/rooms/{id}', 'Consultation rooms', 'Delete a room and its messages (its creator or an administrator)', { status: 204, errors: NF });
@@ -577,7 +581,7 @@ const TAG_TEXT = {
   Projects: 'Donor projects that people and reports are linked to.',
   'Staff accounts': 'Colleagues and their access.',
   Reference: 'Option lists, statistics and search.',
-  'Consultation rooms': 'Discussions between staff about a case or a question.',
+  'Consultation rooms': 'Private discussions between staff. A case consultation (kind case) is always linked to a case; a management room (kind management) is for issues that are not about one case.',
   Administration: 'Administrators only.',
 };
 
