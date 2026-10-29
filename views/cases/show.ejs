@@ -160,6 +160,19 @@
       <a class="small d-print-none" href="/referrals/new?case=<%= c.id %>">Record a referral</a>
     </div></div>
 
+    <div class="panel d-print-none"><div class="panel-body">
+      <h2 class="panel-title">Consultation rooms</h2>
+      <% if (!rooms.length) { %><p class="text-body-secondary mb-2">No consultations<%= roomsHidden ? ' that you are a member of' : '' %>.</p><% } %>
+      <ul class="list-unstyled mb-2">
+        <% for (const r of rooms) { %>
+          <li class="py-1"><a href="/rooms/<%= r.id %>"><%= r.name %></a>
+            <div class="small text-body-secondary"><%= (r.memberIds || []).length %> member<%= (r.memberIds || []).length === 1 ? '' : 's' %> · last activity <%= h.fmtDateTime(r.lastMessageAt) %></div></li>
+        <% } %>
+      </ul>
+      <% if (roomsHidden) { %><p class="small text-body-secondary mb-2"><%= roomsHidden %> more room<%= roomsHidden === 1 ? '' : 's' %> on this case that you are not in. Ask a member to add you.</p><% } %>
+      <a class="small" href="/rooms/new?case=<%= c.id %>">Start a consultation</a>
+    </div></div>
+
     <div class="panel"><div class="panel-body">
       <h2 class="panel-title">History</h2>
       <ul class="timeline">

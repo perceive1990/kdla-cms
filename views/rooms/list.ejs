@@ -1,17 +1,29 @@
 <%- include('../partials/header') %>
 <div class="page-head">
-  <div><h1>Consultation rooms</h1><p class="sub">Discuss a case privately with colleagues</p></div>
-  <a class="btn btn-primary" href="/rooms/new"><i class="bi bi-plus-lg"></i> New room</a>
+  <div><h1>Consultation rooms</h1><p class="sub">Discuss a case, or a management issue, privately with colleagues</p></div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="/rooms/new"><i class="bi bi-folder2-open"></i> Consult on a case</a>
+    <a class="btn btn-outline-primary" href="/rooms/new?kind=management"><i class="bi bi-briefcase"></i> Management room</a>
+  </div>
 </div>
+<ul class="nav nav-pills mb-3 gap-1">
+  <li class="nav-item"><a class="nav-link<%= !kind ? ' active' : '' %>" href="/rooms">All <span class="badge text-bg-light ms-1"><%= counts.all %></span></a></li>
+  <% for (const k of kinds) { %>
+  <li class="nav-item"><a class="nav-link<%= kind === k.value ? ' active' : '' %>" href="/rooms?kind=<%= k.value %>"><%= k.value === 'case' ? 'Case consultations' : 'Management' %> <span class="badge text-bg-light ms-1"><%= counts[k.value] %></span></a></li>
+  <% } %>
+</ul>
 <% if (!rooms.length) { %>
-  <div class="panel"><div class="empty"><i class="bi bi-chat-square-text"></i>You are not in any rooms yet. <a href="/rooms/new">Start a consultation</a>.</div></div>
+  <div class="panel"><div class="empty"><i class="bi bi-chat-square-text"></i><%= counts.all ? 'No rooms of this type yet.' : 'You are not in any rooms yet.' %>
+    <a href="/rooms/new<%= kind === 'management' ? '?kind=management' : '' %>"><%= kind === 'management' ? 'Open a management room' : 'Start a case consultation' %></a>.</div></div>
 <% } else { %>
 <div class="row g-3">
-  <% for (const r of rooms) { %>
+  <% for (const r of rooms) { const k = kindOf(r); const c = r.caseId && cases[r.caseId]; %>
   <div class="col-md-6 col-xl-4">
     <a class="stat" href="/rooms/<%= r.id %>">
-      <div class="fw-semibold mb-1"><i class="bi bi-chat-square-text text-success"></i> <%= r.name %></div>
-      <div class="text-muted small text-truncate"><%= r.description || 'No description' %></div>
+      <div class="small mb-1"><span class="badge <%= k === 'case' ? 'text-bg-success' : 'text-bg-secondary' %>"><i class="bi <%= k === 'case' ? 'bi-folder2-open' : 'bi-briefcase' %>"></i> <%= k === 'case' ? 'Case' : 'Management' %></span>
+        <% if (c) { %><span class="text-muted ms-1"><%= c.caseNumber %></span><% } %></div>
+      <div class="fw-semibold mb-1"><%= r.name %></div>
+      <div class="text-muted small text-truncate"><%= c ? c.heading : (r.description || 'No description') %></div>
       <div class="small text-muted mt-2"><%= (r.memberIds || []).length %> member<%= (r.memberIds || []).length === 1 ? '' : 's' %> · last activity <%= h.fmtDateTime(r.lastMessageAt) %></div>
     </a>
   </div>

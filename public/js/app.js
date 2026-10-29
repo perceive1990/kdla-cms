@@ -84,6 +84,20 @@
     syncOutcome();
   }
 
+  // Consultation room form: the case is needed only for a case consultation
+  var roomCase = document.getElementById('room-case');
+  var kinds = document.querySelectorAll('[data-room-kind]');
+  if (roomCase && kinds.length) {
+    var syncRoom = function () {
+      var picked = document.querySelector('[data-room-kind]:checked');
+      var isCase = !picked || picked.value === 'case';
+      roomCase.hidden = !isCase;
+      roomCase.querySelectorAll('select').forEach(function (el) { el.disabled = !isCase; });
+    };
+    kinds.forEach(function (el) { el.addEventListener('change', syncRoom); });
+    syncRoom();
+  }
+
   // Attendance register: add more rows
   var addRows = document.getElementById('add-rows');
   var bulk = document.getElementById('bulk-table');

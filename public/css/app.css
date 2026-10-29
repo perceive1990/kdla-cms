@@ -364,3 +364,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   a { color: inherit; text-decoration: none; }
   .letter { border: 0; padding: 0; max-width: none; }
 }
+
+/* Filter tabs (consultation rooms) follow the chosen accent colour */
+.nav-pills { --bs-nav-pills-link-active-bg: var(--accent); --bs-nav-link-color: var(--accent-text); --bs-nav-link-hover-color: var(--accent-text); }
+.nav-pills .badge { font-weight: 600; }

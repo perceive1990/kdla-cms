@@ -296,8 +296,19 @@ test('cases: create with defaults, versions, validation, conclude, confidentiali
   assert.strictEqual(shown.heading, 'Confidential case');
   r = await api('POST', '/tasks', { token: o2, body: { title: 'Try', dueDate: today(1), caseId: secret.id } });
   assert.strictEqual(r.status, 422, 'cannot attach a task to a confidential case you cannot open');
+  const o2Id = (await db().find('users', { where: { username: 'officer2' } }))[0].id;
+  r = await api('POST', '/rooms', { token: o1, body: { kind: 'case', name: 'GBV strategy', caseId: secret.id } });
+  assert.strictEqual(r.status, 201);
+  const secretRoom = r.json;
+  r = await api('POST', `/rooms/${secretRoom.id}/members`, { token: o1, body: { userId: o2Id } });
+  assert.strictEqual(r.status, 422, 'cannot add someone who cannot open the confidential case');
+  assert.match(r.json.error.message, /case team/);
+  r = await api('POST', '/rooms', { token: o2, body: { name: 'Peek', caseId: secret.id } });
+  assert.strictEqual(r.status, 422, 'cannot open a room on a case you cannot see');
   r = await api('PATCH', `/cases/${secret.id}`, { token: o1, body: { teamIds: [(await db().find('users', { where: { username: 'officer2' } }))[0].id] } });
   assert.strictEqual(r.status, 200);
+  r = await api('POST', `/rooms/${secretRoom.id}/members`, { token: o1, body: { userId: o2Id } });
+  assert.strictEqual(r.json.added, true, 'team members can join');
   r = await api('GET', `/cases/${secret.id}`, { token: o2 });
   assert.strictEqual(r.status, 200, 'team members can open it');
   ctx.secretId = secret.id;
@@ -541,10 +552,25 @@ test('staff accounts, projects, statistics, search, rooms, audit and export', as
   r = await api('GET', '/conflicts?name=John%20Mansa', { token: o1 });
   assert.ok(r.json.data.some((x) => x.person.kind === 'defendant'));
 
-  // Rooms
+  // Rooms: a case consultation must name its case; a management room has none
   r = await api('POST', '/rooms', { token: o1, body: { name: 'Advice on customary land' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.caseId);
+  r = await api('POST', '/rooms', { token: o1, body: { kind: 'other', name: 'X' } });
+  assert.ok(r.json.error.fields.kind);
+  r = await api('POST', '/rooms', { token: o1, body: { kind: 'case', name: 'Advice on customary land', caseId: ctx.caseId } });
   assert.strictEqual(r.status, 201);
+  assert.strictEqual(r.json.kind, 'case');
+  ctx.caseRoomId = r.json.id;
+  r = await api('POST', '/rooms', { token: o1, body: { kind: 'management', name: 'November field schedule', caseId: ctx.caseId } });
+  assert.strictEqual(r.status, 201);
+  assert.strictEqual(r.json.kind, 'management');
+  assert.strictEqual(r.json.caseId, '', 'management rooms are never linked to a case');
   const room = r.json;
+  r = await api('GET', '/rooms?kind=management', { token: o1 });
+  assert.ok(r.json.data.every((x) => x.kind === 'management'));
+  r = await api('GET', `/rooms?caseId=${ctx.caseId}`, { token: o1 });
+  assert.deepStrictEqual(r.json.data.map((x) => x.id), [ctx.caseRoomId]);
   r = await api('GET', `/rooms/${room.id}`, { token: ctx.officer2 });
   assert.strictEqual(r.status, 403);
   r = await api('POST', `/rooms/${room.id}/members`, { token: o1, body: { userId: officer2Id } });
@@ -662,6 +688,8 @@ test('administrator deletes a person and a case through the API', async () => {
   r = await api('DELETE', `/cases/${ctx.caseId}`, { token: admin });
   assert.strictEqual(r.status, 204);
   assert.strictEqual((await db().find('referrals', { where: { caseId: ctx.caseId } })).length, 0);
+  assert.strictEqual((await db().find('rooms', { where: { caseId: ctx.caseId } })).length, 0, 'case consultations go with the case');
+  assert.strictEqual((await db().find('messages', { where: { roomId: ctx.caseRoomId } })).length, 0);
   r = await api('GET', `/cases/${ctx.caseId}`, { token: admin });
   assert.strictEqual(r.status, 404);
   assert.strictEqual(r.json.error.code, 'not_found');

@@ -167,17 +167,24 @@ async function updateCase(req, c, v, { ifMatch, attachments = [] } = {}) {
 }
 
 async function deleteCase(req, c) {
-  const [refs, notes, tasks] = await Promise.all([
+  const [refs, notes, tasks, rooms] = await Promise.all([
     req.db.find('referrals', { where: { caseId: c.id }, fields: ['id'] }),
     req.db.find('caseNotes', { where: { caseId: c.id }, fields: ['id'] }),
     req.db.find('tasks', { where: { caseId: c.id }, fields: ['id'] }),
+    req.db.find('rooms', { where: { caseId: c.id }, fields: ['id'] }),
   ]);
+  // Case consultations belong to the case: their discussions go with it.
+  for (const room of rooms) {
+    const msgs = await req.db.find('messages', { where: { roomId: room.id }, fields: ['id'] });
+    for (const m of msgs) await req.db.remove('messages', m.id, room.id);
+    await req.db.remove('rooms', room.id);
+  }
   for (const r of refs) await req.db.remove('referrals', r.id);
   for (const n of notes) await req.db.remove('caseNotes', n.id, c.id);
   for (const t of tasks) await req.db.remove('tasks', t.id);
   await removeAttachments(c.attachments);
   await req.db.remove('cases', c.id);
-  audit(req, 'delete', 'cases', c.id, `Deleted case ${c.caseNumber} with ${refs.length} referrals, ${notes.length} notes, ${tasks.length} tasks`);
+  audit(req, 'delete', 'cases', c.id, `Deleted case ${c.caseNumber} with ${refs.length} referrals, ${notes.length} notes, ${tasks.length} tasks, ${rooms.length} consultation rooms`);
 }
 
 // ---------- Case diary ----------

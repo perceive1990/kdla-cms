@@ -1,10 +1,19 @@
 'use strict';
-// Consultation rooms: staff discuss a case or a question. Only members (and administrators) can see a room.
+// Consultation rooms: staff discuss a case, or a management issue that is not about a case.
+// A case consultation must be linked to a case; a management room never is.
+// Only members (and administrators) can see a room.
 // Shared by the web pages and the API.
 const { audit } = require('../audit');
 const { canSeeCase, isAdmin } = require('../access');
 const { newId, now, str } = require('../helpers');
 const { HttpError, notFound, forbidden } = require('./errors');
+
+const KINDS = [
+  { value: 'case', label: 'Case consultation', help: 'Discuss a client case with colleagues. Linked to the case.' },
+  { value: 'management', label: 'Management issue', help: 'Plans, staffing, finance, partners and other matters that are not about one case.' },
+];
+/** Rooms made before room types existed count as case consultations when they have a case. */
+const kindOf = (room) => (room.kind === 'management' || room.kind === 'case' ? room.kind : (room.caseId ? 'case' : 'management'));
 
 const canSeeRoom = (room, user) => isAdmin(user) || (room.memberIds || []).includes(user.id);
 
@@ -20,15 +29,24 @@ async function getRoom(req, id) {
 }
 
 function readRoom(body) {
-  return { name: str(body.name, 100), description: str(body.description, 2000), caseId: str(body.caseId) };
+  const caseId = str(body.caseId);
+  const kind = str(body.kind, 20) || 'case';
+  return {
+    kind, name: str(body.name, 100), description: str(body.description, 2000), caseId: kind === 'management' ? '' : caseId,
+  };
 }
 
 async function validateRoom(req, v) {
   const errors = {};
+  if (!KINDS.some((k) => k.value === v.kind)) errors.kind = 'Choose case consultation or management issue.';
   if (!v.name) errors.name = 'Enter a topic for the room.';
-  if (v.caseId) {
-    const kase = await req.db.get('cases', v.caseId);
-    if (!kase || !canSeeCase(req.user, kase)) errors.caseId = 'Select a valid case.';
+  if (v.kind === 'case') {
+    if (!v.caseId) {
+      errors.caseId = 'Select the case you want to consult on.';
+    } else {
+      const kase = await req.db.get('cases', v.caseId);
+      if (!kase || !canSeeCase(req.user, kase)) errors.caseId = 'Select a valid case.';
+    }
   }
   return errors;
 }
@@ -71,6 +89,13 @@ async function addMember(req, room, userId) {
   const u = userId ? await req.db.get('users', str(userId)) : null;
   if (!u || u.active === false) throw new HttpError(422, 'validation_failed', 'Select a colleague to add.', { fields: { userId: 'Select a colleague to add.' } });
   if ((room.memberIds || []).includes(u.id)) return { user: u, added: false };
+  if (kindOf(room) === 'case' && room.caseId) {
+    const kase = await req.db.get('cases', room.caseId);
+    if (kase && !canSeeCase(u, kase)) {
+      const msg = `${u.fullName || u.username} cannot open this confidential case. Add them to the case team first.`;
+      throw new HttpError(422, 'validation_failed', msg, { fields: { userId: msg } });
+    }
+  }
   await req.db.replace('rooms', { ...room, memberIds: [...(room.memberIds || []), u.id] });
   audit(req, 'update', 'rooms', room.id, `Added ${u.username} to room "${room.name}"`);
   return { user: u, added: true };
@@ -89,5 +114,5 @@ async function deleteRoom(req, room) {
 }
 
 module.exports = {
-  canSeeRoom, roomQuery, getRoom, readRoom, validateRoom, createRoom, listMessages, postMessage, addMember, leaveRoom, deleteRoom,
+  KINDS, kindOf, canSeeRoom, roomQuery, getRoom, readRoom, validateRoom, createRoom, listMessages, postMessage, addMember, leaveRoom, deleteRoom,
 };

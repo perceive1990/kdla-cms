@@ -44,20 +44,22 @@ router.get('/search', async (req, res) => {
 });
 
 // ---------- Consultation rooms ----------
+const presentRoom = (r) => h.present({ ...r, kind: rooms.kindOf(r) });
 router.get('/rooms', async (req, res) => {
   const list = await req.db.find('rooms', { ...rooms.roomQuery(req.user), orderBy: ['lastMessageAt', 'DESC'] });
-  res.json({ data: list.map((r) => h.present(r)) });
+  const shown = list.filter((r) => (!req.query.kind || rooms.kindOf(r) === req.query.kind) && (!req.query.caseId || r.caseId === req.query.caseId));
+  res.json({ data: shown.map(presentRoom) });
 });
 
 router.post('/rooms', async (req, res) => {
   const v = rooms.readRoom(req.body);
   h.failIfInvalid(await rooms.validateRoom(req, v));
   const doc = await rooms.createRoom(req, v);
-  h.sendOne(res, h.present(doc), 201, `${h.BASE}/rooms/${doc.id}`);
+  h.sendOne(res, presentRoom(doc), 201, `${h.BASE}/rooms/${doc.id}`);
 });
 
 router.get('/rooms/:id', async (req, res) => {
-  h.sendOne(res, h.present(await rooms.getRoom(req, req.params.id)));
+  h.sendOne(res, presentRoom(await rooms.getRoom(req, req.params.id)));
 });
 
 router.delete('/rooms/:id', async (req, res) => {
@@ -89,7 +91,7 @@ router.post('/rooms/:id/messages', async (req, res) => {
 router.post('/rooms/:id/members', async (req, res) => {
   const room = await rooms.getRoom(req, req.params.id);
   const { added } = await rooms.addMember(req, room, req.body.userId);
-  res.json({ ...h.present(await rooms.getRoom(req, room.id)), added });
+  res.json({ ...presentRoom(await rooms.getRoom(req, room.id)), added });
 });
 
 router.post('/rooms/:id/leave', async (req, res) => {
