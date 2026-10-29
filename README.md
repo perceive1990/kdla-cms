@@ -229,6 +229,10 @@ To allow officers to delete records, remove `requireAdmin` from the delete route
 
 Other commands: `npm run create-admin -- <username> <password> "Full Name"` and `npm run init-db`.
 
+## Phone app
+
+Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Cases** (user menu > Install the phone app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
+
 ## Appearance
 
 Each person chooses light, dark or automatic mode, a colour and the text size under **Appearance** in their account menu. The moon or sun button in the top bar switches between light and dark. Printouts are always light.

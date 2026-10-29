@@ -34,6 +34,11 @@ router.post('/appearance', async (req, res) => {
   return res.redirect('/account/appearance');
 });
 
+// ---------- Phone app ----------
+router.get('/app', (req, res) => {
+  res.render('account/app', { title: 'Install the phone app' });
+});
+
 // ---------- Password ----------
 router.get('/password', (req, res) => {
   res.render('account/password', { title: 'Change password', errors: {} });
