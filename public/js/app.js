@@ -250,3 +250,35 @@
     }
   }
 })();
+
+// ---------- Installable phone app ----------
+(function () {
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function () { /* the site works without it */ });
+    });
+  }
+
+  var installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var panel = document.getElementById('install-panel');
+  var note = document.getElementById('installed-note');
+  if (installed && note) note.hidden = false;
+
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferred = e;
+    if (panel && !installed) panel.hidden = false;
+  });
+  window.addEventListener('appinstalled', function () {
+    deferred = null;
+    if (panel) panel.hidden = true;
+    if (note) note.hidden = false;
+  });
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-install-app]');
+    if (!btn || !deferred) return;
+    deferred.prompt();
+    deferred.userChoice.finally(function () { deferred = null; if (panel) panel.hidden = true; });
+  });
+})();

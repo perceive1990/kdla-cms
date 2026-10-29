@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+<div class="page-head"><div><h1>Install the phone app</h1><p class="sub">Use the case management system from your phone's home screen, with the same login and the same records. No app store and no cost.</p></div></div>
+
+<div style="max-width: 900px;">
+  <div class="panel" id="install-panel" hidden><div class="panel-body d-flex flex-wrap align-items-center gap-3">
+    <img src="/static/images/app-192.png" alt="" width="64" height="64" class="rounded-3 border">
+    <div class="flex-grow-1">
+      <h2 class="panel-title mb-1">Ready to install on this device</h2>
+      <p class="small text-body-secondary mb-0">Adds a KDLA Cases icon to your home screen or desktop.</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-install-app><i class="bi bi-download"></i> Install app</button>
+  </div></div>
+
+  <div class="alert alert-success" id="installed-note" hidden><i class="bi bi-check-circle"></i> You are using the installed app.</div>
+
+  <div class="row g-3">
+    <div class="col-md-6"><div class="panel h-100"><div class="panel-body">
+      <h2 class="panel-title"><i class="bi bi-android2"></i> Android phones</h2>
+      <ol class="mb-0">
+        <li>Open this site in <strong>Chrome</strong> and sign in.</li>
+        <li>Tap the <strong>⋮</strong> menu at the top right.</li>
+        <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>, then <strong>Install</strong>.</li>
+        <li>Open <strong>KDLA Cases</strong> from your home screen.</li>
+      </ol>
+    </div></div></div>
+    <div class="col-md-6"><div class="panel h-100"><div class="panel-body">
+      <h2 class="panel-title"><i class="bi bi-apple"></i> iPhone and iPad</h2>
+      <ol class="mb-0">
+        <li>Open this site in <strong>Safari</strong> and sign in.</li>
+        <li>Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i>.</li>
+        <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        <li>Open <strong>KDLA Cases</strong> from your home screen.</li>
+      </ol>
+    </div></div></div>
+  </div>
+
+  <div class="panel mt-3"><div class="panel-body">
+    <h2 class="panel-title">Good to know</h2>
+    <ul class="mb-0">
+      <li>The app opens full screen and updates itself after every change to the system.</li>
+      <li>It needs internet. Client and case details are never stored on the phone, so they stay safe if a phone is lost or stolen.</li>
+      <li>Press and hold the app icon for shortcuts to <strong>New case</strong>, <strong>Tasks and hearings</strong> and <strong>Clients</strong> (Android).</li>
+      <li>Always log out on a shared phone.</li>
+      <% if (config.api.enabled) { %><li>Developers building a separate app can use the <a href="/api/docs">JSON API</a>.</li><% } %>
+    </ul>
+  </div></div>
+</div>
+<%- include('../partials/footer') %>

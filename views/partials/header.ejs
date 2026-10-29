@@ -8,9 +8,13 @@
   <meta name="theme-color" content="#1f6b3a">
   <title><%= title ? title + ' · ' : '' %><%= config.appName %></title>
   <script src="/static/js/theme.js?v=<%= assetVersion %>"></script>
-  <link rel="icon" type="image/png" href="/static/images/icon-192.png">
-  <link rel="apple-touch-icon" href="/static/images/icon-192.png">
-  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/static/images/app-192.png">
+  <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
+  <link rel="manifest" href="/static/manifest.webmanifest?v=<%= assetVersion %>">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KDLA Cases">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
   <% if (locals.richEditor) { %><link rel="stylesheet" href="/vendor/quill/quill.snow.css"><% } %>
@@ -43,6 +47,7 @@
         <li><span class="dropdown-item-text small text-body-secondary"><%= user.username %> · <%= user.role === 'admin' ? 'Administrator' : 'Officer' %></span></li>
         <li><a class="dropdown-item" href="/account/appearance"><i class="bi bi-palette"></i> Appearance</a></li>
         <li><a class="dropdown-item" href="/account/security"><i class="bi bi-shield-lock"></i> Password and security</a></li>
+        <li><a class="dropdown-item" href="/account/app"><i class="bi bi-phone"></i> Install the phone app</a></li>
         <% if (config.api.enabled) { %><li><a class="dropdown-item" href="/account/api"><i class="bi bi-key"></i> API access</a></li><% } %>
         <li><hr class="dropdown-divider"></li>
         <li>

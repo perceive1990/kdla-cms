@@ -573,3 +573,25 @@ test('infographic page draws the period summary', async () => {
   r = await ctx.admin.req('/statistics');
   assert.match(r.text, /\/statistics\/infographic\?/);
 });
+
+test('phone app: manifest, service worker and offline page work without login', async () => {
+  let r = await fetch(`${base}/sw.js`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('content-type'), /javascript/);
+  assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+  const sw = await r.text();
+  assert.doesNotMatch(sw, /__ASSET_VERSION__/);
+  assert.match(sw, /request\.mode === 'navigate'/);
+  r = await fetch(`${base}/offline`);
+  assert.strictEqual(r.status, 200);
+  assert.match(await r.text(), /No internet connection/);
+  r = await fetch(`${base}/static/manifest.webmanifest`);
+  const m = JSON.parse(await r.text());
+  assert.strictEqual(m.display, 'standalone');
+  assert.ok(m.icons.some((i) => i.purpose === 'maskable'));
+  for (const i of m.icons) assert.strictEqual((await fetch(base + i.src)).status, 200);
+  r = await ctx.admin.req('/account/app');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Add to Home Screen/);
+  assert.match(r.text, /rel="manifest"/);
+});
