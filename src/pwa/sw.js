@@ -10,7 +10,7 @@ const OFFLINE = '/offline';
 const CORE = [
   OFFLINE,
   '/static/images/app-192.png',
-  '/static/images/logo.jpg',
+  '/static/images/logo.png',
 ];
 
 self.addEventListener('install', (event) => {
