@@ -217,6 +217,16 @@ git clone https://github.com/perceive1990/kdla-cms && cd kdla-cms && bash infra/
 
 It moves the web app to the Basic B1 plan with Always On, adds a Blob storage account for photos and attachments (files saved earlier are copied across automatically and stay readable meanwhile), and keeps daily Cosmos DB backups for 7 days. It asks you to type UPGRADE first. `TIER=F1 bash infra/upgrade.sh` goes back to the free plan. Set a budget alert under Cost Management > Budgets, because anything beyond the grant is billed at normal prices.
 
+### Moving to another subscription
+
+If the grant was activated as a separate Azure Sponsorship subscription, move the app into it from Cloud Shell:
+
+```
+git clone https://github.com/perceive1990/kdla-cms && cd kdla-cms && bash infra/move-subscription.sh
+```
+
+It lists your subscriptions, asks which one to move into, shows what will move and waits for you to type MOVE. The web address, database, files and logins stay the same. The GitHub deploy connection is set up again afterwards (sign in to GitHub when asked). Add other resource groups with `RESOURCE_GROUPS="kdla-cms-rg other-rg"`.
+
 ## Data protection (Zambia Data Protection Act No. 3 of 2021)
 
 This is general information, not legal advice. Please confirm the details with a lawyer or the Data Protection Commission.
