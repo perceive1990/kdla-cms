@@ -52,11 +52,43 @@ class DiskStorage {
   }
 }
 
+/**
+ * Blob storage, with the local disk as a fallback for files saved before Blob storage was switched on:
+ * those are still served from disk, and copyFromDisk() uploads them to Blob in the background.
+ * The local copies are kept, so switching back to the disk loses nothing.
+ */
 class BlobStorage {
-  constructor(conn, containerName) {
-    const { BlobServiceClient } = require('@azure/storage-blob');
-    this.container = BlobServiceClient.fromConnectionString(conn).getContainerClient(containerName);
+  constructor(conn, containerName, { container, diskDir } = {}) {
+    if (container) {
+      this.container = container;
+    } else {
+      const { BlobServiceClient } = require('@azure/storage-blob');
+      this.container = BlobServiceClient.fromConnectionString(conn).getContainerClient(containerName);
+    }
+    this.disk = diskDir ? new DiskStorage(diskDir) : null;
     this.ready = this.container.createIfNotExists(); // private container (no public access)
+  }
+
+  /** Upload every file on the local disk that is not in Blob storage yet. Returns the number copied. */
+  async copyFromDisk(log = () => {}) {
+    if (!this.disk || !fs.existsSync(this.disk.dir)) return 0;
+    await this.ready;
+    let copied = 0;
+    const walk = async (dir) => {
+      for (const entry of await fs.promises.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) { await walk(full); continue; }
+        if (!entry.isFile()) continue;
+        const key = path.relative(this.disk.dir, full).split(path.sep).join('/');
+        const blob = this.container.getBlockBlobClient(key);
+        if (await blob.exists()) continue;
+        await blob.uploadData(await fs.promises.readFile(full));
+        copied += 1;
+      }
+    };
+    await walk(this.disk.dir);
+    if (copied) log(`Copied ${copied} existing files from the disk to Blob storage.`);
+    return copied;
   }
 
   async save(file) {
@@ -71,7 +103,7 @@ class BlobStorage {
   async stream(key, res) {
     await this.ready;
     const blob = this.container.getBlobClient(key);
-    if (!(await blob.exists())) return false;
+    if (!(await blob.exists())) return this.disk ? this.disk.stream(key, res) : false;
     const dl = await blob.download();
     await new Promise((resolve, reject) => {
       dl.readableStreamBody.on('error', reject).on('end', resolve).pipe(res);
@@ -82,6 +114,7 @@ class BlobStorage {
   async remove(key) {
     await this.ready;
     await this.container.getBlobClient(key).deleteIfExists();
+    if (this.disk) await this.disk.remove(key);
   }
 }
 
@@ -89,10 +122,12 @@ let instance;
 function getStorage() {
   if (!instance) {
     instance = config.storage.blobConnectionString
-      ? new BlobStorage(config.storage.blobConnectionString, config.storage.blobContainer)
+      ? new BlobStorage(config.storage.blobConnectionString, config.storage.blobContainer, { diskDir: config.storage.uploadDir })
       : new DiskStorage(config.storage.uploadDir);
   }
   return instance;
 }
 
-module.exports = { getStorage, safeName };
+module.exports = {
+  getStorage, safeName, DiskStorage, BlobStorage,
+};
