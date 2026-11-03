@@ -67,8 +67,9 @@ done
 
 echo ""
 if [ "${CONFIRM:-}" != "yes" ]; then
-  read -r -p "Type MOVE to continue: " answer
-  [ "$answer" = "MOVE" ] || { echo "Nothing changed."; exit 0; }
+  answer=""
+  while [ -z "$answer" ]; do read -r -p "Type MOVE and press Enter to continue (or NO to stop): " answer; done
+  [ "$(printf '%s' "$answer" | tr '[:lower:]' '[:upper:]' | tr -d ' ')" = "MOVE" ] || { echo "Nothing changed."; exit 0; }
 fi
 
 for RG in $RESOURCE_GROUPS; do
