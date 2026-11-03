@@ -7,6 +7,7 @@
 #
 # Run in Azure Cloud Shell (Bash) from the project folder:
 #   git clone https://github.com/perceive1990/kdla-cms && cd kdla-cms && bash infra/upgrade.sh
+# Skip the question (for example when pasting): CONFIRM=yes bash infra/upgrade.sh
 # Back to the free plan at any time (files stay in Blob storage):
 #   TIER=F1 bash infra/upgrade.sh
 #
@@ -24,13 +25,16 @@ az account show --output none 2>/dev/null || { echo "Not logged in. Run: az logi
 
 APP="${APP:-$(az webapp list -g "$RG" --query "[0].name" -o tsv)}"
 [ -n "$APP" ] || { echo "No web app found in resource group $RG. Set RG=... or APP=..."; exit 1; }
-PLAN_ID=$(az webapp show -g "$RG" -n "$APP" --query appServicePlanId -o tsv)
+# The plan's id is called serverFarmId (newer Azure CLI) or appServicePlanId (older).
+PLAN_ID=$(az webapp show -g "$RG" -n "$APP" --query "serverFarmId || appServicePlanId" -o tsv)
+[ -n "$PLAN_ID" ] || { echo "Could not find the App Service plan of $APP. Nothing changed."; exit 1; }
 PLAN=$(basename "$PLAN_ID")
 COSMOS="${COSMOS:-$(az cosmosdb list -g "$RG" --query "[0].name" -o tsv)}"
 LOCATION=$(az group show -n "$RG" --query location -o tsv)
 SUFFIX="${APP##*-}"
 STORAGE="${STORAGE:-kdlacms${SUFFIX}}"
 CURRENT=$(az appservice plan show --ids "$PLAN_ID" --query sku.name -o tsv)
+[ -n "$CURRENT" ] || { echo "Could not read the plan $PLAN. Nothing changed."; exit 1; }
 
 echo "Subscription:  $(az account show --query name -o tsv)"
 echo "Web app:       $APP (plan $PLAN, now $CURRENT)"
@@ -51,8 +55,9 @@ echo "  2. Storage account $STORAGE for photos and attachments"
 echo "  3. Cosmos DB backups every ${BACKUP_HOURS} hours, kept ${BACKUP_KEEP_HOURS} hours"
 echo "Check current prices at https://azure.microsoft.com/pricing/calculator before you continue."
 if [ "${CONFIRM:-}" != "yes" ]; then
-  read -r -p "Type UPGRADE to continue: " answer
-  [ "$answer" = "UPGRADE" ] || { echo "Nothing changed."; exit 0; }
+  answer=""
+  while [ -z "$answer" ]; do read -r -p "Type UPGRADE and press Enter to continue (or NO to stop): " answer; done
+  [ "$(printf '%s' "$answer" | tr '[:lower:]' '[:upper:]' | tr -d ' ')" = "UPGRADE" ] || { echo "Nothing changed."; exit 0; }
 fi
 
 echo ""
