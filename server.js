@@ -5,6 +5,7 @@ const { createApp } = require('./src/app');
 const { runMigrations } = require('./src/migrations');
 const { ensureBootstrapAdmin } = require('./scripts/lib');
 const { loadLists } = require('./src/lists');
+const { getStorage } = require('./src/storage');
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled promise rejection:', err);
@@ -20,6 +21,11 @@ async function main() {
   const server = app.listen(config.port, () => {
     console.log(`${config.appName} listening on port ${config.port} (db: ${config.dbDriver}, env: ${config.isProd ? 'production' : 'development'})`);
   });
+  // After Blob storage is switched on, copy files saved earlier on the disk (in the background, once per start).
+  const storage = getStorage();
+  if (storage.copyFromDisk) {
+    storage.copyFromDisk((m) => console.log(m)).catch((e) => console.error('Copying files to Blob storage failed:', e.message));
+  }
   // App Service sends SIGTERM before restarting; finish requests in progress first.
   const stop = (signal) => {
     console.log(`${signal} received, shutting down`);

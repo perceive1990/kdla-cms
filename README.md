@@ -207,6 +207,16 @@ Options: `LOCATION=northeurope` to use another region, `COSMOS_MODE=serverless` 
 
 The app creates the database and containers itself on first start. Check the connection at `https://<app>.azurewebsites.net/healthz?db=1`.
 
+## Upgrading with the nonprofit Azure grant
+
+The free plan sleeps when idle, has a daily CPU quota and keeps files on a small disk. When the Microsoft nonprofit Azure grant (USD 2,000 a year, activated in the [Nonprofit Hub](https://nonprofit.microsoft.com) under Offers > Azure $2,000 Sponsorship, on the billing profile of this subscription) shows under Billing > Payment methods > Azure credits, open Cloud Shell (Bash) and run:
+
+```
+git clone https://github.com/perceive1990/kdla-cms && cd kdla-cms && bash infra/upgrade.sh
+```
+
+It moves the web app to the Basic B1 plan with Always On, adds a Blob storage account for photos and attachments (files saved earlier are copied across automatically and stay readable meanwhile), and keeps daily Cosmos DB backups for 7 days. It asks you to type UPGRADE first. `TIER=F1 bash infra/upgrade.sh` goes back to the free plan. Set a budget alert under Cost Management > Budgets, because anything beyond the grant is billed at normal prices.
+
 ## Data protection (Zambia Data Protection Act No. 3 of 2021)
 
 This is general information, not legal advice. Please confirm the details with a lawyer or the Data Protection Commission.

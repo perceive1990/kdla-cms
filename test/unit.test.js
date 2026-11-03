@@ -85,3 +85,42 @@ test('chart helpers escape labels and count by month', () => {
   assert.deepStrictEqual(m.map((x) => x.count), [2, 0, 1]);
   assert.match(charts.meter(150), /100%/);
 });
+
+test('switching on Blob storage keeps earlier files readable and copies them across', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { Writable } = require('stream');
+  const { DiskStorage, BlobStorage } = require('../src/storage');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kdla-blob-'));
+  const disk = new DiskStorage(dir);
+  const oldKey = await disk.save({ originalname: 'old photo.jpg', buffer: Buffer.from('OLD') });
+
+  // A small stand-in for an Azure Blob container
+  const blobs = new Map();
+  const client = (key) => ({
+    exists: async () => blobs.has(key),
+    uploadData: async (buf) => { blobs.set(key, Buffer.from(buf)); },
+    deleteIfExists: async () => { blobs.delete(key); },
+    download: async () => ({ readableStreamBody: require('stream').Readable.from([blobs.get(key)]) }),
+  });
+  const container = { createIfNotExists: async () => {}, getBlobClient: client, getBlockBlobClient: client };
+  const blob = new BlobStorage('', '', { container, diskDir: dir });
+  const read = async (key) => {
+    const chunks = [];
+    const sink = new Writable({ write(c, e, cb) { chunks.push(c); cb(); } });
+    const found = await blob.stream(key, sink);
+    return found ? Buffer.concat(chunks).toString() : null;
+  };
+
+  assert.strictEqual(await read(oldKey), 'OLD', 'old files are served from the disk before they are copied');
+  const newKey = await blob.save({ originalname: 'new.pdf', buffer: Buffer.from('NEW'), mimetype: 'application/pdf' });
+  assert.ok(blobs.has(newKey));
+  assert.strictEqual(fs.existsSync(path.join(dir, newKey)), false, 'new uploads go only to Blob storage');
+  assert.strictEqual(await blob.copyFromDisk(), 1);
+  assert.strictEqual(await blob.copyFromDisk(), 0, 'copying again does nothing');
+  assert.strictEqual(blobs.get(oldKey).toString(), 'OLD');
+  await blob.remove(oldKey);
+  assert.strictEqual(await read(oldKey), null, 'deleting removes both copies');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
