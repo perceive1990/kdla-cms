@@ -65,5 +65,9 @@ module.exports = {
   // Tasks, deadlines and appointments
   taskTypes: ['Task', 'Court hearing', 'Mediation session', 'Meeting', 'Follow up', 'Deadline', 'Field visit'],
 
+  // Work plans: the plan itself, and each planned activity in it
+  workplanStatuses: ['Draft', 'Approved', 'Closed'],
+  workplanActivityStatuses: ['Not started', 'In progress', 'Completed', 'Postponed', 'Cancelled'],
+
   roles: ['officer', 'admin'],
 };

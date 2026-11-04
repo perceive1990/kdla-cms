@@ -1,0 +1,118 @@
+<%- include('../partials/header') %>
+<% const who = (id) => (users[id] ? (users[id].fullName || users[id].username) : ''); %>
+<div class="page-head">
+  <div>
+    <div class="crumbs d-print-none"><a href="/workplans">Work plans</a></div>
+    <h1><%= plan.title %></h1>
+    <p class="sub">
+      <span class="tag <%= wp.planBadge(plan.status) %>"><%= plan.status %></span>
+      <%= h.fmtDate(plan.periodStart) %> to <%= h.fmtDate(plan.periodEnd) %><%= plan.office ? ' · ' + plan.office : '' %><% if (project) { %> · <%= project.title %><% } %>
+    </p>
+    <p class="small text-body-secondary mb-0">
+      <% if (plan.preparedById) { %>Prepared by <%= who(plan.preparedById) %><% } %>
+      <% if (plan.approvedById) { %> · Approved by <%= who(plan.approvedById) %> on <%= h.fmtDate(plan.approvedAt) %><% } %>
+      <% if (plan.status === 'Closed' && plan.closedAt) { %> · Closed on <%= h.fmtDate(plan.closedAt) %><% } %>
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 d-print-none">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <a class="btn btn-outline-secondary" href="/workplans/<%= plan.id %>/export.csv"><i class="bi bi-download"></i> Export CSV</a>
+    <form method="post" action="/workplans/<%= plan.id %>/copy"><%- f.hidden(csrfToken) %><button class="btn btn-outline-secondary" type="submit" title="Start a new draft with the same activities"><i class="bi bi-copy"></i> Copy</button></form>
+    <% if (canEdit) { %>
+      <a class="btn btn-outline-primary" href="/workplans/<%= plan.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+      <a class="btn btn-primary" href="/workplans/<%= plan.id %>/activities/new"><i class="bi bi-plus-lg"></i> Add activity</a>
+    <% } %>
+  </div>
+</div>
+
+<% if (admin) { %>
+<div class="panel d-print-none"><div class="panel-body d-flex flex-wrap align-items-center gap-2">
+  <span class="small text-body-secondary me-2"><i class="bi bi-shield-check"></i> Administrator:</span>
+  <% const moves = { Draft: [['Approved', 'Approve plan', 'btn-success']], Approved: [['Closed', 'Close plan', 'btn-outline-secondary'], ['Draft', 'Return to draft', 'btn-outline-secondary']], Closed: [['Approved', 'Reopen', 'btn-outline-secondary']] }[plan.status] || []; %>
+  <% for (const [to, label, cls] of moves) { %>
+    <form method="post" action="/workplans/<%= plan.id %>/status"><%- f.hidden(csrfToken) %><input type="hidden" name="status" value="<%= to %>"><button class="btn btn-sm <%= cls %>" type="submit"><%= label %></button></form>
+  <% } %>
+  <form method="post" action="/workplans/<%= plan.id %>/delete" class="ms-auto" data-confirm="Delete this work plan? Activity reports linked to it are kept but unlinked."><%- f.hidden(csrfToken) %><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete plan</button></form>
+</div></div>
+<% } else if (plan.status === 'Draft') { %>
+<div class="alert alert-info d-print-none small py-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Draft: anyone can change it. Once an administrator approves it, only administrators can change the activities.</div>
+<% } else if (plan.status === 'Approved') { %>
+<div class="alert alert-info d-print-none small py-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Approved: update the status of each activity and write its reports here. Only an administrator can change the activities.</div>
+<% } else { %>
+<div class="alert alert-secondary d-print-none small py-2"><i class="bi bi-lock" aria-hidden="true"></i> Closed: this plan can no longer change. An administrator can reopen it.</div>
+<% } %>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg"><div class="stat"><div class="label">Activities completed</div><div class="value"><%= totals.completed %> <small class="fs-6 fw-normal text-body-secondary">of <%= totals.activities - totals.cancelled %></small></div>
+    <div class="progress-line mt-1" role="img" aria-label="<%= totals.completedPct %>% completed"><span style="width: <%= totals.completedPct %>%"></span></div></div></div>
+  <div class="col-6 col-lg"><div class="stat"><div class="label">Times delivered</div><div class="value"><%= totals.delivered %> <small class="fs-6 fw-normal text-body-secondary">of <%= totals.targetEvents %></small></div>
+    <% if (totals.eventsPct !== null) { %><div class="progress-line mt-1" role="img" aria-label="<%= totals.eventsPct %>% delivered"><span style="width: <%= totals.eventsPct %>%"></span></div><% } %></div></div>
+  <div class="col-6 col-lg"><div class="stat"><div class="label">People reached</div><div class="value"><%= totals.reached.toLocaleString('en-GB') %> <small class="fs-6 fw-normal text-body-secondary">of <%= totals.targetPeople.toLocaleString('en-GB') %></small></div>
+    <% if (totals.peoplePct !== null) { %><div class="progress-line mt-1" role="img" aria-label="<%= totals.peoplePct %>% of target reached"><span style="width: <%= totals.peoplePct %>%"></span></div><% } %></div></div>
+  <div class="col-6 col-lg"><div class="stat"><div class="label">Planned budget</div><div class="value fs-5"><%= plan.currency %> <%= wp.money(totals.budget) || '0' %></div></div></div>
+  <div class="col-12 col-lg"><div class="stat<%= totals.overdue ? ' alert-stat' : '' %>"><div class="label">Overdue activities</div><div class="value"><%= totals.overdue %></div></div></div>
+</div>
+
+<% if (plan.notes) { %>
+<div class="panel"><div class="panel-body"><h2 class="panel-title">Purpose and notes</h2><p class="mb-0 prose"><%= plan.notes %></p></div></div>
+<% } %>
+
+<% if (!items.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-list-check"></i>No planned activities yet.<% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/new">Add the first activity</a>.<% } %></div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table wp-table">
+    <thead><tr>
+      <th class="text-end">No.</th><th>Activity</th><th>Responsible and dates</th><th>Progress</th>
+      <th class="text-end d-none d-xl-table-cell d-print-table-cell">Budget</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+    <% for (const it of items) { const label = Number.isInteger(it.number) ? 'activity ' + it.number : it.title; %>
+      <tr id="act-<%= it.id %>"<%= it.status === 'Cancelled' ? ' class="wp-cancelled"' : '' %>>
+        <td class="wp-num text-end fw-semibold"><%= it.number ?? '' %></td>
+        <td class="wp-main">
+          <div class="cell-strong"><%= it.title %></div>
+          <% if (it.activityType || it.district) { %><div class="small text-body-secondary"><%= [it.activityType, it.district].filter(Boolean).join(' · ') %></div><% } %>
+          <% if (it.output) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <%= it.output %></div><% } %>
+          <% if (it.reports.length) { %>
+            <div class="small mt-1">
+              <span class="text-body-secondary">Reports:</span>
+              <% for (const r of it.reports) { %><a class="me-2 nowrap" href="/reports/<%= r.id %>"><%= h.fmtDate(r.date) %></a><% } %>
+            </div>
+          <% } %>
+          <%- include('_actions', { it, label, cls: 'd-none d-md-flex' }) %>
+        </td>
+        <td class="wp-when">
+          <div><%= who(it.responsibleId) || 'Not assigned' %></div>
+          <div class="small text-body-secondary nowrap"><%= wp.span(it, plan) %></div>
+          <% if (it.overdue) { %><span class="tag tag-danger">Overdue</span><% } %>
+        </td>
+        <td class="wp-progress">
+          <div class="nowrap"><%= it.delivered %><%= it.targetEvents ? ' of ' + it.targetEvents : '' %> delivered</div>
+          <% if (it.eventsPct !== null) { %><div class="progress-line" role="img" aria-label="<%= it.eventsPct %>% delivered"><span style="width: <%= it.eventsPct %>%"></span></div><% } %>
+          <% if (it.targetPeople || it.reached) { %><div class="small text-body-secondary nowrap mt-1"><%= it.reached.toLocaleString('en-GB') %><%= it.targetPeople ? ' of ' + it.targetPeople.toLocaleString('en-GB') : '' %> people</div><% } %>
+        </td>
+        <td class="wp-budget text-end nowrap d-none d-xl-table-cell d-print-table-cell"><% if (it.budget !== null && it.budget !== undefined) { %><span class="wp-cur"><span class="d-md-none">Budget </span><%= plan.currency %> </span><%= wp.money(it.budget) %><% } %></td>
+        <td class="wp-status">
+          <% if (canProgress) { %>
+            <form method="post" action="/workplans/<%= plan.id %>/activities/<%= it.id %>/progress" class="d-print-none">
+              <%- f.hidden(csrfToken) %>
+              <select class="form-select form-select-sm status-select" name="status" aria-label="Status of <%= label %>" data-autosubmit>
+                <% for (const s of choices.workplanActivityStatuses) { %><option<%= it.status === s ? ' selected' : '' %>><%= s %></option><% } %>
+              </select>
+              <noscript><button class="btn btn-sm btn-outline-primary mt-1" type="submit">Save</button></noscript>
+            </form>
+            <span class="tag <%= wp.actBadge(it.status) %> d-none d-print-inline-block"><%= it.status %></span>
+          <% } else { %>
+            <span class="tag <%= wp.actBadge(it.status) %>"><%= it.status %></span>
+          <% } %>
+          <%- include('_actions', { it, label, cls: 'd-md-none' }) %>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<p class="small text-body-secondary mt-2">Delivered counts the activity reports linked to each activity. People adds up their registered attendees and head counts. Link a report with "Write report", or choose the work plan activity on the report form.</p>
+<% } %>
+<%- include('../partials/footer') %>

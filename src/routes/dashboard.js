@@ -4,6 +4,7 @@ const choices = require('../choices');
 const { tally, mapByIds, today } = require('../helpers');
 const { visibleWhere, visibleMap } = require('../access');
 const { searchAll, conflictCheck } = require('../services/search');
+const workplans = require('../services/workplans');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/', async (req, res) => {
   const year = today().slice(0, 4);
   const t0 = today(); const t14 = today(14);
   // Light projections keep request-unit cost low; fine for thousands of records.
-  const [cases, clients, reportsCount, openReferrals, recent, myTasks, hearings] = await Promise.all([
+  const [cases, clients, reportsCount, openReferrals, recent, myTasks, hearings, myActivities] = await Promise.all([
     db.find('cases', { fields: ['id', 'status', 'caseTypes', 'office', 'openedOn', 'officerId', 'teamIds', 'outcome'] }),
     db.find('people', { where: { kind: 'client' }, fields: ['id', 'ageCategory', 'disability'] }),
     db.count('reports', {}),
@@ -23,6 +24,7 @@ router.get('/', async (req, res) => {
       where: { done: false, type: { $in: ['Court hearing', 'Mediation session'] }, dueDate: { $gte: t0, $lte: t14 } },
       orderBy: ['dueDate', 'ASC'], limit: 10,
     }),
+    workplans.dueFor(db, req.user.id, 30),
   ]);
 
   const isOpen = (c) => String(c.status).startsWith('Open');
@@ -54,7 +56,7 @@ router.get('/', async (req, res) => {
     byOffice: tally(cases, 'office', choices.offices),
     byAgeCategory: tally(clients, 'ageCategory', choices.ageCategories),
     disabled: clients.filter((c) => c.disability === 'Disabled').length,
-    recent, people, users, myTasks, hearings: visibleHearings, taskCases, t0,
+    recent, people, users, myTasks, hearings: visibleHearings, taskCases, t0, myActivities,
   });
 });
 

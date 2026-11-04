@@ -124,3 +124,30 @@ test('switching on Blob storage keeps earlier files readable and copies them acr
   assert.strictEqual(await read(oldKey), null, 'deleting removes both copies');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('work plans: activity dates move with the start of the plan', () => {
+  const { moveItems } = require('../src/services/workplans');
+  const items = [
+    { id: 'a', startDate: '2027-01-15', endDate: '2027-01-20' },
+    { id: 'b', startDate: '2027-03-25', endDate: '2027-03-31' },
+    { id: 'c', startDate: '', endDate: '' },
+  ];
+  // A quarter later: whole months, the 31st becomes the last day of June
+  const q2 = moveItems(items, { periodStart: '2027-01-01' }, { periodStart: '2027-04-01', periodEnd: '2027-06-30' });
+  assert.deepStrictEqual(q2.map((it) => [it.startDate, it.endDate]), [['2027-04-15', '2027-04-20'], ['2027-06-25', '2027-06-30'], ['', '']]);
+  // A year later, into a leap year
+  const leap = moveItems([{ startDate: '2027-02-28', endDate: '2027-03-01' }], { periodStart: '2027-01-01' }, { periodStart: '2028-01-01', periodEnd: '2028-12-31' });
+  assert.deepStrictEqual([leap[0].startDate, leap[0].endDate], ['2028-02-28', '2028-03-01']);
+  // October to January keeps the last days of the quarter
+  const q1 = moveItems([{ startDate: '2026-12-30', endDate: '2026-12-31' }], { periodStart: '2026-10-01' }, { periodStart: '2027-01-01', periodEnd: '2027-03-31' });
+  assert.deepStrictEqual([q1[0].startDate, q1[0].endDate], ['2027-03-30', '2027-03-31']);
+  // A shorter period: dates that would fall after it end on its last day
+  const short = moveItems([{ startDate: '2027-03-15', endDate: '2027-03-31' }], { periodStart: '2027-01-01' }, { periodStart: '2027-02-01', periodEnd: '2027-03-31' });
+  assert.deepStrictEqual([short[0].startDate, short[0].endDate], ['2027-03-31', '2027-03-31']);
+  // Starts on different days of the month: moved by days
+  const days = moveItems([{ startDate: '2027-01-10', endDate: '2027-01-12' }], { periodStart: '2027-01-01' }, { periodStart: '2027-01-08', periodEnd: '2027-12-31' });
+  assert.deepStrictEqual([days[0].startDate, days[0].endDate], ['2027-01-17', '2027-01-19']);
+  // Backwards by three months
+  const back = moveItems([{ startDate: '2027-04-01', endDate: '2027-04-02' }], { periodStart: '2027-04-01' }, { periodStart: '2027-01-01', periodEnd: '2027-03-31' });
+  assert.deepStrictEqual([back[0].startDate, back[0].endDate], ['2027-01-01', '2027-01-02']);
+});

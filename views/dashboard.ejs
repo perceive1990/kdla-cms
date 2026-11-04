@@ -44,6 +44,25 @@
       <% } %>
     </div></div>
 
+    <% if (myActivities.length) { %>
+    <div class="panel"><div class="panel-body">
+      <div class="panel-head">
+        <h2 class="panel-title">My work plan activities, next 30 days</h2>
+        <a class="small" href="/workplans">Work plans</a>
+      </div>
+      <% for (const a of myActivities) { %>
+        <div class="task-row">
+          <div class="when <%= a.overdue ? 'text-danger fw-semibold' : '' %>"><%= h.fmtDate(a.item.endDate) %><% if (a.overdue) { %><div class="small">Overdue</div><% } %></div>
+          <div class="grow">
+            <div class="title"><span class="tag <%= a.item.status === 'In progress' ? '' : 'tag-muted' %>"><%= a.item.status %></span> <%= Number.isInteger(a.item.number) ? a.item.number + '. ' : '' %><%= a.item.title %></div>
+            <div class="small"><a href="/workplans/<%= a.plan.id %>#act-<%= a.item.id %>"><%= a.plan.title %></a></div>
+          </div>
+          <a class="btn btn-sm btn-outline-primary" href="/reports/new?workplanItem=<%= a.plan.id %>:<%= a.item.id %>" title="Write the activity report"><i class="bi bi-journal-plus"></i><span class="visually-hidden">Write the activity report for <%= a.item.title %></span></a>
+        </div>
+      <% } %>
+    </div></div>
+    <% } %>
+
     <div class="panel"><div class="panel-body">
       <div class="panel-head">
         <h2 class="panel-title">Recently updated cases</h2>

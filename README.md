@@ -1,6 +1,6 @@
 # KDLA Case Management System (v2.2)
 
-A case management system for Kitwe District Land Alliance, written entirely in **JavaScript on Node.js** (Express) with **Azure Cosmos DB for NoSQL**, and designed to run on Azure's free tiers. It covers cases, clients, other parties, activity attendees, activity reports, stakeholder organisations, referrals and consultation rooms, and it offers a **JSON REST API** so other programs, scripts and reports can use the same data.
+A case management system for Kitwe District Land Alliance, written entirely in **JavaScript on Node.js** (Express) with **Azure Cosmos DB for NoSQL**, and designed to run on Azure's free tiers. It covers cases, clients, other parties, activity attendees, work plans, activity reports, stakeholder organisations, referrals and consultation rooms, and it offers a **JSON REST API** so other programs, scripts and reports can use the same data.
 
 ## What is new in version 2.2
 
@@ -27,6 +27,7 @@ These features follow what established legal aid and legal empowerment case mana
 | **Confidential cases** | Gender-based violence and other sensitive cases can be marked confidential. Only the responsible officer, a named case team and administrators can open them; others see only that a confidential case exists. Every view is logged. |
 | **Statistics for donors** | Cases opened and concluded, outcomes, resolution rate, median days to conclude, clients served by age, sex and disability, referrals, activity reach and hours worked, for any period, office and project. Export to CSV, print, or read them through the API. |
 | **Attendance registers** | A whole community meeting register can be typed into one table. Attendees are created and linked to the report in one step. |
+| **Work plans** | Plan each quarter or year as numbered activities with dates, the person responsible, targets and a budget. Administrators approve the plan and staff update progress. Activity reports linked to a planned activity show what was delivered against what was planned. |
 | **Referral letters** | Print a referral letter on KDLA letterhead, or save it as PDF, with the client details and reason. |
 | **Consent (Data Protection Act 2021)** | Record whether each client agreed to KDLA storing their information and to sharing it on referral. Missing consent is flagged on lists, cases and referrals. |
 | **Data access requests** | Administrators can download everything held about one person, as required when someone asks to see their data. |
@@ -90,6 +91,7 @@ The reference page lists every operation with its fields, rules and error codes.
 | People | `GET` and `POST /people`, `GET`, `PATCH` and `DELETE /people/{id}`, `/people/{id}/links`, `/people/{id}/personal-data`, `GET /conflicts` |
 | Tasks and hearings | `GET` and `POST /tasks`, `GET`, `PATCH` and `DELETE /tasks/{id}`, `POST /tasks/{id}/done`, `GET /tasks/{id}/calendar.ics` |
 | Activity reports | `GET` and `POST /reports`, `GET`, `PATCH` and `DELETE /reports/{id}`, `GET` and `POST /reports/{id}/attendees` |
+| Work plans | `GET` and `POST /workplans`, `GET`, `PATCH` and `DELETE /workplans/{id}`, `POST /workplans/{id}/status`, `POST /workplans/{id}/copy`, `POST /workplans/{id}/activities`, `GET`, `PATCH` and `DELETE /workplans/{id}/activities/{itemId}`, `POST /workplans/{id}/activities/{itemId}/status` |
 | Referrals | `GET` and `POST /referrals`, `GET` and `DELETE /referrals/{id}`, `POST /referrals/{id}/follow-ups` |
 | Organisations, projects and staff | `/stakeholders`, `/projects` and `/users`, with list, create, read and change, and delete where the web app allows it |
 | Reference | `GET /choices` (every option list), `GET /statistics`, `GET /search` |
@@ -239,6 +241,19 @@ This is general information, not legal advice. Please confirm the details with a
 * **API access.** A token acts as the person who created it, so it should be stored like a password and revoked when it is no longer needed. Programs that receive data through the API (for example a Power BI report) also hold personal data and need the same care.
 * **Retention.** Keep personal data only as long as it is needed. Audit entries are deleted automatically after `AUDIT_RETENTION_DAYS` (3 years by default).
 
+## Work plans
+
+**Programmes > Work plans** holds the plan for each period, for example "Kitwe Office work plan, January to March 2027".
+
+1. **Start a plan** with its period, office, project and budget currency. It starts as a draft that anyone can change.
+2. **Add the planned activities:** number, activity, type, district, the person responsible, start and end dates, how many times it should take place, how many people it should reach, the budget and the expected output. Numbers are given automatically and must be unique within the plan.
+3. **An administrator approves the plan.** After approval only administrators change the activities. Everyone can still update the progress of each activity: not started, in progress, completed, postponed or cancelled.
+4. **Write the activity reports from the plan.** The report button next to each activity opens a new report already linked to it, or choose the activity in the "Work plan activity" field of any report. Each linked report counts as one delivery, and its registered attendees plus its head count are the people reached.
+5. **Follow progress** on the plan page: activities completed, times delivered against planned, people reached against the target, the budget and overdue activities. Each person's dashboard lists their activities due in the next 30 days.
+6. **Close the plan** at the end of the period (administrators). A closed plan cannot change until an administrator reopens it.
+
+**Copy** starts the next period from an existing plan: the same activities, with progress reset and no reports linked. Change the period of the copy with "Move the activity dates with the plan" ticked, and the activities move with it (a plan moved from 1 January to 1 April moves every activity three months). **Export CSV** and **Print** give the plan with its planned and delivered figures, for donor reports and team meetings.
+
 ## Users and permissions
 
 * **Officers** can view, add and edit records, write case diary entries, manage tasks, and use the API with the same rights.
@@ -334,7 +349,8 @@ One database with shared throughput, partitioned by `/id` except where noted.
 | `cases` | case files with parties, outcome, team, attachments and history |
 | `caseNotes` | case diary entries, partitioned by `/caseId` |
 | `tasks` | tasks, hearings and deadlines |
-| `reports` | activity reports with attendees and attachments |
+| `reports` | activity reports with attendees and attachments, and the planned activity they deliver |
+| `workplans` | work plans with their planned activities |
 | `stakeholders` | partner organisations |
 | `referrals` | referrals with follow ups embedded |
 | `rooms` / `messages` | consultation rooms; messages partitioned by `/roomId` |

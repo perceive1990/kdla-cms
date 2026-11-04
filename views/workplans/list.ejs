@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Work plans</h1><p class="sub">Planned activities for each period, with progress from activity reports</p></div>
+  <a class="btn btn-primary" href="/workplans/new"><i class="bi bi-plus-lg"></i> New work plan</a>
+</div>
+<form class="filters" method="get" action="/workplans" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search work plans" aria-label="Search work plans">
+  <select class="form-select" name="status" aria-label="Status" data-autosubmit>
+    <option value="">All statuses</option>
+    <% for (const s of choices.workplanStatuses) { %><option<%= query.status === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <select class="form-select" name="office" aria-label="Office" data-autosubmit>
+    <option value="">All offices</option>
+    <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <% if (allProjects.length) { %>
+  <select class="form-select" name="projectId" aria-label="Project" data-autosubmit>
+    <option value="">All projects</option>
+    <% for (const p of allProjects) { %><option value="<%= p.id %>"<%= query.projectId === p.id ? ' selected' : '' %>><%= p.title %></option><% } %>
+  </select>
+  <% } %>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+</form>
+<% if (!plans.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-clipboard-check"></i>No work plans yet. <a href="/workplans/new">Create the first work plan</a>.</div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Work plan</th><th class="d-none d-md-table-cell">Period</th><th>Status</th><th class="text-end">Activities</th><th class="d-none d-lg-table-cell" style="min-width: 160px;">Completed</th><th class="text-end d-none d-lg-table-cell">Budget</th></tr></thead>
+    <tbody>
+    <% for (const p of plans) { const t = summaries[p.id]; %>
+      <tr>
+        <td><a class="cell-strong" href="/workplans/<%= p.id %>"><%= p.title %></a>
+          <div class="small text-body-secondary"><%= [p.office, projects[p.projectId] && projects[p.projectId].title].filter(Boolean).join(' · ') %></div></td>
+        <td class="d-none d-md-table-cell nowrap"><%= h.fmtDate(p.periodStart) %> to <%= h.fmtDate(p.periodEnd) %></td>
+        <td><span class="tag <%= wp.planBadge(p.status) %>"><%= p.status %></span></td>
+        <td class="text-end"><%= t.activities %><% if (t.overdue) { %> <span class="tag tag-danger"><%= t.overdue %> overdue</span><% } %></td>
+        <td class="d-none d-lg-table-cell">
+          <div class="progress-line" role="img" aria-label="<%= t.completedPct %>% of activities completed"><span style="width: <%= t.completedPct %>%"></span></div>
+          <div class="small text-body-secondary"><%= t.completed %> of <%= t.activities - t.cancelled %> · <%= t.completedPct %>%</div>
+        </td>
+        <td class="text-end d-none d-lg-table-cell nowrap"><%= t.budget ? p.currency + ' ' + wp.money(t.budget) : '' %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

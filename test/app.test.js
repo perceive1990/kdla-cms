@@ -609,3 +609,188 @@ test('phone app: manifest, service worker and offline page work without login', 
   assert.match(r.text, /Add to Home Screen/);
   assert.match(r.text, /rel="manifest"/);
 });
+
+test('work plans: draft, planned activities, approval, linked reports and progress', async () => {
+  const a = ctx.admin;
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  const officerId = await userId('officer3');
+  const start = today(-60); const end = today(60);
+  const planOf = (id) => db().get('workplans', id);
+
+  // An officer starts a draft plan
+  let r = await o.post('/workplans', { title: '', periodStart: start, periodEnd: end }, '/workplans/new');
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Enter a title/);
+  r = await o.post('/workplans', { title: 'Kitwe outreach plan', periodStart: end, periodEnd: start }, '/workplans/new');
+  assert.match(r.text, /The end must be on or after the start/);
+  r = await o.post('/workplans', {
+    title: 'Kitwe outreach plan', periodStart: start, periodEnd: end, office: 'Fisenge Office', currency: 'ZMW', notes: 'Land rights outreach',
+  }, '/workplans/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const planId = idFrom(r.location);
+  assert.strictEqual((await planOf(planId)).status, 'Draft');
+  assert.strictEqual((await planOf(planId)).preparedById, officerId);
+
+  // Planned activities: numbered automatically, unique numbers, dates inside the period
+  r = await o.post(`/workplans/${planId}/activities`, {
+    number: '', title: 'Community sensitisation on customary land', activityType: 'Community Meeting', district: 'Kitwe District',
+    responsibleId: officerId, startDate: today(-30), endDate: today(-1), targetEvents: '2', targetPeople: '100', budget: '1,500.50',
+    output: '100 people know how to register customary land', status: 'Not started', next: 'another',
+  }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  assert.strictEqual(r.location, `/workplans/${planId}/activities/new`, '"Add and add another" opens a new form');
+  let plan = await planOf(planId);
+  const first = plan.items[0];
+  assert.strictEqual(first.number, 1);
+  assert.strictEqual(first.budget, 1500.5);
+  r = await o.post(`/workplans/${planId}/activities`, { number: '1', title: 'Radio programme', status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Activity number 1 is already used/);
+  r = await o.post(`/workplans/${planId}/activities`, { title: 'Radio programme', endDate: today(90), status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  assert.match(r.text, /within the plan period/);
+  r = await o.post(`/workplans/${planId}/activities`, {
+    number: '5', title: 'Radio programme on land rights', activityType: 'Radio or TV Program', responsibleId: officerId,
+    startDate: today(1), endDate: today(10), targetEvents: '1', status: 'Not started',
+  }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  plan = await planOf(planId);
+  const second = plan.items.find((it) => it.number === 5);
+  assert.deepStrictEqual(plan.items.map((it) => it.number), [1, 5]);
+
+  r = await o.req(`/workplans/${planId}`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Community sensitisation on customary land/);
+  assert.match(r.text, /<span class="tag tag-danger">Overdue<\/span>/);
+  assert.match(r.text, new RegExp(`/reports/new\\?workplanItem=${planId}:${first.id}`));
+
+  // Only administrators approve; then only they change the activities, but anyone updates progress
+  r = await o.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).status, 'Draft');
+  r = await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  plan = await planOf(planId);
+  assert.strictEqual(plan.status, 'Approved');
+  assert.strictEqual(plan.approvedById, await userId('admin'));
+  r = await o.req(`/workplans/${planId}/activities/${first.id}/edit`);
+  assert.strictEqual(r.status, 302, 'approved plan: no edit form for officers');
+  r = await o.post(`/workplans/${planId}/activities/${first.id}`, { title: 'Changed', status: 'Not started' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).items[0].title, 'Community sensitisation on customary land');
+  r = await o.post(`/workplans/${planId}/activities/${first.id}/progress`, { status: 'In progress' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).items[0].status, 'In progress');
+
+  // Two colleagues updating different activities at the same moment do not overwrite each other
+  const wp = require('../src/services/workplans');
+  const stale = await planOf(planId);
+  const adminUser = (await db().find('users', { where: { username: 'admin' } }))[0];
+  const fakeReq = { db: db(), user: adminUser, ip: '127.0.0.1' };
+  await wp.setActivityStatus(fakeReq, stale, first.id, 'Postponed');
+  await wp.setActivityStatus(fakeReq, stale, second.id, 'In progress');
+  plan = await planOf(planId);
+  assert.deepStrictEqual(plan.items.map((it) => it.status), ['Postponed', 'In progress'], 'the second change was applied to the latest version');
+  await wp.setActivityStatus(fakeReq, plan, first.id, 'In progress');
+
+  // An activity report written from the plan is linked to the planned activity
+  r = await o.req(`/reports/new?workplanItem=${planId}:${first.id}`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, new RegExp(`value="${planId}:${first.id}" selected`));
+  assert.match(r.text, /value="Community sensitisation on customary land"/);
+  const reportFields = {
+    activityType: 'Community Meeting', heading: 'Sensitisation in Chamboli', date: today(-2), district: 'Kitwe District',
+    introduction: 'Intro', objectives: 'Objectives', implementation: 'Implementation', otherParticipants: '40', compiledById: officerId,
+  };
+  r = await o.post('/reports', { ...reportFields, workplanItem: `${planId}:not-an-activity` }, '/reports/new');
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Select a valid work plan activity/);
+  r = await o.post('/reports', { ...reportFields, workplanItem: `${planId}:${first.id}`, activityNumber: '' }, '/reports/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const reportId = idFrom(r.location);
+  const report = await db().get('reports', reportId);
+  assert.strictEqual(report.workplanId, planId);
+  assert.strictEqual(report.workplanItemId, first.id);
+  assert.strictEqual(report.activityNumber, 1, 'activity number taken from the plan');
+  r = await o.req(`/reports/${reportId}`);
+  assert.match(r.text, new RegExp(`/workplans/${planId}#act-${first.id}`));
+  r = await o.req(`/reports/${reportId}/edit`);
+  assert.match(r.text, new RegExp(`value="${planId}:${first.id}" selected`), 'edit form keeps the link');
+
+  // Planned against delivered
+  const { items, totals } = await wp.progress(db(), await planOf(planId));
+  assert.strictEqual(items[0].delivered, 1);
+  assert.strictEqual(items[0].reached, 40);
+  assert.strictEqual(items[0].eventsPct, 50);
+  assert.strictEqual(items[0].overdue, true);
+  assert.strictEqual(totals.delivered, 1);
+  assert.strictEqual(totals.targetEvents, 3);
+  r = await o.req(`/workplans/${planId}`);
+  assert.match(r.text, new RegExp(`/reports/${reportId}"`));
+  r = await o.req(`/workplans/${planId}/export.csv`);
+  assert.match(r.headers.get('content-type'), /text\/csv/);
+  assert.match(r.text, /Delivered \(activity reports\)/);
+  assert.match(r.text, /1,Community sensitisation on customary land,Community Meeting,Kitwe District,List Tester/);
+  r = await o.req('/');
+  assert.match(r.text, /My work plan activities/);
+  assert.match(r.text, /Radio programme on land rights/);
+  r = await o.req('/workplans?status=Approved');
+  assert.match(r.text, /Kitwe outreach plan/);
+  r = await o.req('/workplans?status=Closed');
+  assert.doesNotMatch(r.text, /Kitwe outreach plan/);
+
+  // Copy for the next period: the activities move with the start of the plan
+  r = await o.post(`/workplans/${planId}/copy`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.match(r.location, /\/edit$/);
+  const copyId = r.location.split('/')[2];
+  let copy = await planOf(copyId);
+  assert.strictEqual(copy.status, 'Draft');
+  assert.ok(copy.items.every((it) => it.status === 'Not started'));
+  assert.ok(copy.items.every((it) => !plan.items.some((x) => x.id === it.id)), 'activities get new ids');
+  r = await o.req(`/workplans/${copyId}/edit`);
+  assert.match(r.text, /Move the activity dates with the plan/);
+  const moved = { title: 'Kitwe outreach plan, next period', periodStart: today(-20), periodEnd: today(100), office: 'Fisenge Office', currency: 'ZMW' };
+  r = await o.post(`/workplans/${copyId}`, { ...moved, _etag: copy._etag }, `/workplans/${copyId}/edit`);
+  assert.strictEqual(r.status, 400, 'without moving, the first activity would start before the plan');
+  assert.match(r.text, /dates outside this period/);
+  r = await o.post(`/workplans/${copyId}`, { ...moved, moveActivities: 'on', _etag: copy._etag }, `/workplans/${copyId}/edit`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 400));
+  copy = await planOf(copyId);
+  assert.deepStrictEqual(copy.items.map((it) => [it.startDate, it.endDate]), [[today(10), today(39)], [today(41), today(50)]], 'moved 40 days with the start');
+
+  // Closed plans cannot change until an administrator reopens them; reopening keeps the approval
+  const approvedAt = (await planOf(planId)).approvedAt;
+  r = await a.post(`/workplans/${planId}/status`, { status: 'Closed' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).status, 'Closed');
+  r = await o.post(`/workplans/${planId}/activities/${first.id}/progress`, { status: 'Completed' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).items[0].status, 'In progress');
+  r = await a.req(`/workplans/${planId}`);
+  assert.doesNotMatch(r.text, new RegExp(`/workplans/${planId}/activities/new`), 'no editing a closed plan, even for administrators');
+  r = await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  plan = await planOf(planId);
+  assert.strictEqual(plan.status, 'Approved');
+  assert.strictEqual(plan.approvedAt, approvedAt);
+
+  // Removing an activity or a plan keeps the reports and unlinks them
+  r = await o.post(`/workplans/${planId}/delete`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.ok(await planOf(planId), 'officers cannot delete a plan');
+  r = await a.post(`/workplans/${planId}/activities/${first.id}/delete`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await planOf(planId)).items.length, 1);
+  assert.strictEqual((await db().get('reports', reportId)).workplanId, '');
+  r = await a.post(`/workplans/${planId}/delete`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual(await planOf(planId), null);
+  assert.ok(await db().get('reports', reportId), 'the report is kept');
+
+  for (const p of ['/workplans', '/workplans/new', `/workplans/${copyId}`, `/workplans/${copyId}/edit`, `/workplans/${copyId}/activities/new`,
+    `/workplans/${copyId}/activities/${copy.items[0].id}/edit`, '/reports/new']) {
+    r = await o.req(p);
+    assert.strictEqual(r.status, 200, `${p} -> ${r.status} ${r.location || ''}`);
+  }
+});
