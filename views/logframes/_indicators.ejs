@@ -1,0 +1,26 @@
+<% if (r.indicators.length) { %>
+<div class="lf-ind-wrap">
+  <table class="table table-sm lf-ind mb-0">
+    <thead><tr><th>Indicator</th><th class="text-end">Baseline</th><th class="text-end">Target</th><th class="text-end">Actual</th><th>Progress</th><th>Status</th><th class="d-print-none"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+    <% for (const i of r.indicators) { const look = lf.status(i.status); %>
+      <tr>
+        <td class="lf-ind-name">
+          <div class="fw-semibold"><%= i.name %></div>
+          <div class="small text-body-secondary"><%= i.automatic ? SOURCES[i.source].label : (i.asAt ? 'Recorded, as at ' + h.fmtDate(i.asAt) : 'Recorded by staff, no value yet') %><%= i.means ? ' · ' + i.means : '' %></div>
+        </td>
+        <td class="text-end" data-label="Baseline"><%= lf.num(i.baseline, i.unit) %></td>
+        <td class="text-end" data-label="Target"><%= lf.num(i.target, i.unit) %></td>
+        <td class="text-end fw-semibold" data-label="Actual"><%= lf.num(i.actual, i.unit) %></td>
+        <td data-label="Progress"><% if (i.pct !== null) { %><div class="progress-line" role="img" aria-label="<%= i.pct %>% of the target"><span style="width: <%= Math.min(100, i.pct) %>%"></span></div><div class="small text-body-secondary"><%= i.pct %>%</div><% } %></td>
+        <td data-label="Status"><span class="tag <%= look.cls %> nowrap"><i class="bi bi-<%= look.icon %>" aria-hidden="true"></i> <%= i.status %></span></td>
+        <td class="text-end d-print-none lf-ind-actions">
+          <a class="btn btn-sm btn-outline-primary" href="/logframes/<%= project.id %>/indicators/<%= i.id %>"><%= i.automatic ? 'Details' : 'Record value' %><span class="visually-hidden"> for <%= i.name %></span></a>
+          <% if (admin) { %><a class="btn btn-sm btn-outline-secondary" href="/logframes/<%= project.id %>/indicators/<%= i.id %>/edit"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Edit <%= i.name %></span></a><% } %>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>

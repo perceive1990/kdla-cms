@@ -1,4 +1,4 @@
-/* KDLA Case Management — layout, brand and themes on top of Bootstrap 5.3.
+/* KDLA Reports and Case Documentation: layout, brand and themes on top of Bootstrap 5.3.
    Themes: data-bs-theme (light/dark, set by theme.js), data-accent (colour), data-text-size. */
 
 /* ---------- Accent colours ---------- */
@@ -190,6 +190,43 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .progress-line > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 [data-bs-theme="dark"] .progress-line { background: var(--line); }
 [data-bs-theme="dark"] .progress-line > span { background: var(--accent-on-dark); }
+/* Logframes (M&E) */
+.lf-head { display: flex; flex-wrap: wrap; gap: .15rem .6rem; align-items: baseline; margin-bottom: .35rem; }
+.lf-label { font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text); white-space: nowrap; }
+.lf-text { margin: 0; font-weight: 600; flex: 1 1 18rem; font-size: 1rem; line-height: 1.4; }
+.lf-objective { border-left: 4px solid var(--accent); }
+[data-bs-theme="dark"] .lf-objective { border-left-color: var(--accent-on-dark); }
+.lf-output { border-top: 1px solid var(--line); margin-top: 1rem; padding: .9rem 0 0 1rem; border-left: 3px solid var(--accent-soft-strong); }
+.lf-acts { margin: .6rem 0 0; }
+.lf-acts > li { border-top: 1px dashed var(--line); padding: .55rem 0 .4rem .75rem; }
+.lf-acts .lf-text { font-weight: 500; }
+.lf-rollup { font-size: .85rem; display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+.lf-rollup i { color: var(--muted); }
+.lf-ind-wrap { margin: .6rem 0 .3rem; overflow-x: auto; }
+.lf-ind > tbody > tr > td { vertical-align: top; }
+.lf-ind .lf-ind-name { min-width: 14rem; }
+.lf-ind .progress-line { min-width: 5rem; }
+.lf-ind-actions { white-space: nowrap; }
+.lf-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+.lf-actions form { margin: 0; }
+.lf-planned { margin-top: .4rem; font-size: .85rem; }
+.lf-planned summary { cursor: pointer; color: var(--accent-text); }
+.lf-planned li { padding: .2rem 0; }
+@media screen and (max-width: 767.98px) {
+  .lf-ind thead { display: none; }
+  .lf-ind, .lf-ind > tbody { display: block; }
+  .lf-ind > tbody > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem .75rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+  .lf-ind > tbody > tr > td { display: block; padding: 0; border: 0; text-align: left !important; min-width: 0; }
+  .lf-ind > tbody > tr > td.lf-ind-name, .lf-ind > tbody > tr > td.lf-ind-actions { grid-column: 1 / -1; }
+  .lf-ind > tbody > tr > td[data-label]::before { content: attr(data-label); display: block; font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .lf-output { padding-left: .6rem; }
+}
+@media print {
+  .lf-planned:not([open]) { display: none; }
+  .lf-output { break-inside: avoid; }
+  .lf-ind { font-size: 9pt; }
+}
+
 /* Work plan activities: a table on wider screens, one card per activity on phones */
 .wp-table > tbody > tr > td { vertical-align: top; }
 .wp-table .wp-main { min-width: 15rem; }

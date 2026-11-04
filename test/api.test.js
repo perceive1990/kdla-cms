@@ -711,6 +711,116 @@ test('staff accounts, projects, statistics, search, rooms, audit and export', as
   assert.ok(r.json.users.every((u) => !u.passwordHash && !u.totpSecret));
 });
 
+test('M&E: logframe set-up, import, links from planned activities, values and versions', async () => {
+  const { admin } = ctx;
+  const o1 = await login('officer1', 'officer-password-1');
+  let r = await api('POST', '/projects', { token: admin, body: { title: 'Logframe project', startDate: today(-50), endDate: today(50), budget: 1000 } });
+  assert.strictEqual(r.status, 201, r.text);
+  const pid = r.json.id;
+  r = await api('GET', `/projects/${pid}/logframe`, { token: o1 });
+  assert.strictEqual(r.status, 404);
+  r = await api('POST', `/projects/${pid}/logframe`, { token: o1 });
+  assert.strictEqual(r.status, 403);
+  r = await api('POST', `/projects/${pid}/logframe`, { token: admin });
+  assert.strictEqual(r.status, 201, r.text);
+  r = await api('POST', `/projects/${pid}/logframe`, { token: admin });
+  assert.strictEqual(r.status, 200, 'setting it up twice returns the existing logframe');
+
+  r = await api('POST', `/projects/${pid}/logframe/import`, { token: admin, body: { csv: 'Activity,,An activity on its own' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.rowErrors['1']);
+  const csv = [
+    'Overall objective,,Access to justice expanded',
+    'Intermediate objective,IO1,Communities know their rights',
+    'Output,,Communities reached',
+    'Indicator,,People reached,,0,50,Registers,People reached',
+    'Indicator,,Information sessions held,Number,0,4,Reports,',
+    'Activity,,Awareness sessions',
+  ].join('\n');
+  r = await api('POST', `/projects/${pid}/logframe/import`, { token: admin, body: { csv } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.deepStrictEqual(r.json.imported, { results: 4, indicators: 2 });
+  const lfr = r.json.logframe;
+  assert.deepStrictEqual(lfr.results.map((x) => x.code), ['', 'IO1', 'IO1.1', 'IO1.1.1'], 'custom codes are kept and continued');
+  const activity = lfr.results[3];
+  const reachInd = lfr.results[2].indicators.find((i) => i.source === 'reach');
+  const manualInd = lfr.results[2].indicators.find((i) => i.source === 'manual');
+  r = await api('POST', `/projects/${pid}/logframe/import`, { token: admin, body: { csv } });
+  assert.strictEqual(r.status, 409);
+
+  // Planned activity linked through the API, and its report counting towards the indicator
+  r = await api('POST', '/workplans', { token: o1, body: { title: 'Plan with logframe', periodStart: today(-20), periodEnd: today(20), projectId: pid } });
+  const planId = r.json.id;
+  r = await api('POST', `/workplans/${planId}/activities`, { token: o1, body: { title: 'Session in Chingola', logframeId: pid, logframeResultId: lfr.results[0].id } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.logframeResultId, 'the overall objective cannot be chosen');
+  r = await api('POST', `/workplans/${planId}/activities`, { token: o1, body: { title: 'Session in Chingola', targetEvents: 2, logframeId: pid, logframeResultId: activity.id } });
+  assert.strictEqual(r.status, 201, r.text);
+  const itemId = r.json.activities[0].id;
+  assert.strictEqual(r.json.activities[0].logframeResultId, activity.id);
+  r = await api('POST', '/reports', {
+    token: o1,
+    body: {
+      activityType: 'Community Meeting', heading: 'Chingola session', introduction: 'Intro', objectives: 'Objectives', implementation: 'Implementation',
+      otherParticipants: 25, workplanId: planId, workplanItemId: itemId,
+    },
+  });
+  assert.strictEqual(r.status, 201, r.text);
+  r = await api('GET', `/projects/${pid}/logframe`, { token: o1 });
+  assert.strictEqual(r.status, 200);
+  let output = r.json.results[2];
+  assert.strictEqual(output.indicators.find((i) => i.id === reachInd.id).actual, 25);
+  assert.strictEqual(output.rollup.delivered, 1);
+  assert.strictEqual(r.json.results[3].plannedActivities[0].activityId, itemId);
+  const etag = r.headers.get('etag');
+
+  // Values: recorded indicators only; anyone may record
+  r = await api('POST', `/projects/${pid}/logframe/indicators/${reachInd.id}/values`, { token: o1, body: { date: today(), value: 3 } });
+  assert.strictEqual(r.status, 422);
+  assert.strictEqual(r.json.error.code, 'automatic_indicator');
+  r = await api('POST', `/projects/${pid}/logframe/indicators/${manualInd.id}/values`, { token: o1, body: { date: today(), value: 'many' } });
+  assert.ok(r.json.error.fields.value);
+  r = await api('POST', `/projects/${pid}/logframe/indicators/${manualInd.id}/values`, { token: o1, body: { date: today(), value: 3, note: 'Q4' } });
+  assert.strictEqual(r.status, 201, r.text);
+  output = r.json.results[2];
+  const recorded = output.indicators.find((i) => i.id === manualInd.id);
+  assert.strictEqual(recorded.actual, 3);
+  assert.strictEqual(recorded.pct, 75);
+  assert.strictEqual(recorded.status, 'On track', '75% of the target with half of the time gone');
+  const valueId = recorded.values[0].id;
+
+  // Structure: administrators only, with versions
+  r = await api('PATCH', `/projects/${pid}/logframe/results/${activity.id}`, { token: o1, body: { text: 'Changed' } });
+  assert.strictEqual(r.status, 403);
+  r = await api('PATCH', `/projects/${pid}/logframe/indicators/${manualInd.id}`, { token: admin, headers: { 'if-match': etag }, body: { target: 8 } });
+  assert.strictEqual(r.status, 412, 'the logframe changed since that etag');
+  r = await api('PATCH', `/projects/${pid}/logframe/indicators/${manualInd.id}`, { token: admin, body: { target: 8, unit: 'percentage' } });
+  assert.strictEqual(r.status, 422, 'an unknown unit is refused');
+  r = await api('PATCH', `/projects/${pid}/logframe/indicators/${manualInd.id}`, { token: admin, body: { target: 8 } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.strictEqual(r.json.results[2].indicators.find((i) => i.id === manualInd.id).target, 8);
+  r = await api('POST', `/projects/${pid}/logframe/results`, { token: admin, body: { level: 'activity', parentId: output.id, text: 'Radio programme' } });
+  assert.strictEqual(r.status, 201, r.text);
+  assert.strictEqual(r.json.results.find((x) => x.text === 'Radio programme').code, 'IO1.1.2');
+  r = await api('DELETE', `/projects/${pid}/logframe/results/${output.id}`, { token: admin });
+  assert.strictEqual(r.status, 409);
+  assert.strictEqual(r.json.error.code, 'has_children');
+  r = await api('DELETE', `/projects/${pid}/logframe/indicators/${manualInd.id}/values/${valueId}`, { token: ctx.officer2 });
+  assert.strictEqual(r.status, 403, 'only the colleague who recorded it, or an administrator');
+  r = await api('DELETE', `/projects/${pid}/logframe/indicators/${manualInd.id}/values/${valueId}`, { token: o1 });
+  assert.strictEqual(r.status, 204);
+  r = await api('DELETE', `/projects/${pid}/logframe/results/${activity.id}`, { token: admin });
+  assert.strictEqual(r.status, 204);
+  r = await api('GET', `/workplans/${planId}`, { token: o1 });
+  assert.strictEqual(r.json.activities[0].logframeResultId, '', 'removing the activity unlinks the planned activity');
+  r = await api('PATCH', `/projects/${pid}/logframe`, { token: admin, body: { names: { outcome: 'Outcome' } } });
+  assert.strictEqual(r.json.results[1].label, 'Outcome IO1');
+  r = await api('DELETE', `/projects/${pid}/logframe`, { token: admin });
+  assert.strictEqual(r.status, 204);
+  r = await api('GET', '/openapi.json');
+  assert.ok(r.json.paths['/projects/{id}/logframe/indicators/{indicatorId}/values'].post);
+});
+
 test('personal access tokens: create with password, list, revoke; web page too', async () => {
   const { officer1: o1 } = ctx;
   let r = await api('POST', '/me/tokens', { token: o1, body: { label: 'Power BI', days: 30, password: 'wrong' } });

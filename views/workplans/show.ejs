@@ -73,7 +73,8 @@
         <td class="wp-main">
           <div class="cell-strong"><%= it.title %></div>
           <% if (it.activityType || it.district) { %><div class="small text-body-secondary"><%= [it.activityType, it.district].filter(Boolean).join(' · ') %></div><% } %>
-          <% if (it.output) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <%= it.output %></div><% } %>
+          <% if (it.output) { %><div class="small"><i class="bi bi-flag" aria-hidden="true"></i> <%= it.output %></div><% } %>
+          <% const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; if (lfl) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <a href="<%= lfl.href %>" title="<%= lfl.text %>"><%= lfl.label %></a><span class="text-body-secondary">: <%= lfl.text.length > 70 ? lfl.text.slice(0, 68) + '\u2026' : lfl.text %></span></div><% } %>
           <% if (it.reports.length) { %>
             <div class="small mt-1">
               <span class="text-body-secondary">Reports:</span>

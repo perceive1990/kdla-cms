@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+<% const look = lf.status(ind.status); %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/logframes">M&amp;E</a> / <a href="/logframes/<%= project.id %>#res-<%= result.id %>"><%= project.title %></a></div>
+    <h1><%= ind.name %></h1>
+    <p class="sub"><%= result.label %>: <%= result.text %></p>
+  </div>
+  <% if (admin) { %><a class="btn btn-outline-secondary d-print-none" href="/logframes/<%= project.id %>/indicators/<%= ind.id %>/edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit indicator</a><% } %>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="stat"><div class="label">Baseline</div><div class="value"><%= lf.num(ind.baseline, ind.unit) || '0' %></div></div></div>
+  <div class="col-6 col-lg-3"><div class="stat"><div class="label">Target</div><div class="value"><%= lf.num(ind.target, ind.unit) || 'Not set' %></div></div></div>
+  <div class="col-6 col-lg-3"><div class="stat"><div class="label"><%= ind.automatic ? 'Now' : 'Latest value' %></div><div class="value"><%= ind.actual === null ? 'None' : lf.num(ind.actual, ind.unit) %></div>
+    <% if (ind.pct !== null) { %><div class="progress-line mt-1" role="img" aria-label="<%= ind.pct %>% of the target"><span style="width: <%= Math.min(100, ind.pct) %>%"></span></div><% } %></div></div>
+  <div class="col-6 col-lg-3"><div class="stat"><div class="label">Status</div><div class="value fs-5"><span class="tag <%= look.cls %>"><i class="bi bi-<%= look.icon %>" aria-hidden="true"></i> <%= ind.status %></span></div>
+    <% if (ind.pct !== null) { %><div class="small text-body-secondary"><%= ind.pct %>% of the way to the target</div><% } %></div></div>
+</div>
+<div class="panel"><div class="panel-body">
+  <dl class="dl mb-0">
+    <dt>Where the value comes from</dt><dd><%= SOURCES[ind.source] ? SOURCES[ind.source].label : 'Recorded by staff' %></dd>
+    <% if (ind.means) { %><dt>Means of verification</dt><dd><%= ind.means %></dd><% } %>
+    <% if (ind.frequency) { %><dt>How often measured</dt><dd><%= ind.frequency %></dd><% } %>
+  </dl>
+</div></div>
+
+<% if (ind.automatic) { %>
+  <div class="callout callout-info">This value is worked out automatically<%= SOURCES[ind.source].scope === 'project' ? ' from the case records of the project period' : ' from the activity reports of the planned activities linked to ' + result.label + ' and everything under it' %>. It updates when reports are added or linked.</div>
+<% } else { %>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Record a value</h2>
+      <% if (Object.keys(errors).length) { %><div class="alert alert-danger py-2" role="alert">Please correct the highlighted fields.</div><% } %>
+      <form method="post" action="/logframes/<%= project.id %>/indicators/<%= ind.id %>/values" class="row g-3" novalidate>
+        <%- f.hidden(csrfToken) %>
+        <%- f.text('date', 'As at', values, errors, { type: 'date', required: true, col: 'col-sm-6', max: h.today() }) %>
+        <%- f.text('value', ind.unit === 'percent' ? 'Value (%)' : 'Value', values, errors, { required: true, col: 'col-sm-6', inputmode: 'decimal', help: 'The total so far, not only the change' }) %>
+        <%- f.textarea('note', 'Note', values, errors, { rows: 2, placeholder: 'e.g. From the Q3 supervision reports' }) %>
+        <div class="col-12"><button class="btn btn-primary" type="submit">Record value</button></div>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-lg-7">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Values recorded</h2>
+      <% const list = [...(ind.values || [])].reverse(); %>
+      <% if (!list.length) { %><p class="text-body-secondary mb-0">No values yet.</p><% } %>
+      <% for (const v of list) { %>
+        <div class="task-row">
+          <div class="when"><%= h.fmtDate(v.date) %></div>
+          <div class="grow">
+            <div class="fw-semibold"><%= lf.num(v.value, ind.unit) %></div>
+            <% if (v.note) { %><div class="small"><%= v.note %></div><% } %>
+            <div class="small text-body-secondary">Recorded by <%= users[v.by] ? (users[v.by].fullName || users[v.by].username) : 'a former colleague' %>, <%= h.fmtDateTime(v.at) %></div>
+          </div>
+          <% if (admin || v.by === user.id) { %>
+          <form method="post" action="/logframes/<%= project.id %>/indicators/<%= ind.id %>/values/<%= v.id %>/delete" data-confirm="Remove this value?" class="d-print-none">
+            <%- f.hidden(csrfToken) %><button class="btn btn-sm btn-outline-danger" type="submit" title="Remove"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Remove the value of <%= h.fmtDate(v.date) %></span></button>
+          </form>
+          <% } %>
+        </div>
+      <% } %>
+    </div></div>
+  </div>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

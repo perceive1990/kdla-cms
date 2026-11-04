@@ -1,0 +1,15 @@
+<% if (r.direct.length) { %>
+<details class="lf-planned">
+  <summary>Planned activities in work plans (<%= r.direct.length %>)</summary>
+  <ul class="list-unstyled mb-0">
+    <% for (const d of r.direct) { %>
+      <li>
+        <a href="/workplans/<%= d.plan.id %>#act-<%= d.item.id %>"><%= Number.isInteger(d.item.number) ? d.item.number + '. ' : '' %><%= d.item.title %></a>
+        <span class="text-body-secondary"> · <%= d.plan.title %></span>
+        <span class="tag <%= { Completed: 'tag-done', Postponed: 'tag-warn', Cancelled: 'tag-muted tag-strike', 'Not started': 'tag-muted' }[d.item.status] || '' %>"><%= d.item.status %></span>
+        <span class="text-body-secondary small"><%= d.delivered %><%= d.item.targetEvents ? ' of ' + d.item.targetEvents : '' %> held<%= users[d.item.responsibleId] ? ' · ' + (users[d.item.responsibleId].fullName || users[d.item.responsibleId].username) : '' %></span>
+      </li>
+    <% } %>
+  </ul>
+</details>
+<% } %>

@@ -1,12 +1,12 @@
 <%- include('../partials/header') %>
-<div class="page-head"><div><h1>Install the phone app</h1><p class="sub">Use the case management system from your phone's home screen, with the same login and the same records. No app store and no cost.</p></div></div>
+<div class="page-head"><div><h1>Install the phone app</h1><p class="sub">Use <%= config.appName %> from your phone's home screen, with the same login and the same records. No app store and no cost.</p></div></div>
 
 <div style="max-width: 900px;">
   <div class="panel" id="install-panel" hidden><div class="panel-body d-flex flex-wrap align-items-center gap-3">
     <img src="/static/images/app-192.png" alt="" width="64" height="64" class="rounded-3 border">
     <div class="flex-grow-1">
       <h2 class="panel-title mb-1">Ready to install on this device</h2>
-      <p class="small text-body-secondary mb-0">Adds a KDLA Cases icon to your home screen or desktop.</p>
+      <p class="small text-body-secondary mb-0">Adds a <%= config.appShortName %> icon to your home screen or desktop.</p>
     </div>
     <button type="button" class="btn btn-primary" data-install-app><i class="bi bi-download"></i> Install app</button>
   </div></div>
@@ -20,7 +20,7 @@
         <li>Open this site in <strong>Chrome</strong> and sign in.</li>
         <li>Tap the <strong>⋮</strong> menu at the top right.</li>
         <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>, then <strong>Install</strong>.</li>
-        <li>Open <strong>KDLA Cases</strong> from your home screen.</li>
+        <li>Open <strong><%= config.appShortName %></strong> from your home screen.</li>
       </ol>
     </div></div></div>
     <div class="col-md-6"><div class="panel h-100"><div class="panel-body">
@@ -29,7 +29,7 @@
         <li>Open this site in <strong>Safari</strong> and sign in.</li>
         <li>Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i>.</li>
         <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
-        <li>Open <strong>KDLA Cases</strong> from your home screen.</li>
+        <li>Open <strong><%= config.appShortName %></strong> from your home screen.</li>
       </ol>
     </div></div></div>
   </div>

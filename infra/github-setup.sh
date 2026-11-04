@@ -176,7 +176,7 @@ if [ "$IS_EMPTY" = "true" ]; then
   git config user.name >/dev/null || git config user.name "$(gh api user --jq '.name // .login')"
   git config user.email >/dev/null || git config user.email "$(gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"')"
   git add --all
-  git commit --quiet -m "KDLA Case Management System $(node -p "require('./package.json').version" 2>/dev/null || echo '')" || true
+  git commit --quiet -m "KDLA Reports and Case Documentation $(node -p "require('./package.json').version" 2>/dev/null || echo '')" || true
   git branch -M "$BRANCH"
   git remote remove origin 2>/dev/null || true
   git remote add origin "https://github.com/${REPO}.git"

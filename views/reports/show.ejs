@@ -62,7 +62,7 @@
       <dl class="dl" style="grid-template-columns: 110px 1fr;">
         <dt>Compiled by</dt><dd><%= users[r.compiledById] ? (users[r.compiledById].fullName || users[r.compiledById].username) : '—' %></dd>
         <dt>Project</dt><dd><%= project ? project.title : '—' %></dd>
-        <% if (plan) { %><dt>Work plan</dt><dd><a href="/workplans/<%= plan.id %>#act-<%= planned.id %>"><%= plan.title %></a><div class="text-body-secondary">Activity <%= Number.isInteger(planned.number) ? planned.number + '. ' : '' %><%= planned.title %></div></dd><% } %>
+        <% if (plan) { %><dt>Work plan</dt><dd><a href="/workplans/<%= plan.id %>#act-<%= planned.id %>"><%= plan.title %></a><div class="text-body-secondary">Activity <%= Number.isInteger(planned.number) ? planned.number + '. ' : '' %><%= planned.title %></div><% if (lfLink) { %><div>Logframe: <a href="<%= lfLink.href %>" title="<%= lfLink.text %>"><%= lfLink.label %></a></div><% } %></dd><% } %>
         <dt>Partners</dt><dd><% if (!partners.length) { %>—<% } %><% partners.forEach((o, i) => { %><%= i ? ', ' : '' %><a href="/stakeholders/<%= o.id %>"><%= o.name %></a><% }) %></dd>
         <dt>Last updated</dt><dd><%= h.fmtDateTime(r.updatedAt) %></dd>
       </dl>

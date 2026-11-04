@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Moves the KDLA Case Management System (and any other resource groups you name) into another Azure
+# Moves the KDLA Reports and Case Documentation system (and any other resource groups you name) into another Azure
 # subscription, for example the "Azure Sponsorship" subscription created by the nonprofit grant.
 # The web address, database, files, settings and logins stay the same; Azure moves the resources as they are.
 #

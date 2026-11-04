@@ -189,6 +189,7 @@ function createApp() {
   app.use('/cases', requireLogin, require('./routes/cases'));
   app.use('/tasks', requireLogin, require('./routes/tasks'));
   app.use('/people', requireLogin, require('./routes/people'));
+  app.use('/logframes', requireLogin, require('./routes/logframes'));
   app.use('/workplans', requireLogin, require('./routes/workplans'));
   app.use('/reports', requireLogin, require('./routes/reports'));
   app.use('/stakeholders', requireLogin, require('./routes/stakeholders'));

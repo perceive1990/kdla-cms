@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Moves the KDLA Case Management System off the free limits once the Microsoft nonprofit Azure grant
+# Moves the KDLA Reports and Case Documentation system off the free limits once the Microsoft nonprofit Azure grant
 # (or another credit) is active on the subscription:
 #   - App Service plan F1 -> B1: the site no longer sleeps and has no daily CPU quota (Always On)
 #   - Azure Blob Storage for photos and attachments (files already saved are copied across automatically)

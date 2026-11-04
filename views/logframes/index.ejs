@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div><h1>Monitoring and evaluation</h1><p class="sub">Each project's logframe, with progress from work plans and activity reports</p></div>
+</div>
+<% if (!projects.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-bullseye"></i>No projects yet. <% if (admin) { %><a href="/admin/projects/new">Add the first project</a>, then set up its logframe.<% } else { %>An administrator adds projects under Administration.<% } %></div></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table align-middle">
+    <thead><tr><th>Project</th><th class="d-none d-md-table-cell">Period</th><th>Logframe</th><th class="d-none d-lg-table-cell">Indicators</th><th class="text-end d-none d-lg-table-cell">Activities linked</th></tr></thead>
+    <tbody>
+    <% for (const p of projects) { const t = summaries[p.id]; const gone = elapsed(p); %>
+      <tr>
+        <td>
+          <% if (fws[p.id]) { %><a class="cell-strong" href="/logframes/<%= p.id %>"><%= p.title %></a><% } else { %><span class="cell-strong"><%= p.title %></span><% } %>
+          <% if (p.donor) { %><div class="small text-body-secondary"><%= p.donor %></div><% } %>
+        </td>
+        <td class="d-none d-md-table-cell small">
+          <div class="nowrap"><%= h.fmtDate(p.startDate) %> to <%= h.fmtDate(p.endDate) %></div>
+          <% if (gone !== null) { %><div class="progress-line" role="img" aria-label="<%= gone %>% of the project period has passed"><span style="width: <%= gone %>%"></span></div><div class="text-body-secondary"><%= gone %>% of the time passed</div><% } %>
+        </td>
+        <td>
+          <% if (fws[p.id]) { %>
+            <a class="btn btn-sm btn-outline-primary" href="/logframes/<%= p.id %>">Open</a>
+          <% } else if (admin) { %>
+            <form method="post" action="/logframes/<%= p.id %>"><%- f.hidden(csrfToken) %><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i> Set up the logframe</button></form>
+          <% } else { %>
+            <span class="tag tag-muted">Not set up</span>
+          <% } %>
+        </td>
+        <td class="d-none d-lg-table-cell small">
+          <% if (t && t.indicators) { %>
+            <span class="tag tag-done"><i class="bi bi-check-circle" aria-hidden="true"></i> <%= t.achieved %> achieved</span>
+            <span class="tag"><i class="bi bi-arrow-right-circle" aria-hidden="true"></i> <%= t.onTrack %> on track</span>
+            <% if (t.behind) { %><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <%= t.behind %> behind</span><% } %>
+            <% if (t.noData) { %><span class="tag tag-muted"><%= t.noData %> without data</span><% } %>
+          <% } else if (t) { %><span class="text-body-secondary">No indicators yet</span><% } %>
+        </td>
+        <td class="text-end d-none d-lg-table-cell">
+          <% if (t) { %><%= t.linked %><% if (t.unlinked) { %> <span class="tag tag-warn" title="Planned activities of this project's work plans that are not linked to the logframe"><%= t.unlinked %> not linked</span><% } %><% } %>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<p class="small text-body-secondary mt-2">How it works: the logframe lists the project's objectives, outputs and activities with their indicators. Each planned activity in a work plan is linked to an output or activity of the logframe, and every activity report written for it counts towards the results above it.</p>
+<%- include('../partials/footer') %>

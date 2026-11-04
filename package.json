@@ -1,7 +1,7 @@
 {
   "name": "kdla-case-management",
-  "version": "2.8.0",
-  "description": "KDLA Case Management System: Node.js, Express and Azure Cosmos DB (NoSQL), with a JSON REST API",
+  "version": "2.9.0",
+  "description": "KDLA Reports and Case Documentation: Node.js, Express and Azure Cosmos DB (NoSQL), with a JSON REST API",
   "main": "server.js",
   "private": true,
   "engines": {

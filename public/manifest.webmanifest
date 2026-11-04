@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "KDLA Case Management System",
-  "short_name": "KDLA Cases",
-  "description": "Cases, clients, tasks, activity reports and statistics for Kitwe District Land Alliance.",
+  "name": "KDLA Reports and Case Documentation",
+  "short_name": "KDLA Reports",
+  "description": "Case documentation, activity reports, work plans, M&E and statistics for Kitwe District Land Alliance.",
   "start_url": "/?source=app",
   "scope": "/",
   "display": "standalone",

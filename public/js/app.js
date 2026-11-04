@@ -1,4 +1,4 @@
-/* KDLA Case Management — small progressive enhancements (no inline scripts, CSP-friendly) */
+/* KDLA Reports and Case Documentation: small progressive enhancements (no inline scripts, CSP-friendly) */
 (function () {
   'use strict';
 

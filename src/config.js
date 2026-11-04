@@ -10,7 +10,9 @@ const config = {
   port: num(env.PORT, 3000),
   orgName: env.ORG_NAME || 'KDLA',
   orgFullName: env.ORG_FULL_NAME || 'Kitwe District Land Alliance',
-  appName: env.APP_NAME || 'KDLA Case Management System',
+  appName: env.APP_NAME || 'KDLA Reports and Case Documentation',
+  // The name under the icon on a phone's home screen: short, or phones cut it off.
+  appShortName: env.APP_SHORT_NAME || 'KDLA Reports',
   orgAddress: env.ORG_ADDRESS || 'Kitwe, Zambia',
   orgContact: env.ORG_CONTACT || '',
   displayTimeZone: env.DISPLAY_TIMEZONE || 'Africa/Lusaka',

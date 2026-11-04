@@ -11,6 +11,7 @@ module.exports = {
   tasks: { pk: 'id' }, // tasks, deadlines, hearings and appointments
   reports: { pk: 'id' },
   workplans: { pk: 'id' }, // work plans; their planned activities are embedded in each plan
+  logframes: { pk: 'id' }, // one logframe per project (its id is the project id), results and indicators embedded
   stakeholders: { pk: 'id' },
   referrals: { pk: 'id' }, // follow-ups are embedded in each referral
   rooms: { pk: 'id' },

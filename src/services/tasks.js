@@ -141,7 +141,7 @@ function taskIcs(t) {
     when = [`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${next.toISOString().slice(0, 10).replace(/-/g, '')}`];
   }
   return `${[
-    'BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${config.orgName}//Case Management//EN`, 'CALSCALE:GREGORIAN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${config.orgName}//Reports and Case Documentation//EN`, 'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT', `UID:${t.id}@kdla-cms`, `DTSTAMP:${stamp}`, ...when,
     `SUMMARY:${esc(`${t.type}: ${t.title}`)}`,
     t.location ? `LOCATION:${esc(t.location)}` : null,

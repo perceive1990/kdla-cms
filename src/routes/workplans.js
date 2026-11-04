@@ -3,6 +3,7 @@ const express = require('express');
 const { audit } = require('../audit');
 const { isAdmin } = require('../access');
 const svc = require('../services/workplans');
+const logframes = require('../services/logframes');
 const {
   mapByIds, toCsv, sendCsv, today, str,
 } = require('../helpers');
@@ -78,8 +79,9 @@ router.get('/:id', async (req, res) => {
   const { items, totals } = await svc.progress(req.db, plan);
   const users = await svc.planUsers(req.db, plan);
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
+  const lfLabels = await logframes.linkLabels(req.db, plan.items);
   res.render('workplans/show', {
-    title: plan.title, plan, items, totals, users, project,
+    title: plan.title, plan, items, totals, users, project, lfLabels,
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
   });
 });
@@ -88,7 +90,12 @@ router.get('/:id/export.csv', async (req, res) => {
   const plan = await svc.getPlan(req.db, req.params.id);
   const { items } = await svc.progress(req.db, plan);
   const users = await svc.planUsers(req.db, plan);
+  const lfLabels = await logframes.linkLabels(req.db, plan.items);
   const who = (id) => (users[id] ? users[id].fullName || users[id].username : '');
+  const lfOf = (it) => {
+    const l = lfLabels[`${it.logframeId}:${it.logframeResultId}`];
+    return l ? `${l.label}: ${l.text}` : '';
+  };
   const csv = toCsv([
     { label: 'Activity number', value: 'number' },
     { label: 'Activity', value: 'title' },
@@ -105,6 +112,7 @@ router.get('/:id/export.csv', async (req, res) => {
     { label: `Budget (${plan.currency})`, value: 'budget' },
     { label: 'Status', value: 'status' },
     { label: 'Overdue', value: (it) => (it.overdue ? 'Yes' : '') },
+    { label: 'Logframe', value: lfOf },
   ], items);
   audit(req, 'export', 'workplans', plan.id, `Exported work plan "${plan.title}" to CSV`);
   sendCsv(res, `work-plan-${plan.periodStart}-${plan.id.slice(0, 8)}.csv`, csv);
@@ -167,8 +175,11 @@ router.post('/:id/delete', async (req, res) => {
 // ---------- Planned activities ----------
 async function activityForm(req, res, plan, values, errors, isNew, status = 200) {
   const { users } = await lists(req.db);
+  const lfGroups = await logframes.linkOptions(req.db, { projectId: plan.projectId, current: values });
+  const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
+  const logframeResult = values.logframeId ? `${values.logframeId}:${values.logframeResultId || ''}` : '';
   res.status(status).render('workplans/activity-form', {
-    title: isNew ? 'Add planned activity' : 'Edit planned activity', plan, values, errors, isNew, users,
+    title: isNew ? 'Add planned activity' : 'Edit planned activity', plan, values: { ...values, logframeResult }, errors, isNew, users, lfGroups, project,
   });
 }
 

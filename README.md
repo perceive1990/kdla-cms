@@ -1,6 +1,6 @@
-# KDLA Case Management System (v2.2)
+# KDLA Reports and Case Documentation
 
-A case management system for Kitwe District Land Alliance, written entirely in **JavaScript on Node.js** (Express) with **Azure Cosmos DB for NoSQL**, and designed to run on Azure's free tiers. It covers cases, clients, other parties, activity attendees, work plans, activity reports, stakeholder organisations, referrals and consultation rooms, and it offers a **JSON REST API** so other programs, scripts and reports can use the same data.
+The system Kitwe District Land Alliance uses to document its cases and report on its work, written entirely in **JavaScript on Node.js** (Express) with **Azure Cosmos DB for NoSQL**, and designed to run on Azure's free tiers. It covers cases, clients, other parties, activity attendees, project logframes (M&E), work plans, activity reports, stakeholder organisations, referrals and consultation rooms, and it offers a **JSON REST API** so other programs, scripts and reports can use the same data.
 
 ## What is new in version 2.2
 
@@ -28,6 +28,7 @@ These features follow what established legal aid and legal empowerment case mana
 | **Statistics for donors** | Cases opened and concluded, outcomes, resolution rate, median days to conclude, clients served by age, sex and disability, referrals, activity reach and hours worked, for any period, office and project. Export to CSV, print, or read them through the API. |
 | **Attendance registers** | A whole community meeting register can be typed into one table. Attendees are created and linked to the report in one step. |
 | **Work plans** | Plan each quarter or year as numbered activities with dates, the person responsible, targets and a budget. Administrators approve the plan and staff update progress. Activity reports linked to a planned activity show what was delivered against what was planned. |
+| **M&E (logframes)** | Each project's logframe: overall objective, intermediate objectives, outputs and activities, with indicators, baselines and targets. Planned activities link to an output or activity, so every activity report counts towards the results above it. Indicators update from the reports and attendance registers, or from values recorded by staff, and show whether they are on track. |
 | **Referral letters** | Print a referral letter on KDLA letterhead, or save it as PDF, with the client details and reason. |
 | **Consent (Data Protection Act 2021)** | Record whether each client agreed to KDLA storing their information and to sharing it on referral. Missing consent is flagged on lists, cases and referrals. |
 | **Data access requests** | Administrators can download everything held about one person, as required when someone asks to see their data. |
@@ -91,6 +92,7 @@ The reference page lists every operation with its fields, rules and error codes.
 | People | `GET` and `POST /people`, `GET`, `PATCH` and `DELETE /people/{id}`, `/people/{id}/links`, `/people/{id}/personal-data`, `GET /conflicts` |
 | Tasks and hearings | `GET` and `POST /tasks`, `GET`, `PATCH` and `DELETE /tasks/{id}`, `POST /tasks/{id}/done`, `GET /tasks/{id}/calendar.ics` |
 | Activity reports | `GET` and `POST /reports`, `GET`, `PATCH` and `DELETE /reports/{id}`, `GET` and `POST /reports/{id}/attendees` |
+| M&E (logframes) | `GET`, `POST`, `PATCH` and `DELETE /projects/{id}/logframe`, `POST /projects/{id}/logframe/import`, results and indicators under `/projects/{id}/logframe/results` and `/projects/{id}/logframe/indicators`, and `POST /projects/{id}/logframe/indicators/{indicatorId}/values` |
 | Work plans | `GET` and `POST /workplans`, `GET`, `PATCH` and `DELETE /workplans/{id}`, `POST /workplans/{id}/status`, `POST /workplans/{id}/copy`, `POST /workplans/{id}/activities`, `GET`, `PATCH` and `DELETE /workplans/{id}/activities/{itemId}`, `POST /workplans/{id}/activities/{itemId}/status` |
 | Referrals | `GET` and `POST /referrals`, `GET` and `DELETE /referrals/{id}`, `POST /referrals/{id}/follow-ups` |
 | Organisations, projects and staff | `/stakeholders`, `/projects` and `/users`, with list, create, read and change, and delete where the web app allows it |
@@ -254,6 +256,20 @@ This is general information, not legal advice. Please confirm the details with a
 
 **Copy** starts the next period from an existing plan: the same activities, with progress reset and no reports linked. Change the period of the copy with "Move the activity dates with the plan" ticked, and the activities move with it (a plan moved from 1 January to 1 April moves every activity three months). **Export CSV** and **Print** give the plan with its planned and delivered figures, for donor reports and team meetings.
 
+## M&E (logframes)
+
+**Programmes > M&E (logframes)** holds each project's logframe, the results chain of its Theory of Change. It shows how the activities contribute to the project's results.
+
+1. **Set up the logframe** (administrators). Open the project under M&E and choose **Set up the logframe**.
+2. **Import it from Excel.** List one row per entry in the columns Level, Code, Text, Unit, Baseline, Target, Means of verification and Source, then save the sheet as CSV UTF-8 and import it, or copy the rows and paste them. **Download the template** shows the layout. Rows go in order: each intermediate objective under the overall objective, each output under the intermediate objective above it, each activity under the output above it, and each indicator under the row above it. Entries can also be added and changed one by one.
+3. **Choose where each indicator's value comes from.** Either colleagues record it from time to time ("Recorded by staff"), or the system works it out:
+   * from the activity reports of the planned activities linked to the result and everything under it: activities held, people reached (different registered attendees plus head counts), registered attendees, women and girls, children, persons with disabilities, and the shares of women and girls, children and persons with disabilities;
+   * from the case records of the project period: cases opened, clients served and referrals made.
+4. **Link the planned activities.** In each work plan, the "Contributes to (logframe)" field of a planned activity chooses the output or activity it delivers. The logframe page lists the planned activities of the project's work plans that are not linked yet.
+5. **Follow progress.** Each result shows its indicators (baseline, target, actual, progress and status) and the totals of the planned activities under it: how many there are, how many times they were held against the plan, people reached and budget. Counts are judged against the share of the project period that has passed (on track when no more than 10 points behind it); shares such as the percentage of women are judged against their target. **Export CSV** gives the logframe with its figures, in the import layout, for donor reports.
+
+Administrators set up and change the logframe; everyone can record indicator values. The level names can follow each donor's words (for example Goal, Outcome, Output and Activity) under **Settings**.
+
 ## Users and permissions
 
 * **Officers** can view, add and edit records, write case diary entries, manage tasks, and use the API with the same rights.
@@ -266,7 +282,7 @@ Other commands: `npm run create-admin -- <username> <password> "Full Name"` and 
 
 ## Phone app
 
-Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Cases** (user menu > Install the phone app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
+Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Reports** (user menu > Install the phone app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
 
 ## Appearance
 
@@ -301,6 +317,7 @@ See `.env.example`. The most important settings:
 | `API_RATE_LIMIT` | requests per minute for each token, default 240 |
 | `API_CORS_ORIGINS` | web sites allowed to call the API from a browser, comma separated, default none |
 | `ORG_FULL_NAME`, `ORG_ADDRESS`, `ORG_CONTACT` | shown on referral letters |
+| `APP_NAME`, `APP_SHORT_NAME` | the system's name, default "KDLA Reports and Case Documentation", and the name under the phone app icon, default "KDLA Reports" |
 
 ## Quality checks
 
@@ -351,6 +368,7 @@ One database with shared throughput, partitioned by `/id` except where noted.
 | `tasks` | tasks, hearings and deadlines |
 | `reports` | activity reports with attendees and attachments, and the planned activity they deliver |
 | `workplans` | work plans with their planned activities |
+| `logframes` | one logframe per project (its id is the project id), with its results, indicators and recorded values |
 | `stakeholders` | partner organisations |
 | `referrals` | referrals with follow ups embedded |
 | `rooms` / `messages` | consultation rooms; messages partitioned by `/roomId` |

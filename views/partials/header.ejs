@@ -13,7 +13,7 @@
   <link rel="manifest" href="/static/manifest.webmanifest?v=<%= assetVersion %>">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="KDLA Cases">
+  <meta name="apple-mobile-web-app-title" content="<%= config.appShortName %>">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
@@ -29,7 +29,8 @@
   </button>
   <a class="brand" href="/">
     <img src="/static/images/logo-mark.png" alt="" width="32" height="28">
-    <span><%= config.orgName %> <span class="d-none d-sm-inline fw-normal opacity-75">Case Management</span></span>
+    <% const brandRest = config.appName.startsWith(config.orgName + ' ') ? config.appName.slice(config.orgName.length + 1) : ''; %>
+    <span><%= brandRest ? config.orgName : config.appName %><% if (brandRest) { %> <span class="d-none d-sm-inline fw-normal opacity-75"><%= brandRest %></span><% } %></span>
   </a>
   <form class="topbar-search d-none d-md-flex" action="/search" method="get" role="search">
     <i class="bi bi-search" aria-hidden="true"></i>
@@ -82,6 +83,7 @@
           { href: '/people/attendees', icon: 'people', label: 'Activity attendees' },
           { href: '/people', icon: 'list-ul', label: 'All beneficiaries', exact: true },
           { section: 'Programmes' },
+          { href: '/logframes', icon: 'bullseye', label: 'M&E (logframes)' },
           { href: '/workplans', icon: 'clipboard-check', label: 'Work plans' },
           { href: '/reports', icon: 'journal-text', label: 'Activity reports' },
           { href: '/statistics', icon: 'bar-chart', label: 'Statistics' },

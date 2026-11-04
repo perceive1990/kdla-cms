@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates everything the KDLA Case Management System needs on Azure, on free tiers where possible:
+# Creates everything the KDLA Reports and Case Documentation system needs on Azure, on free tiers where possible:
 #   - Azure Cosmos DB for NoSQL account with the free tier discount (1000 RU/s + 25 GB)
 #   - App Service plan F1 (Free, Linux) + Web App running Node.js 22
 #   - (optional) Storage account for case file attachments

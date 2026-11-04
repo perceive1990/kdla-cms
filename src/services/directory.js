@@ -113,8 +113,10 @@ async function updateProject(req, p, v) {
 }
 
 async function deleteProject(req, p) {
-  const used = await req.db.count('people', { where: { projectId: p.id } }) + await req.db.count('reports', { where: { projectId: p.id } });
-  if (used) throw new HttpError(409, 'in_use', `${p.title} is linked to ${used} beneficiaries or reports and cannot be deleted.`);
+  const used = await req.db.count('people', { where: { projectId: p.id } }) + await req.db.count('reports', { where: { projectId: p.id } })
+    + await req.db.count('workplans', { where: { projectId: p.id } });
+  if (used) throw new HttpError(409, 'in_use', `${p.title} is linked to ${used} beneficiaries, reports or work plans and cannot be deleted.`);
+  if (await req.db.get('logframes', p.id)) throw new HttpError(409, 'in_use', `${p.title} has a logframe. Delete the logframe under M&E first.`);
   await req.db.remove('projects', p.id);
   audit(req, 'delete', 'projects', p.id, `Deleted project ${p.title}`);
 }
