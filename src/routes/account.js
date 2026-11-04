@@ -55,7 +55,7 @@ router.post('/password', async (req, res) => {
 
 // ---------- Security: two-step verification ----------
 async function qrSvg(secret, username) {
-  const url = totp.otpauthUrl({ secret, account: username, issuer: `${config.orgName} Case Management` });
+  const url = totp.otpauthUrl({ secret, account: username, issuer: config.appName });
   return QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
 }
 

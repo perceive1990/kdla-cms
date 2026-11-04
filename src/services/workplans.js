@@ -17,11 +17,11 @@ const {
   newId, now, str, intOrNull, isRealDate, today, mapByIds, daysBetween,
 } = require('../helpers');
 const { HttpError, notFound, forbidden } = require('./errors');
+const { saveLatest, changedMeanwhile } = require('./versioned');
 
 const DONE = ['Completed', 'Cancelled'];
 
 const invalid = (fields) => new HttpError(422, 'validation_failed', Object.values(fields)[0], { fields });
-const changedMeanwhile = () => Object.assign(new Error('Precondition failed'), { code: 412 });
 
 function amountOrNull(v) {
   if (v === undefined || v === null || String(v).trim() === '') return null;
@@ -94,25 +94,8 @@ function mustEdit(user, plan) {
   }
 }
 
-/**
- * Save a change to a plan. `change` receives the latest copy and returns the new one. If a colleague
- * saves the plan in between, the change is applied again to a fresh copy, so two people updating
- * different activities at the same moment never overwrite each other. With `ifMatch` (the version
- * the person read) the save is refused with 412 instead when the plan has changed since.
- */
-async function savePlan(db, plan, change, { ifMatch } = {}) {
-  let current = plan;
-  for (let attempt = 1; ; attempt += 1) {
-    if (ifMatch && current._etag !== ifMatch) throw changedMeanwhile();
-    const next = { ...change(current), updatedAt: now() };
-    try {
-      return await db.replace('workplans', next, { ifMatch: current._etag });
-    } catch (err) {
-      if (err.code !== 412 || ifMatch || attempt >= 3) throw err;
-      current = await getPlan(db, plan.id);
-    }
-  }
-}
+/** Save a change onto the latest version of a plan (see saveLatest). */
+const savePlan = (db, plan, change, { ifMatch } = {}) => saveLatest(db, 'workplans', plan, change, { ifMatch, reload: () => getPlan(db, plan.id) });
 
 /** Keep activity reports when their plan or activity is removed: only the link is cleared. */
 async function unlinkReports(db, where) {
@@ -234,8 +217,18 @@ async function deletePlan(req, plan) {
 }
 
 // ---------- Planned activities ----------
+/** Logframe link: the web form sends "logframeId:resultId" as logframeResult; the API sends the two ids. */
+function readLogframeLink(body) {
+  if (Object.prototype.hasOwnProperty.call(body, 'logframeResult')) {
+    const [logframeId = '', logframeResultId = ''] = str(body.logframeResult, 130).split(':');
+    return { logframeId, logframeResultId };
+  }
+  return { logframeId: str(body.logframeId), logframeResultId: str(body.logframeResultId) };
+}
+
 function readActivity(body) {
   return {
+    ...readLogframeLink(body),
     number: intOrNull(body.number),
     title: str(body.title, 300),
     activityType: str(body.activityType),
@@ -271,6 +264,12 @@ async function validateActivity(db, plan, v, itemId = null) {
   if (Number.isNaN(v.targetPeople) || (v.targetPeople !== null && v.targetPeople < 0)) e.targetPeople = 'Enter a whole number.';
   if (Number.isNaN(v.budget) || (v.budget !== null && v.budget < 0)) e.budget = 'Enter a valid amount.';
   if (!choices.workplanActivityStatuses.includes(v.status)) e.status = 'Select a valid status.';
+  if (v.logframeId || v.logframeResultId) {
+    // Both ids are needed. To unlink, send both empty.
+    const fw = /^[\w-]{1,60}$/.test(v.logframeId) ? await db.get('logframes', v.logframeId) : null;
+    const result = fw && (fw.results || []).find((r) => r.id === v.logframeResultId);
+    if (!result || !['output', 'activity'].includes(result.level)) e.logframeResultId = 'Choose an output or an activity of the logframe.';
+  }
   return e;
 }
 

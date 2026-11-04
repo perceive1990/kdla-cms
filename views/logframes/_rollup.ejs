@@ -1,0 +1,10 @@
+<% if (!agg.planned) { %>
+  <p class="lf-rollup text-body-secondary mb-0"><i class="bi bi-link-45deg" aria-hidden="true"></i> No planned activities linked yet.</p>
+<% } else { %>
+  <p class="lf-rollup mb-0">
+    <span><i class="bi bi-list-check" aria-hidden="true"></i> <%= agg.planned %> planned activit<%= agg.planned === 1 ? 'y' : 'ies' %><% if (agg.completed || agg.overdue) { %> (<%= [agg.completed ? agg.completed + ' completed' : '', agg.overdue ? agg.overdue + ' overdue' : ''].filter(Boolean).join(', ') %>)<% } %></span>
+    <span><i class="bi bi-journal-check" aria-hidden="true"></i> <%= agg.delivered %><%= agg.targetEvents ? ' of ' + agg.targetEvents : '' %> held</span>
+    <span><i class="bi bi-people" aria-hidden="true"></i> <%= agg.reach.toLocaleString('en-GB') %> people reached<%= agg.targetPeople ? ' (' + agg.targetPeople.toLocaleString('en-GB') + ' planned)' : '' %></span>
+    <% if (Object.keys(agg.budget).length) { %><span><i class="bi bi-cash-coin" aria-hidden="true"></i> <%= lf.money(agg.budget) %></span><% } %>
+  </p>
+<% } %>

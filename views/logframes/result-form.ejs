@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<% const levelName = names[values.level]; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/logframes">M&amp;E</a> / <a href="/logframes/<%= project.id %>"><%= project.title %></a></div>
+    <h1><%= isNew ? 'Add ' + levelName.toLowerCase() : 'Edit ' + levelName.toLowerCase() %></h1>
+  </div>
+</div>
+<% if (Object.keys(errors).length) { %><div class="alert alert-danger" role="alert">Please correct the highlighted fields.</div><% } %>
+<form method="post" action="/logframes/<%= project.id %>/results<%= isNew ? '' : '/' + values.id %>" novalidate>
+  <%- f.hidden(csrfToken) %>
+  <input type="hidden" name="level" value="<%= values.level %>">
+  <div class="panel"><div class="panel-body row g-3">
+    <% if (parents.length) { %>
+      <%- f.select('parentId', 'Belongs to', parents, values, errors, { required: true, blank: 'Choose…' }) %>
+    <% } else if (errors.parentId) { %>
+      <div class="col-12"><div class="alert alert-warning mb-0"><%= errors.parentId %></div></div>
+    <% } %>
+    <%- f.textarea('text', levelName, values, errors, { required: true, rows: 3, placeholder: values.level === 'activity' ? 'e.g. Community awareness-raising by paralegals' : 'e.g. At least 1,500 community members are reached through awareness raising' }) %>
+    <%- f.text('code', 'Code', values, errors, { col: 'col-md-3', maxlength: 20, help: 'Leave empty to number it automatically, for example 1.2' }) %>
+  </div></div>
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit"><%= isNew ? 'Add' : 'Save changes' %></button>
+    <a class="btn btn-outline-secondary" href="/logframes/<%= project.id %>">Cancel</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

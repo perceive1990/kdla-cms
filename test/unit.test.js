@@ -151,3 +151,27 @@ test('work plans: activity dates move with the start of the plan', () => {
   const back = moveItems([{ startDate: '2027-04-01', endDate: '2027-04-02' }], { periodStart: '2027-04-01' }, { periodStart: '2027-01-01', periodEnd: '2027-03-31' });
   assert.deepStrictEqual([back[0].startDate, back[0].endDate], ['2027-01-01', '2027-01-02']);
 });
+
+test('M&E: spreadsheet rows, numbering and indicator status', () => {
+  const lf = require('../src/services/logframes');
+  // Excel copy and paste (tabs), quotes with commas and line breaks, semicolon files
+  assert.deepStrictEqual(lf.parseRows('Output\t1.1\tReach "1,500"\n'), [['Output', '1.1', 'Reach "1,500"']]);
+  assert.deepStrictEqual(lf.parseRows('﻿Output,,"Reach 1,500 people,\nincluding ""youth"""\r\n'), [['Output', '', 'Reach 1,500 people,\nincluding "youth"']]);
+  assert.deepStrictEqual(lf.parseRows('Output;1.1;Text\n'), [['Output', '1.1', 'Text']]);
+  const p = lf.parseOutline('Level,Code,Text,Unit,Baseline,Target\nGoal,,G\nOutcome,,O\nOutput,,X\nIndicator,,Share,%,,"60%"\nActivity,,A\nOutput,,Y\nActivity,,B\nOutcome,,P\nActivity,,Lost');
+  assert.deepStrictEqual(Object.values(p.errors), ['Row 10: put this activity under an output.'], 'an activity cannot attach to the output of an earlier outcome');
+  assert.deepStrictEqual(p.indicators.map((i) => [i.unit, i.baseline, i.target]), [['percent', null, 60]]);
+  const fw = { id: 'f', results: p.results, indicators: [] };
+  const codes = lf.codes(fw);
+  assert.deepStrictEqual(lf.ordered(fw).map((r) => codes[r.id]), ['', '1', '1.1', '1.1.1', '1.2', '1.2.1', '2']);
+  // Status: counts against the time gone, shares against their target, decreasing indicators too
+  assert.strictEqual(lf.judge({ target: 100, baseline: 0, unit: 'number' }, 30, 30).status, 'On track');
+  assert.strictEqual(lf.judge({ target: 100, baseline: 0, unit: 'number' }, 15, 30).status, 'Behind');
+  assert.strictEqual(lf.judge({ target: 100, baseline: 0, unit: 'number' }, 120, 30).status, 'Achieved');
+  assert.strictEqual(lf.judge({ target: 60, baseline: 0, unit: 'percent' }, 59, 90).status, 'Below target');
+  assert.deepStrictEqual(lf.judge({ target: 10, baseline: 50, unit: 'number' }, 30, 50), { pct: 50, status: 'On track' }, 'reducing from 50 to 10');
+  assert.strictEqual(lf.judge({ target: 5, baseline: 0 }, null, 10).status, 'No data');
+  assert.strictEqual(lf.timeElapsed({ startDate: '2026-01-01', endDate: '2026-12-31' }, '2026-07-02'), 50);
+  assert.strictEqual(lf.timeElapsed({ startDate: '2027-01-01', endDate: '2027-12-31' }, '2026-07-02'), 0);
+  assert.strictEqual(lf.timeElapsed({}, '2026-07-02'), null);
+});

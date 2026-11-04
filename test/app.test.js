@@ -794,3 +794,173 @@ test('work plans: draft, planned activities, approval, linked reports and progre
     assert.strictEqual(r.status, 200, `${p} -> ${r.status} ${r.location || ''}`);
   }
 });
+
+test('M&E: logframe import, planned activities linked to it, automatic and recorded indicators', async () => {
+  const a = ctx.admin;
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  const lf = require('../src/services/logframes');
+  let r = await a.post('/admin/projects', {
+    title: 'Copperbelt Access to Justice', donor: 'DIHR', startDate: today(-100), endDate: today(265), budget: '600000', currency: 'DKK',
+  }, '/admin/projects/new');
+  assert.strictEqual(r.status, 302);
+  const pid = (await db().find('projects', { where: { title: 'Copperbelt Access to Justice' } }))[0].id;
+  const fwOf = () => db().get('logframes', pid);
+
+  // Only administrators set up and change the logframe
+  r = await o.req('/logframes');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Copperbelt Access to Justice/);
+  assert.match(r.text, /Not set up/);
+  r = await o.post(`/logframes/${pid}`, {}, '/logframes');
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual(await fwOf(), null);
+  r = await a.post(`/logframes/${pid}`, {}, '/logframes');
+  assert.strictEqual(r.status, 302);
+  assert.ok(await fwOf());
+
+  // Import from spreadsheet rows: nothing is saved while a row has a problem
+  r = await a.post(`/logframes/${pid}/import`, { outline: 'Level,Code,Text\nOutput,,An output without its objective\nPlanet,,x' }, `/logframes/${pid}/import`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Row 2: put this output under an intermediate objective/);
+  assert.match(r.text, /Row 3: &#34;Planet&#34; is not a level|Row 3: &quot;Planet&quot; is not a level/);
+  assert.strictEqual((await fwOf()).results.length, 0);
+  const outline = [
+    'Level,Code,Text,Unit,Baseline,Target,Means of verification,Source',
+    'Overall objective,,To expand legal empowerment and access to justice',
+    'Intermediate objective,,Improved understanding and awareness of rights',
+    'Output,,"At least 100 community members (60% women) are reached through awareness raising"',
+    'Indicator,,Community members reached,Number,0,100,Attendance registers,People reached',
+    'Indicator,,Share of women and girls,Percent,0,60,Attendance registers,Women and girls (%)',
+    'Activity,,Community awareness-raising by paralegals',
+    'Intermediate objective,,Strengthened paralegal legal desks',
+    'Output,,5 community legal desks are operational',
+    'Indicator,,Legal desks operational,Number,0,5,Supervision reports,',
+    'Activity,,Support community legal desks financially',
+  ].join('\n');
+  r = await a.post(`/logframes/${pid}/import`, { outline }, `/logframes/${pid}/import`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 400));
+  let fw = await fwOf();
+  assert.strictEqual(fw.results.length, 7);
+  assert.strictEqual(fw.indicators.length, 3);
+  r = await a.post(`/logframes/${pid}/import`, { outline }, `/logframes/${pid}/import`);
+  assert.strictEqual(r.status, 400, 'import works on an empty logframe only');
+  assert.match(r.text, /already has entries/);
+  const awareness = fw.results.find((x) => x.text === 'Community awareness-raising by paralegals');
+  const desks = fw.results.find((x) => x.text === '5 community legal desks are operational');
+  r = await o.req(`/logframes/${pid}`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Output 1\.1/);
+  assert.match(r.text, /Activity 2\.1\.1/);
+  assert.match(r.text, /No planned activities linked yet/);
+  r = await o.req(`/logframes/${pid}/results/new?level=output&parent=${fw.results[1].id}`);
+  assert.strictEqual(r.status, 302, 'officers cannot add results');
+
+  // A planned activity of a work plan for the project links to the logframe activity
+  r = await a.post('/workplans', { title: 'Copperbelt plan', periodStart: today(-30), periodEnd: today(60), projectId: pid, currency: 'ZMW' }, '/workplans/new');
+  const planId = idFrom(r.location);
+  r = await a.req(`/workplans/${planId}/activities/new`);
+  assert.match(r.text, /Contributes to \(logframe\)/);
+  assert.match(r.text, new RegExp(`value="${pid}:${awareness.id}"`));
+  r = await a.post(`/workplans/${planId}/activities`, { title: 'Wrong link', status: 'Not started', logframeResult: `${pid}:${fw.results[0].id}` }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Choose an output or an activity of the logframe/);
+  r = await a.post(`/workplans/${planId}/activities`, {
+    title: 'Awareness meetings in Mufulira', status: 'In progress', targetEvents: '2', targetPeople: '100', logframeResult: `${pid}:${awareness.id}`,
+  }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  r = await a.post(`/workplans/${planId}/activities`, { title: 'Office planning meeting', status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302);
+  let plan = await db().get('workplans', planId);
+  const linkedItem = plan.items.find((it) => it.title === 'Awareness meetings in Mufulira');
+  assert.strictEqual(linkedItem.logframeResultId, awareness.id);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /Activity 1\.1\.1/);
+
+  // Its activity report, with an attendance register, feeds the automatic indicators
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Awareness meeting, Kantanshi', date: today(-3), district: 'Kitwe District',
+    introduction: 'Intro', objectives: 'Objectives', implementation: 'Implementation', otherParticipants: '10', compiledById: await userId('admin'),
+    workplanItem: `${planId}:${linkedItem.id}`,
+  }, '/reports/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const reportId = idFrom(r.location);
+  r = await a.post(`/reports/${reportId}/attendees`, {
+    'rows[0][firstName]': 'Ruth', 'rows[0][lastName]': 'Bwalya', 'rows[0][ageCategory]': 'Girl', 'rows[0][age]': '14',
+    'rows[1][firstName]': 'Mary', 'rows[1][lastName]': 'Zulu', 'rows[1][ageCategory]': 'Woman',
+    'rows[2][firstName]': 'Peter', 'rows[2][lastName]': 'Banda', 'rows[2][ageCategory]': 'Man', 'rows[2][disability]': 'Disabled',
+    consentRecord: 'yes',
+  }, `/reports/${reportId}/attendees`);
+  assert.strictEqual(r.status, 302);
+  r = await a.req(`/reports/${reportId}`);
+  assert.match(r.text, /Logframe: <a href="\/logframes\//);
+
+  const project = await db().get('projects', pid);
+  let prog = await lf.progress(db(), await fwOf(), project);
+  const ind = (name) => prog.results.flatMap((x) => x.indicators).find((i) => i.name === name);
+  assert.strictEqual(ind('Community members reached').actual, 13, '3 registered attendees plus 10 counted');
+  assert.strictEqual(ind('Community members reached').status, 'Behind', '13% of the target with about 27% of the time gone');
+  assert.strictEqual(ind('Share of women and girls').actual, 66.7);
+  assert.strictEqual(ind('Share of women and girls').status, 'Achieved');
+  assert.strictEqual(ind('Legal desks operational').status, 'No data');
+  const out = prog.results.find((x) => x.level === 'output' && x.text.startsWith('At least 100'));
+  assert.strictEqual(out.rollup.planned, 1);
+  assert.strictEqual(out.rollup.delivered, 1);
+  assert.strictEqual(prog.results[0].rollup.reach, 13, 'the overall objective counts everything');
+  assert.strictEqual(prog.totals.unlinked, 1, 'the office planning meeting is not linked');
+  r = await o.req(`/logframes/${pid}`);
+  assert.match(r.text, /Office planning meeting/);
+
+  // Everyone records values of indicators measured by staff; automatic ones take none
+  const deskInd = ind('Legal desks operational');
+  r = await o.req(`/logframes/${pid}/indicators/${deskInd.id}`);
+  assert.strictEqual(r.status, 200);
+  r = await o.post(`/logframes/${pid}/indicators/${deskInd.id}/values`, { date: today(5), value: '2' }, `/logframes/${pid}/indicators/${deskInd.id}`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /cannot be in the future/);
+  r = await o.post(`/logframes/${pid}/indicators/${deskInd.id}/values`, { date: today(), value: '2', note: 'Kitwe and Kalulushi desks' }, `/logframes/${pid}/indicators/${deskInd.id}`);
+  assert.strictEqual(r.status, 302);
+  r = await o.post(`/logframes/${pid}/indicators/${ind('Community members reached').id}/values`, { date: today(), value: '50' }, `/logframes/${pid}`);
+  assert.strictEqual(r.status, 302);
+  prog = await lf.progress(db(), await fwOf(), project);
+  assert.strictEqual(ind('Legal desks operational').actual, 2);
+  assert.strictEqual(ind('Legal desks operational').status, 'On track');
+  assert.strictEqual(ind('Community members reached').actual, 13, 'automatic values cannot be overwritten');
+
+  // Administrators add, change and remove indicators and results
+  fw = await fwOf();
+  r = await a.post(`/logframes/${pid}/indicators`, {
+    resultId: fw.results[0].id, name: 'Cases opened with legal aid', source: 'casesOpened', target: '200', baseline: '0',
+  }, `/logframes/${pid}/indicators/new`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  r = await a.post(`/logframes/${pid}/results/${desks.id}/delete`, {}, `/logframes/${pid}`);
+  assert.strictEqual(r.status, 302);
+  assert.ok((await fwOf()).results.some((x) => x.id === desks.id), 'an output with activities under it is kept');
+  r = await a.post(`/logframes/${pid}/settings`, { name_objective: 'Goal', name_outcome: 'Outcome', name_output: 'Output', name_activity: 'Activity', notes: 'Full results framework in the project document' }, `/logframes/${pid}/settings`);
+  assert.strictEqual(r.status, 302);
+  r = await a.req(`/logframes/${pid}`);
+  assert.match(r.text, /Outcome 2/);
+  assert.match(r.text, /Cases opened with legal aid/);
+
+  r = await a.req(`/logframes/${pid}/export.csv`);
+  assert.match(r.headers.get('content-type'), /text\/csv/);
+  assert.match(r.text, /Indicator,,Community members reached,Number,0,100,Attendance registers,People reached,13/);
+  assert.match(r.text, /Achieved/);
+  r = await a.req('/logframes/template.csv');
+  assert.match(r.text, /^\uFEFF?Level,Code,Text/, 'the template opens in Excel (fetch drops the byte order mark)');
+
+  // A project with a logframe cannot be deleted; deleting the logframe unlinks the planned activities
+  r = await a.post(`/admin/projects/${pid}/delete`, {}, '/admin/projects');
+  assert.strictEqual(r.status, 302);
+  assert.ok(await db().get('projects', pid), 'refused while the logframe exists');
+  r = await a.post(`/logframes/${pid}/delete`, {}, `/logframes/${pid}/settings`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual(await fwOf(), null);
+  plan = await db().get('workplans', planId);
+  assert.strictEqual(plan.items.find((it) => it.id === linkedItem.id).logframeId, '');
+
+  for (const p of ['/logframes', `/logframes/${pid}`]) {
+    r = await o.req(p);
+    assert.strictEqual(r.status, 200, `${p} -> ${r.status}`);
+  }
+});

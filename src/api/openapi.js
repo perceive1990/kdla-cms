@@ -125,6 +125,21 @@ const activityFields = {
   budget: { type: ['number', 'null'], minimum: 0, description: 'Budget in the currency of the plan' },
   output: S('Expected output or indicator'),
   status: E(choices.workplanActivityStatuses, 'Defaults to "Not started"'),
+  logframeId: S('Logframe (the project id) this activity delivers. Send it together with logframeResultId; send both empty to unlink'),
+  logframeResultId: S('Output or activity of that logframe. Its activity reports then count towards that result and everything above it'),
+};
+
+const { SOURCES: LF_SOURCES, LEVELS: lfLevels } = require('../services/logframes');
+const lfIndicatorFields = {
+  resultId: S('The result it measures'),
+  name: S('The indicator'),
+  unit: E(['number', 'percent'], 'Defaults to number. Automatic sources set it themselves'),
+  baseline: { type: ['number', 'null'], description: 'Baseline' },
+  target: { type: ['number', 'null'], description: 'Target for the end of the project' },
+  source: E(Object.keys(LF_SOURCES),
+    'manual: recorded by staff (default). reports, reach, attendees, women, children, disabled and the ...Pct shares: worked out from the activity reports of the planned activities linked to the result and everything under it. casesOpened, clientsServed, referrals: from the case records of the project period'),
+  means: S('Means of verification'),
+  frequency: S('How often it is measured, for example Quarterly'),
 };
 
 const activityProgress = {
@@ -263,6 +278,61 @@ const schemas = {
     id: S('Activity id', { readOnly: true }), ...activityFields, updatedAt: T('When the activity was last changed'), ...activityProgress,
   }),
   WorkplanActivityInput: obj(activityFields, ['title']),
+  Logframe: obj({
+    id: S('Logframe id (the same as the project id)', { readOnly: true }),
+    projectId: S('Project'),
+    names: obj(Object.fromEntries(lfLevels.map((l) => [l, S(`Name used for the ${l} level`)])), [], 'The names of the four levels, for example the donor\'s words'),
+    notes: S('Notes: assumptions, risks or where the full results framework is kept'),
+    elapsed: { type: ['integer', 'null'], description: 'Share of the project period that has passed (0 to 100)' },
+    totals: obj({
+      indicators: I('Indicators'), achieved: I('Achieved'), onTrack: I('On track'), behind: I('Behind, or below the target for shares'), noData: I('Without a value or without a target'),
+      linked: I('Planned activities linked to the logframe'), reports: I('Activity reports of those planned activities'), unlinked: I('Planned activities of this project\'s work plans that are not linked'),
+    }),
+    results: A(ref('LogframeResult'), 'In reading order: each result is followed by the results under it'),
+    unlinked: A(obj({ workplanId: S('Work plan'), workplanTitle: S('Its title'), activityId: S('Planned activity'), number: I('Number'), title: S('Title') }), 'Planned activities of this project\'s work plans not linked yet'),
+    createdAt: T('When it was set up'), updatedAt: T('When it was last changed'), etag: record.etag,
+  }),
+  LogframeResult: obj({
+    id: S('Result id', { readOnly: true }),
+    level: E(lfLevels, 'objective (overall objective), outcome (intermediate objective), output or activity'),
+    parentId: S('The result it belongs to'),
+    code: S('Its number as shown, for example 1.2 (the custom code when one is set)'),
+    customCode: S('The code typed in, if any'),
+    label: S('For example "Output 1.2"'),
+    text: S('The result or activity'),
+    rollup: obj({
+      planned: I('Planned activities linked to it or to anything under it (not cancelled)'), completed: I('Of those, completed'), overdue: I('Of those, overdue'),
+      targetEvents: I('Times planned'), delivered: I('Activity reports'), targetPeople: I('People planned'), attendees: I('Different registered attendees'),
+      heads: I('Head counts'), reach: I('People reached: different registered attendees plus head counts'), attendances: I('Registered attendances (people can attend more than once)'),
+      women: I('Women and girls among the registered attendees'), children: I('Children'), disabled: I('Persons with disabilities'),
+      budget: { type: 'object', additionalProperties: { type: 'number' }, description: 'Planned budget by currency' },
+    }),
+    indicators: A(ref('LogframeIndicator')),
+    plannedActivities: A(obj({
+      workplanId: S('Work plan'), workplanTitle: S('Its title'), activityId: S('Planned activity'), number: I('Number'), title: S('Title'), status: S('Status'), delivered: I('Activity reports'),
+    }), 'Planned activities linked to this result itself'),
+  }),
+  LogframeIndicator: obj({
+    id: S('Indicator id', { readOnly: true }), ...lfIndicatorFields,
+    actual: { type: ['number', 'null'], description: 'The latest recorded value, or the value worked out now' },
+    asAt: { type: ['string', 'null'], format: 'date', description: 'Date of the actual value' },
+    automatic: B('Worked out by the system'),
+    pct: { type: ['integer', 'null'], description: 'Progress from the baseline to the target, in percent' },
+    status: E(['Achieved', 'On track', 'Behind', 'Below target', 'No target', 'No data'], 'Counts are compared with the time elapsed; shares with their target'),
+    values: A(obj({ id: S('Value id'), date: D('As at'), value: { type: 'number' }, note: S('Note'), by: S('User id'), at: T('Recorded at') }), 'Recorded values, oldest first'),
+  }),
+  LogframeResultInput: obj({
+    level: E(lfLevels, 'Cannot be changed later'),
+    parentId: S('Outputs: the intermediate objective (outcome) they belong to. Activities: their output. Intermediate objectives go under the overall objective automatically'),
+    code: S('Your own code, for example 1.2. Empty numbers it automatically'),
+    text: S('The result or activity'),
+  }, ['level', 'text']),
+  LogframeIndicatorInput: obj(lfIndicatorFields, ['resultId', 'name']),
+  LogframeValueInput: obj({ date: D('The date the value applies to, not in the future'), value: { type: 'number', description: 'The total so far' }, note: S('Note') }, ['date', 'value']),
+  LogframeSettings: obj({
+    names: obj(Object.fromEntries(lfLevels.map((l) => [l, S(`Name for the ${l} level`)]))),
+    notes: S('Notes'),
+  }),
   AttendanceInput: obj({
     rows: A(obj({
       firstName: S('First name'), lastName: S('Last name'), ageCategory: E(choices.ageCategories), age: I('Age'),
@@ -610,6 +680,34 @@ op('delete', '/workplans/{id}/activities/{itemId}', 'Work plans', 'Remove a plan
   status: 204, ifMatch: true, errors: { ...NF, ...PRE },
 });
 
+// M&E: logframes
+const LF = '/projects/{id}/logframe';
+const LF_WHOLE = 'Returns the whole logframe with progress and its new etag.';
+op('get', LF, 'M&E', 'Get a project\'s logframe with progress', {
+  ok: ref('Logframe'), errors: NF,
+  description: 'Results in reading order with their numbers, the indicators with their current value, progress and status, the totals of the planned activities linked to each result, and the planned activities of the project\'s work plans that are not linked yet.',
+});
+op('post', LF, 'M&E', 'Set up the logframe of a project', { status: 201, ok: ref('Logframe'), admin: true, errors: NF, description: 'Returns 200 with the existing logframe when there already is one.' });
+op('patch', LF, 'M&E', 'Change the level names and notes', { body: ref('LogframeSettings'), ok: ref('Logframe'), admin: true, ifMatch: true, errors: { ...NF, ...PRE } });
+op('delete', LF, 'M&E', 'Delete the logframe with its indicators and values (planned activities are unlinked)', { status: 204, admin: true, errors: NF });
+op('post', `${LF}/import`, 'M&E', 'Import the logframe from spreadsheet rows', {
+  body: obj({ csv: S('CSV (or tab separated) rows: Level, Code, Text, Unit, Baseline, Target, Means of verification, Source. The column names are optional') }, ['csv']),
+  admin: true, ok: obj({ imported: obj({ results: I('Results'), indicators: I('Indicators') }), logframe: ref('Logframe') }),
+  description: 'Into an empty logframe only. Nothing is saved if a row has a problem; error.rowErrors lists the problems by row number. GET /logframes/template.csv in the web app gives a template.',
+  errors: { ...NF, 409: 'The logframe already has entries (not_empty)', ...V },
+});
+op('post', `${LF}/results`, 'M&E', 'Add an objective, intermediate objective, output or activity', { body: ref('LogframeResultInput'), status: 201, ok: ref('Logframe'), admin: true, errors: { ...NF, ...V }, description: LF_WHOLE });
+op('patch', `${LF}/results/{resultId}`, 'M&E', 'Change a result', { body: ref('LogframeResultInput'), ok: ref('Logframe'), admin: true, ifMatch: true, errors: { ...NF, ...PRE, ...V }, description: `Send only the fields you want to change. ${LF_WHOLE}` });
+op('delete', `${LF}/results/{resultId}`, 'M&E', 'Remove a result with its indicators', { status: 204, admin: true, ifMatch: true, errors: { ...NF, ...PRE, 409: 'Results under it must be removed first (has_children)' } });
+op('post', `${LF}/indicators`, 'M&E', 'Add an indicator', { body: ref('LogframeIndicatorInput'), status: 201, ok: ref('Logframe'), admin: true, errors: { ...NF, ...V }, description: LF_WHOLE });
+op('patch', `${LF}/indicators/{indicatorId}`, 'M&E', 'Change an indicator', { body: ref('LogframeIndicatorInput'), ok: ref('Logframe'), admin: true, ifMatch: true, errors: { ...NF, ...PRE, ...V }, description: `Send only the fields you want to change. ${LF_WHOLE}` });
+op('delete', `${LF}/indicators/{indicatorId}`, 'M&E', 'Remove an indicator and its values', { status: 204, admin: true, ifMatch: true, errors: { ...NF, ...PRE } });
+op('post', `${LF}/indicators/{indicatorId}/values`, 'M&E', 'Record the value of an indicator', {
+  body: ref('LogframeValueInput'), status: 201, ok: ref('Logframe'), errors: { ...NF, ...V },
+  description: `Anyone can record values for an indicator measured by staff (source "manual"); others are worked out automatically (422 automatic_indicator). ${LF_WHOLE}`,
+});
+op('delete', `${LF}/indicators/{indicatorId}/values/{valueId}`, 'M&E', 'Remove a recorded value (the colleague who recorded it, or an administrator)', { status: 204, errors: NF });
+
 // Referrals
 op('get', '/referrals', 'Referrals', 'List referrals', {
   query: [q('followUp', '"Needs follow up" or "Does not need follow up"'), q('caseId', 'Case id'), q('organizationId', 'Organisation id'), sort(['createdAt', 'updatedAt']), ...paging],
@@ -688,6 +786,7 @@ const TAG_TEXT = {
   'Activity reports': 'Community meetings, trainings, radio programmes and other activities, with attendance registers.',
   'Report files': 'Documents attached to an activity report.',
   'Work plans': 'Plans for a period with numbered planned activities, targets and budgets. Activity reports linked to a planned activity show what was delivered against what was planned.',
+  'M&E': 'Each project\'s logframe: overall objective, intermediate objectives, outputs and activities with indicators, baselines and targets. Planned activities link to an output or activity, so their activity reports count towards the results above them.',
   Referrals: 'Cases referred to partner organisations, and their follow ups.',
   Stakeholders: 'Partner organisations that cases can be referred to.',
   Projects: 'Donor projects that people and reports are linked to.',

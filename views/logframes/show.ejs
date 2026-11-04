@@ -1,0 +1,112 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs d-print-none"><a href="/logframes">M&amp;E</a></div>
+    <h1><%= project.title %></h1>
+    <p class="sub">Logframe<%= project.donor ? ' · ' + project.donor : '' %> · <%= h.fmtDate(project.startDate) %> to <%= h.fmtDate(project.endDate) %></p>
+  </div>
+  <% if (fw) { %>
+  <div class="d-flex flex-wrap gap-2 d-print-none">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    <a class="btn btn-outline-secondary" href="/logframes/<%= project.id %>/export.csv"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
+    <% if (admin) { %>
+      <% if (!prog.results.length) { %><a class="btn btn-primary" href="/logframes/<%= project.id %>/import"><i class="bi bi-upload" aria-hidden="true"></i> Import from a spreadsheet</a><% } %>
+      <a class="btn btn-outline-secondary" href="/logframes/<%= project.id %>/settings"><i class="bi bi-gear" aria-hidden="true"></i> Settings</a>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+
+<% if (!fw) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-bullseye"></i>This project has no logframe yet.
+    <% if (admin) { %>
+      <form method="post" action="/logframes/<%= project.id %>" class="mt-3"><%- f.hidden(csrfToken) %><button class="btn btn-primary" type="submit">Set up the logframe</button></form>
+    <% } else { %> An administrator sets it up.<% } %>
+  </div></div>
+<% } else { %>
+<% const kidsOf = (id) => prog.results.filter((r) => (r.parentId || '') === id); const t = prog.totals; %>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg"><div class="stat"><div class="label">Project time passed</div><div class="value"><%= prog.elapsed === null ? '' : prog.elapsed + '%' %></div>
+    <% if (prog.elapsed !== null) { %><div class="progress-line mt-1" role="img" aria-label="<%= prog.elapsed %>% of the project period has passed"><span style="width: <%= prog.elapsed %>%"></span></div><% } %></div></div>
+  <div class="col-6 col-lg"><div class="stat"><div class="label">Indicators achieved</div><div class="value"><%= t.achieved %> <small class="fs-6 fw-normal text-body-secondary">of <%= t.indicators %></small></div></div></div>
+  <div class="col-6 col-lg"><div class="stat"><div class="label">On track</div><div class="value"><%= t.onTrack %></div></div></div>
+  <div class="col-6 col-lg"><div class="stat<%= t.behind ? ' alert-stat' : '' %>"><div class="label">Behind or below target</div><div class="value"><%= t.behind %></div></div></div>
+  <div class="col-12 col-lg"><a class="stat" href="#unlinked"><div class="label">Planned activities linked</div><div class="value"><%= t.linked %></div>
+    <div class="small <%= t.unlinked ? 'text-danger-emphasis' : 'text-body-secondary' %>"><%= t.unlinked ? t.unlinked + ' in this project\'s work plans not linked' : 'All planned activities are linked' %></div></a></div>
+</div>
+
+<% if (!prog.results.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-diagram-3"></i>The logframe is empty.
+    <% if (admin) { %>
+      <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+        <a class="btn btn-primary" href="/logframes/<%= project.id %>/import"><i class="bi bi-upload" aria-hidden="true"></i> Import from a spreadsheet</a>
+        <a class="btn btn-outline-primary" href="/logframes/<%= project.id %>/results/new?level=objective"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add the <%= names.objective.toLowerCase() %></a>
+      </div>
+    <% } else { %> An administrator adds the objectives, outputs and indicators.<% } %>
+  </div></div>
+<% } %>
+
+<% for (const top of kidsOf('')) { %>
+  <% if (top.level === 'objective') { %>
+  <section class="panel lf-block lf-objective" id="res-<%= top.id %>">
+    <div class="panel-body">
+      <div class="lf-head"><span class="lf-label"><%= top.label %></span><p class="lf-text"><%= top.text %></p></div>
+      <%- include('_rollup', { agg: top.rollup }) %>
+      <%- include('_indicators', { r: top }) %>
+      <%- include('_actions', { r: top }) %>
+    </div>
+  </section>
+  <% } %>
+  <% for (const io of (top.level === 'objective' ? kidsOf(top.id) : [top])) { %>
+  <section class="panel lf-block" id="res-<%= io.id %>">
+    <div class="panel-body">
+      <div class="lf-head"><span class="lf-label"><%= io.label %></span><h2 class="lf-text h6"><%= io.text %></h2></div>
+      <%- include('_rollup', { agg: io.rollup }) %>
+      <%- include('_indicators', { r: io }) %>
+      <%- include('_actions', { r: io }) %>
+      <% for (const out of kidsOf(io.id)) { %>
+      <div class="lf-output" id="res-<%= out.id %>">
+        <div class="lf-head"><span class="lf-label"><%= out.label %></span><h3 class="lf-text h6"><%= out.text %></h3></div>
+        <%- include('_rollup', { agg: out.rollup }) %>
+        <%- include('_indicators', { r: out }) %>
+        <%- include('_planned', { r: out }) %>
+        <%- include('_actions', { r: out }) %>
+        <% const acts = kidsOf(out.id); if (acts.length) { %>
+        <ul class="lf-acts list-unstyled">
+          <% for (const a of acts) { %>
+          <li id="res-<%= a.id %>">
+            <div class="lf-head"><span class="lf-label"><%= a.label %></span><span class="lf-text"><%= a.text %></span></div>
+            <%- include('_rollup', { agg: a.rollup }) %>
+            <%- include('_indicators', { r: a }) %>
+            <%- include('_planned', { r: a }) %>
+            <%- include('_actions', { r: a }) %>
+          </li>
+          <% } %>
+        </ul>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </section>
+  <% } %>
+<% } %>
+
+<section class="panel" id="unlinked">
+  <div class="panel-body">
+    <h2 class="panel-title">Planned activities not linked to this logframe</h2>
+    <% if (!prog.unlinked.length) { %>
+      <p class="text-body-secondary mb-0">None. Every planned activity in this project's work plans counts towards the logframe.</p>
+    <% } else { %>
+      <p class="small text-body-secondary">These activities are in work plans for <%= project.title %>, but do not count towards any output yet. Open each one and choose its logframe output or activity.</p>
+      <ul class="mb-0">
+        <% for (const u of prog.unlinked) { %>
+          <li><a href="/workplans/<%= u.plan.id %>/activities/<%= u.item.id %>/edit"><%= Number.isInteger(u.item.number) ? u.item.number + '. ' : '' %><%= u.item.title %></a> <span class="text-body-secondary">· <%= u.plan.title %></span></li>
+        <% } %>
+      </ul>
+    <% } %>
+  </div>
+</section>
+<% if (fw.notes) { %><div class="panel"><div class="panel-body"><h2 class="panel-title">Notes</h2><p class="prose mb-0"><%= fw.notes %></p></div></div><% } %>
+<p class="small text-body-secondary mt-2">Counts are judged against the share of the project period that has passed (on track when no more than 10 points behind it); shares such as the percentage of women are judged against their target. People reached counts different registered attendees plus head counts on the linked activity reports.</p>
+<% } %>
+<%- include('../partials/footer') %>

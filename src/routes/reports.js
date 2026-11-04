@@ -5,6 +5,7 @@ const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
 const svc = require('../services/reports');
 const workplans = require('../services/workplans');
+const logframes = require('../services/logframes');
 const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
@@ -112,8 +113,11 @@ router.get('/:id', async (req, res) => {
   const partners = Object.values(await mapByIds(req.db, 'stakeholders', r.partnerIds || [])).sort((a, b) => a.name.localeCompare(b.name));
   const plan = r.workplanId ? await req.db.get('workplans', r.workplanId) : null;
   const planned = plan ? (plan.items || []).find((it) => it.id === r.workplanItemId) : null;
+  const lfLink = planned && planned.logframeId
+    ? (await logframes.linkLabels(req.db, [planned]))[`${planned.logframeId}:${planned.logframeResultId}`] || null
+    : null;
   return res.render('reports/show', {
-    title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned,
+    title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned, lfLink,
     byCategory: tally(attendees, 'ageCategory', choices.ageCategories),
     disabledCount: attendees.filter((a) => a.disability === 'Disabled').length,
   });
