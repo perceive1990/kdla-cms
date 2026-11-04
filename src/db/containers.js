@@ -10,6 +10,7 @@ module.exports = {
   caseNotes: { pk: 'caseId' }, // case diary entries, read per case
   tasks: { pk: 'id' }, // tasks, deadlines, hearings and appointments
   reports: { pk: 'id' },
+  workplans: { pk: 'id' }, // work plans; their planned activities are embedded in each plan
   stakeholders: { pk: 'id' },
   referrals: { pk: 'id' }, // follow-ups are embedded in each referral
   rooms: { pk: 'id' },

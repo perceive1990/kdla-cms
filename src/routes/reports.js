@@ -4,6 +4,7 @@ const choices = require('../choices');
 const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
 const svc = require('../services/reports');
+const workplans = require('../services/workplans');
 const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
@@ -12,15 +13,36 @@ const {
 
 const router = express.Router();
 
-async function formLists(db) {
-  const [attendees, users, projects, partners] = await Promise.all([
+async function formLists(db, values = {}) {
+  const [attendees, users, projects, partners, workplanOptions] = await Promise.all([
     db.find('people', { where: { kind: 'attendee' }, fields: ['id', 'firstName', 'lastName', 'activity'], orderBy: ['lastName', 'ASC'] }),
     db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
     db.find('projects', { fields: ['id', 'title'], orderBy: ['title', 'ASC'] }),
     db.find('stakeholders', { fields: ['id', 'name'], orderBy: ['name', 'ASC'] }),
+    workplans.activityOptions(db, values),
   ]);
   return {
-    attendees, users, projects, partners, richEditor: true,
+    attendees, users, projects, partners, workplanOptions, richEditor: true,
+  };
+}
+
+/** The form's work plan choice is one value, "planId:itemId". */
+const withLink = (v) => ({ ...v, workplanItem: v.workplanId ? `${v.workplanId}:${v.workplanItemId || ''}` : '' });
+
+/** "Write report" on a work plan: start the report from the planned activity. */
+async function fromPlannedActivity(db, link) {
+  const [planId, itemId] = String(link || '').split(':');
+  const plan = planId ? await db.get('workplans', planId.slice(0, 60)) : null;
+  const item = plan && (plan.items || []).find((it) => it.id === itemId);
+  if (!item) return {};
+  return {
+    workplanId: plan.id,
+    workplanItemId: item.id,
+    heading: item.title,
+    activityNumber: Number.isInteger(item.number) ? item.number : null,
+    activityType: item.activityType || '',
+    district: item.district || '',
+    projectId: plan.projectId || '',
   };
 }
 
@@ -60,15 +82,21 @@ router.get('/export.csv', async (req, res) => {
 });
 
 router.get('/new', async (req, res) => {
-  const values = { date: today(), compiledById: req.user.id, attendeeIds: [] };
-  res.render('reports/form', { title: 'New activity report', values, errors: {}, isNew: true, ...(await formLists(req.db)) });
+  const values = {
+    date: today(), compiledById: req.user.id, attendeeIds: [], ...(await fromPlannedActivity(req.db, req.query.workplanItem)),
+  };
+  res.render('reports/form', {
+    title: 'New activity report', values: withLink(values), errors: {}, isNew: true, ...(await formLists(req.db, values)),
+  });
 });
 
 router.post('/', async (req, res) => {
   const v = svc.readReport(req.body);
   const errors = await svc.validateReport(req.db, v);
   if (Object.keys(errors).length) {
-    return res.status(400).render('reports/form', { title: 'New activity report', values: v, errors, isNew: true, ...(await formLists(req.db)) });
+    return res.status(400).render('reports/form', {
+      title: 'New activity report', values: withLink(v), errors, isNew: true, ...(await formLists(req.db, v)),
+    });
   }
   const doc = await svc.createReport(req, v, await saveUploads(req.files, req.user));
   req.flash('success', 'Report created. You can now add the attendance register.');
@@ -82,8 +110,10 @@ router.get('/:id', async (req, res) => {
   const users = await mapByIds(req.db, 'users', [r.compiledById, ...(r.attachments || []).map((a) => a.uploadedBy)]);
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
   const partners = Object.values(await mapByIds(req.db, 'stakeholders', r.partnerIds || [])).sort((a, b) => a.name.localeCompare(b.name));
+  const plan = r.workplanId ? await req.db.get('workplans', r.workplanId) : null;
+  const planned = plan ? (plan.items || []).find((it) => it.id === r.workplanItemId) : null;
   return res.render('reports/show', {
-    title: r.heading, r, attendees, users, project, partners,
+    title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned,
     byCategory: tally(attendees, 'ageCategory', choices.ageCategories),
     disabledCount: attendees.filter((a) => a.disability === 'Disabled').length,
   });
@@ -120,7 +150,9 @@ router.post('/:id/attendees', async (req, res) => {
 
 router.get('/:id/edit', async (req, res) => {
   const r = await svc.getReport(req.db, req.params.id);
-  return res.render('reports/form', { title: 'Edit report', values: r, errors: {}, isNew: false, ...(await formLists(req.db)) });
+  return res.render('reports/form', {
+    title: 'Edit report', values: withLink(r), errors: {}, isNew: false, ...(await formLists(req.db, r)),
+  });
 });
 
 router.post('/:id', async (req, res) => {
@@ -128,7 +160,10 @@ router.post('/:id', async (req, res) => {
   const v = svc.readReport(req.body);
   const errors = await svc.validateReport(req.db, v);
   if (Object.keys(errors).length) {
-    return res.status(400).render('reports/form', { title: 'Edit report', values: { ...r, ...v }, errors, isNew: false, ...(await formLists(req.db)) });
+    const values = { ...r, ...v };
+    return res.status(400).render('reports/form', {
+      title: 'Edit report', values: withLink(values), errors, isNew: false, ...(await formLists(req.db, values)),
+    });
   }
   await svc.updateReport(req, r, v, { ifMatch: req.body._etag, attachments: await saveUploads(req.files, req.user) });
   req.flash('success', 'Report updated.');

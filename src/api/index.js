@@ -112,6 +112,7 @@ function createApiRouter() {
   router.use(require('./routes/people'));
   router.use(require('./routes/tasks'));
   router.use(require('./routes/reports'));
+  router.use(require('./routes/workplans'));
   router.use(require('./routes/referrals'));
   router.use(require('./routes/directory'));
   router.use(require('./routes/misc'));

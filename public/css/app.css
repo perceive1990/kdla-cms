@@ -180,6 +180,46 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .tag { display: inline-block; background: var(--accent-soft); color: var(--accent-text); border-radius: 999px; padding: .1rem .55rem; font-size: .78rem; margin: 0 .2rem .2rem 0; }
 .tag-danger { background: rgba(var(--bs-danger-rgb), .12); color: var(--bs-danger-text-emphasis); }
 .tag-muted { background: var(--hover); color: var(--muted); }
+.tag-done { background: rgba(var(--bs-success-rgb), .14); color: var(--bs-success-text-emphasis); }
+.tag-warn { background: rgba(var(--bs-warning-rgb), .18); color: var(--bs-warning-text-emphasis); }
+.tag-dark { background: var(--ink); color: var(--surface); }
+.tag-strike { text-decoration: line-through; }
+
+/* Progress against a target (work plans) */
+.progress-line { height: 6px; min-width: 60px; background: var(--hover); border-radius: 3px; overflow: hidden; margin-top: .25rem; }
+.progress-line > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+[data-bs-theme="dark"] .progress-line { background: var(--line); }
+[data-bs-theme="dark"] .progress-line > span { background: var(--accent-on-dark); }
+/* Work plan activities: a table on wider screens, one card per activity on phones */
+.wp-table > tbody > tr > td { vertical-align: top; }
+.wp-table .wp-main { min-width: 15rem; }
+.wp-table .wp-when { min-width: 9rem; }
+.wp-table .wp-progress { min-width: 8rem; }
+.wp-table .status-select { min-width: 8rem; }
+.wp-table .wp-cur { color: var(--muted); font-size: .8rem; }
+.wp-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+.wp-actions form { margin: 0; }
+.wp-cancelled .cell-strong { text-decoration: line-through; color: var(--muted); }
+@media screen and (max-width: 767.98px) {
+  .wp-table thead { display: none; }
+  .wp-table > tbody > tr { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); column-gap: .5rem; padding: .85rem .75rem; border-bottom: 1px solid var(--line); }
+  .wp-table > tbody > tr:last-child { border-bottom: 0; }
+  .wp-table > tbody > tr > td { display: block; grid-column: 2; padding: .2rem 0; border: 0; min-width: 0; text-align: left !important; }
+  .wp-table > tbody > tr > td.wp-num { grid-column: 1; grid-row: 1 / span 5; text-align: left; padding-top: 0; }
+  .wp-table > tbody > tr > td.wp-main { padding-top: 0; }
+  .wp-table > tbody > tr > td.wp-budget { display: block !important; }
+  .wp-table > tbody > tr > td:empty { display: none !important; }
+  .wp-table .wp-when { display: flex !important; flex-wrap: wrap; gap: 0 .5rem; align-items: baseline; }
+  .wp-table .wp-progress .progress-line { max-width: 14rem; }
+  .wp-table .wp-status { order: 9; padding-top: .5rem; }
+  .wp-table .wp-status .status-select { max-width: 14rem; }
+}
+@media print {
+  .progress-line, .progress-line > span, .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .wp-table { font-size: 9pt; }
+  .wp-table > :not(caption) > * > * { padding: .3rem .4rem; }
+  .wp-table .wp-main { min-width: 0; }
+}
 
 /* Timeline */
 .timeline { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }

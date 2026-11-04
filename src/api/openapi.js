@@ -97,7 +97,59 @@ const reportFields = {
   partnerIds: ids('partner organisations (stakeholders) involved in the activity'),
   otherParticipants: I('Head count of participants not registered individually', { minimum: 0 }),
   compiledById: S('Who compiled the report (a user id). Defaults to you'),
+  workplanId: S('Work plan the activity belongs to. Send it together with workplanItemId; send both empty to unlink'),
+  workplanItemId: S('Planned activity in that work plan. The report then counts as delivered for it, and an empty activityNumber is taken from it'),
 };
+
+const workplanFields = {
+  title: S('Title, for example "Kitwe Office work plan, January to March 2027"'),
+  periodStart: D('First day of the plan'),
+  periodEnd: D('Last day of the plan'),
+  office: E(['', ...choices.offices], 'Office the plan is for. Empty means all offices'),
+  projectId: S('Project the plan is for (optional)'),
+  currency: E(['ZMW', 'DKK', 'USD', 'EUR', 'GBP'], 'Currency of the activity budgets. Defaults to ZMW'),
+  notes: S('Purpose and notes'),
+  preparedById: S('Who prepared the plan (a user id). Defaults to you'),
+};
+
+const activityFields = {
+  number: I('Activity number, unique within the plan and shown on activity reports. Defaults to the next number', { minimum: 0 }),
+  title: S('The planned activity'),
+  activityType: E(['', ...choices.activities], 'Type of activity'),
+  district: E(['', ...choices.districts]),
+  responsibleId: S('Colleague responsible (a user id)'),
+  startDate: D('Start, within the plan period'),
+  endDate: D('End, within the plan period. After this date the activity is overdue until it is Completed or Cancelled'),
+  targetEvents: I('How many times it should take place. Each linked activity report counts once', { minimum: 0 }),
+  targetPeople: I('People to reach', { minimum: 0 }),
+  budget: { type: ['number', 'null'], minimum: 0, description: 'Budget in the currency of the plan' },
+  output: S('Expected output or indicator'),
+  status: E(choices.workplanActivityStatuses, 'Defaults to "Not started"'),
+};
+
+const activityProgress = {
+  delivered: I('Activity reports linked to this activity', { readOnly: true }),
+  reached: I('People reached: registered attendees plus head counts on the linked reports', { readOnly: true }),
+  eventsPct: { type: ['integer', 'null'], readOnly: true, description: 'delivered as a percentage of targetEvents (at most 100); null without a target' },
+  overdue: B('The end date has passed and the activity is neither Completed nor Cancelled'),
+  reports: A(obj({ id: S('Report id'), heading: S('Heading'), date: D('Date of the activity') }), 'Linked activity reports, oldest first'),
+};
+
+const workplanTotals = obj({
+  activities: I('Planned activities'),
+  completed: I('Completed'),
+  cancelled: I('Cancelled (left out of the other totals)'),
+  overdue: I('Overdue'),
+  completedPct: I('Completed as a percentage of the activities that are not cancelled'),
+  targetEvents: I('Planned number of times, all activities'),
+  delivered: I('Linked activity reports'),
+  eventsPct: { type: ['integer', 'null'], description: 'delivered as a percentage of targetEvents (at most 100)' },
+  targetPeople: I('People to reach'),
+  reached: I('People reached'),
+  peoplePct: { type: ['integer', 'null'], description: 'reached as a percentage of targetPeople (at most 100)' },
+  budget: { type: 'number', description: 'Planned budget' },
+  reports: I('Activity reports linked to the plan'),
+}, [], 'Planned against delivered');
 
 const stakeholderFields = {
   name: S('Organisation name'),
@@ -192,6 +244,25 @@ const schemas = {
     ...record, ...reportFields, attachments: A(ref('Attachment')), createdBy: S('User id'),
   }),
   ReportInput: obj(reportFields, ['heading', 'activityType', 'introduction', 'objectives', 'implementation']),
+  Workplan: obj({
+    ...record,
+    ...workplanFields,
+    status: E(choices.workplanStatuses, 'Draft (anyone can change it), Approved (administrators only) or Closed (nobody until an administrator reopens it)'),
+    approvedById: S('Administrator who approved it'),
+    approvedAt: T('When it was approved'),
+    closedAt: T('When it was closed'),
+    createdBy: S('User id'),
+    activities: A(ref('WorkplanActivity'), 'Planned activities in number order'),
+    totals: workplanTotals,
+  }),
+  WorkplanInput: obj({
+    ...workplanFields,
+    moveActivities: B('Changing a plan: when the start of the period moves, move the activity dates by the same amount (whole months when both starts fall on the same day of the month). A date that would still fall outside the new period becomes its first or last day'),
+  }, ['title', 'periodStart', 'periodEnd']),
+  WorkplanActivity: obj({
+    id: S('Activity id', { readOnly: true }), ...activityFields, updatedAt: T('When the activity was last changed'), ...activityProgress,
+  }),
+  WorkplanActivityInput: obj(activityFields, ['title']),
   AttendanceInput: obj({
     rows: A(obj({
       firstName: S('First name'), lastName: S('Last name'), ageCategory: E(choices.ageCategories), age: I('Age'),
@@ -482,7 +553,7 @@ op('get', '/tasks/{id}/calendar.ics', 'Tasks and hearings', 'Calendar file for O
 
 // Activity reports
 op('get', '/reports', 'Activity reports', 'List activity reports', {
-  query: [q('district', 'District'), q('activityType', 'Type of activity'), q('projectId', 'Project id'), ...dates('Activity date'), q('q', 'Search heading, introduction, objectives and venue'), sort(['date', 'createdAt', 'updatedAt']), ...paging],
+  query: [q('district', 'District'), q('activityType', 'Type of activity'), q('projectId', 'Project id'), q('workplanId', 'Reports linked to this work plan'), ...dates('Activity date'), q('q', 'Search heading, introduction, objectives and venue'), sort(['date', 'createdAt', 'updatedAt']), ...paging],
   ok: list('Report'),
 });
 op('post', '/reports', 'Activity reports', 'Add an activity report', { body: ref('ReportInput'), status: 201, ok: ref('Report'), errors: V });
@@ -497,6 +568,46 @@ op('post', '/reports/{id}/attendees', 'Activity reports', 'Attendance register: 
   ok: obj({ added: I('New people registered'), linked: I('Already registered (same NRC) and linked'), report: ref('Report') }),
   description: 'Nothing is saved if any row has a problem; error.rowErrors lists them by row number.',
   errors: { ...NF, ...V },
+});
+
+// Work plans
+const PLAN_CHANGE = 'Anyone can change a draft plan; an approved plan only an administrator; a closed plan nobody until an administrator reopens it.';
+const WHOLE_PLAN = 'Returns the whole plan with its new etag (the If-Match version is the plan\'s).';
+op('get', '/workplans', 'Work plans', 'List work plans', {
+  query: [q('status', 'Draft, Approved or Closed'), q('office', 'Office'), q('projectId', 'Project id'), q('q', 'Search title and notes'), sort(['periodStart', 'createdAt', 'updatedAt']), ...paging],
+  ok: list('Workplan'),
+  description: 'Newest period first, each plan with its activities and totals. GET one plan for the progress of each activity.',
+});
+op('post', '/workplans', 'Work plans', 'Start a work plan (as a draft)', { body: ref('WorkplanInput'), status: 201, ok: ref('Workplan'), errors: V });
+op('get', '/workplans/{id}', 'Work plans', 'Get a work plan with the progress of each activity', { ok: ref('Workplan'), errors: NF });
+op('patch', '/workplans/{id}', 'Work plans', 'Change a work plan', {
+  body: ref('WorkplanInput'), ok: ref('Workplan'), ifMatch: true, errors: { ...NF, ...PRE, ...V },
+  description: `Send only the fields you want to change; use the status operation to approve or close. ${PLAN_CHANGE}`,
+});
+op('delete', '/workplans/{id}', 'Work plans', 'Delete a work plan (linked activity reports are kept and unlinked)', { status: 204, admin: true, errors: NF });
+op('post', '/workplans/{id}/status', 'Work plans', 'Approve, return to draft, close or reopen a plan', {
+  body: obj({ status: E(choices.workplanStatuses) }, ['status']), ok: ref('Workplan'), admin: true, ifMatch: true, errors: { ...NF, ...PRE, ...V },
+  description: 'A plan needs at least one activity before it can be approved. Reopening a closed plan (status Approved) keeps the original approval; Draft clears it.',
+});
+op('post', '/workplans/{id}/copy', 'Work plans', 'Copy a plan into a new draft', {
+  status: 201, ok: ref('Workplan'), errors: NF,
+  description: 'The copy has the same activities with their progress reset and no reports linked. Then change its title and period, with "moveActivities": true to move the activity dates along.',
+});
+op('post', '/workplans/{id}/activities', 'Work plans', 'Add a planned activity', {
+  body: ref('WorkplanActivityInput'), status: 201, ok: ref('Workplan'), ifMatch: true, errors: { ...NF, ...PRE, ...V },
+  description: `${WHOLE_PLAN} The Location header points at the new activity. ${PLAN_CHANGE}`,
+});
+op('get', '/workplans/{id}/activities/{itemId}', 'Work plans', 'Get a planned activity with its progress', { ok: ref('WorkplanActivity'), errors: NF });
+op('patch', '/workplans/{id}/activities/{itemId}', 'Work plans', 'Change a planned activity', {
+  body: ref('WorkplanActivityInput'), ok: ref('Workplan'), ifMatch: true, errors: { ...NF, ...PRE, ...V },
+  description: `Send only the fields you want to change. ${WHOLE_PLAN} ${PLAN_CHANGE}`,
+});
+op('post', '/workplans/{id}/activities/{itemId}/status', 'Work plans', 'Update the progress of a planned activity', {
+  body: obj({ status: E(choices.workplanActivityStatuses) }, ['status']), ok: ref('Workplan'), ifMatch: true, errors: { ...NF, ...PRE, ...V },
+  description: `Anyone can do this while the plan is not closed, also on an approved plan. ${WHOLE_PLAN}`,
+});
+op('delete', '/workplans/{id}/activities/{itemId}', 'Work plans', 'Remove a planned activity (linked activity reports are kept and unlinked)', {
+  status: 204, ifMatch: true, errors: { ...NF, ...PRE },
 });
 
 // Referrals
@@ -576,6 +687,7 @@ const TAG_TEXT = {
   'Tasks and hearings': 'Tasks, court hearings, mediation sessions and deadlines.',
   'Activity reports': 'Community meetings, trainings, radio programmes and other activities, with attendance registers.',
   'Report files': 'Documents attached to an activity report.',
+  'Work plans': 'Plans for a period with numbered planned activities, targets and budgets. Activity reports linked to a planned activity show what was delivered against what was planned.',
   Referrals: 'Cases referred to partner organisations, and their follow ups.',
   Stakeholders: 'Partner organisations that cases can be referred to.',
   Projects: 'Donor projects that people and reports are linked to.',

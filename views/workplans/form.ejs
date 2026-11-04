@@ -1,0 +1,37 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/workplans">Work plans</a><% if (!isNew) { %> / <a href="/workplans/<%= values.id %>"><%= values.title %></a><% } %></div>
+    <h1><%= isNew ? 'New work plan' : 'Edit work plan' %></h1>
+    <% if (isNew) { %><p class="sub">Set the period first. You add the planned activities on the next page.</p><% } %>
+  </div>
+</div>
+<% if (Object.keys(errors).length) { %><div class="alert alert-danger" role="alert">Please correct the highlighted fields.</div><% } %>
+<form method="post" action="<%= isNew ? '/workplans' : '/workplans/' + values.id %>" novalidate>
+  <%- f.hidden(csrfToken, isNew ? null : values._etag) %>
+  <div class="panel"><div class="panel-body row g-3">
+    <%- f.text('title', 'Title', values, errors, { required: true, maxlength: 200, placeholder: 'e.g. Kitwe Office work plan, January to March 2027' }) %>
+    <%- f.text('periodStart', 'Period from', values, errors, { type: 'date', required: true, col: 'col-md-3' }) %>
+    <%- f.text('periodEnd', 'Period to', values, errors, { type: 'date', required: true, col: 'col-md-3' }) %>
+    <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-3', blank: 'All offices' }) %>
+    <%- f.select('currency', 'Budget currency', ['ZMW', 'DKK', 'USD', 'EUR', 'GBP'], values, errors, { col: 'col-md-3', blank: false }) %>
+    <% const itemCount = isNew ? 0 : (values.items || []).length; %>
+    <% if (itemCount) { %>
+    <div class="col-12">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="moveActivities" name="moveActivities" aria-describedby="moveActivities-help"<%= values.moveActivities === false ? '' : ' checked' %>>
+        <label class="form-check-label" for="moveActivities">Move the activity dates with the plan</label>
+      </div>
+      <div class="form-text" id="moveActivities-help">If you change the start of the period, the <%= itemCount === 1 ? 'planned activity moves' : itemCount + ' planned activities move' %> by the same amount, for example from January to April. A date that would still fall outside the new period becomes its first or last day.</div>
+    </div>
+    <% } %>
+    <%- f.select('projectId', 'Project', projects.map((p) => ({ value: p.id, label: p.title })), values, errors, { col: 'col-md-6', blank: projects.length ? 'Not for one project' : 'No projects set up yet' }) %>
+    <%- f.select('preparedById', 'Prepared by', users.map((u) => ({ value: u.id, label: u.fullName || u.username })), values, errors, { col: 'col-md-6' }) %>
+    <%- f.textarea('notes', 'Purpose and notes', values, errors, { rows: 4, help: 'Optional: the goal of this plan, assumptions or anything the team should know.' }) %>
+  </div></div>
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-primary" type="submit"><%= isNew ? 'Create work plan' : 'Save changes' %></button>
+    <a class="btn btn-outline-secondary" href="<%= isNew ? '/workplans' : '/workplans/' + values.id %>">Cancel</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

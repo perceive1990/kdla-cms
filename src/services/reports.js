@@ -12,8 +12,18 @@ const rich = require('../richtext');
 
 const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'challenges', 'recommendations'];
 
+/** Work plan link: the web form sends "planId:itemId" as workplanItem; the API sends the two ids. */
+function readWorkplanLink(body) {
+  if (Object.prototype.hasOwnProperty.call(body, 'workplanItem')) {
+    const [workplanId = '', workplanItemId = ''] = str(body.workplanItem, 120).split(':');
+    return { workplanId, workplanItemId };
+  }
+  return { workplanId: str(body.workplanId), workplanItemId: str(body.workplanItemId) };
+}
+
 function readReport(body) {
   return {
+    ...readWorkplanLink(body),
     activityType: str(body.activityType),
     heading: str(body.heading, 300),
     activityNumber: intOrNull(body.activityNumber),
@@ -48,6 +58,16 @@ async function validateReport(db, v) {
   if (!v.implementation) e.implementation = 'Describe how the activity was implemented.';
   if (!v.compiledById || !(await db.get('users', v.compiledById))) e.compiledById = 'Select who compiled the report.';
   if (v.projectId && !(await db.get('projects', v.projectId))) e.projectId = 'Select a valid project.';
+  if (v.workplanId || v.workplanItemId) {
+    // Both ids are needed. To unlink a report, send both empty.
+    const plan = /^[\w-]{1,60}$/.test(v.workplanId) ? await db.get('workplans', v.workplanId) : null;
+    const item = plan && (plan.items || []).find((it) => it.id === v.workplanItemId);
+    if (!item) {
+      e.workplanItemId = 'Select a valid work plan activity.';
+    } else if (v.activityNumber === null && Number.isInteger(item.number)) {
+      v.activityNumber = item.number; // the report takes the activity number from the work plan
+    }
+  }
   const att = await mapByIds(db, 'people', v.attendeeIds);
   if (v.attendeeIds.some((id) => !att[id] || att[id].kind !== 'attendee')) e.attendeeIds = 'One of the selected attendees no longer exists.';
   const partners = await mapByIds(db, 'stakeholders', v.partnerIds);
@@ -60,6 +80,7 @@ function reportQuery(params = {}) {
   if (choices.districts.includes(params.district)) where.district = params.district;
   if (choices.activities.includes(params.activityType)) where.activityType = params.activityType;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
+  if (params.workplanId) where.workplanId = String(params.workplanId).slice(0, 60);
   if (isRealDate(params.from)) where.date = { $gte: params.from };
   if (isRealDate(params.to)) where.date = { ...(where.date || {}), $lte: params.to };
   const q = { where };

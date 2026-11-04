@@ -447,6 +447,118 @@ test('activity reports and attendance registers', async () => {
   assert.strictEqual(r.status, 403, 'administrators only');
 });
 
+test('work plans: activities, approval, progress from linked reports, versions', async () => {
+  const { admin } = ctx;
+  const o1 = await login('officer1', 'officer-password-1');
+  const officerId = (await db().find('users', { where: { username: 'officer1' } }))[0].id;
+  const start = today(-30); const end = today(60);
+
+  let r = await api('POST', '/workplans', { token: o1, body: { title: 'Fisenge plan', periodStart: start, periodEnd: end, currency: 'XYZ' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.currency, 'an unknown currency is refused, not replaced');
+  r = await api('POST', '/workplans', { token: o1, body: { title: 'Fisenge plan', periodStart: start, periodEnd: end, office: 'Fisenge Office' } });
+  assert.strictEqual(r.status, 201, r.text);
+  assert.strictEqual(r.json.status, 'Draft');
+  assert.strictEqual(r.json.preparedById, officerId);
+  assert.deepStrictEqual(r.json.activities, []);
+  assert.match(r.headers.get('location'), /\/api\/v1\/workplans\//);
+  const planId = r.json.id;
+
+  r = await api('POST', `/workplans/${planId}/activities`, { token: o1, body: { title: 'Paralegal training', district: 'Nowhere District' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.district);
+  r = await api('POST', `/workplans/${planId}/activities`, {
+    token: o1,
+    body: {
+      title: 'Paralegal training', activityType: 'Training Program', responsibleId: officerId, startDate: today(-5), endDate: today(5),
+      targetEvents: 2, targetPeople: 50, budget: 2500,
+    },
+  });
+  assert.strictEqual(r.status, 201, r.text);
+  const itemId = r.json.activities[0].id;
+  assert.strictEqual(r.json.activities[0].number, 1);
+  assert.strictEqual(r.headers.get('location'), `/api/v1/workplans/${planId}/activities/${itemId}`);
+  assert.strictEqual(r.json.totals.budget, 2500);
+  const etag = r.headers.get('etag');
+  r = await api('POST', `/workplans/${planId}/activities`, { token: o1, body: { title: 'Radio programme', endDate: today(90) } });
+  assert.ok(r.json.error.fields.endDate, 'dates must be within the plan period');
+
+  // Versions: a stale If-Match is refused; without one the change goes onto the latest version
+  r = await api('PATCH', `/workplans/${planId}/activities/${itemId}`, { token: o1, body: { targetPeople: 60 } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.strictEqual(r.json.activities[0].targetPeople, 60);
+  assert.strictEqual(r.json.activities[0].title, 'Paralegal training', 'unsent fields are kept');
+  r = await api('PATCH', `/workplans/${planId}`, { token: o1, headers: { 'if-match': etag }, body: { notes: 'Stale' } });
+  assert.strictEqual(r.status, 412);
+
+  // Approval is for administrators; afterwards officers update progress only
+  r = await api('POST', `/workplans/${planId}/status`, { token: o1, body: { status: 'Approved' } });
+  assert.strictEqual(r.status, 403);
+  r = await api('POST', `/workplans/${planId}/status`, { token: admin, body: { status: 'Finished' } });
+  assert.strictEqual(r.status, 422);
+  r = await api('POST', `/workplans/${planId}/status`, { token: admin, body: { status: 'Approved' } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.strictEqual(r.json.status, 'Approved');
+  assert.ok(r.json.approvedAt);
+  r = await api('PATCH', `/workplans/${planId}/activities/${itemId}`, { token: o1, body: { title: 'Changed' } });
+  assert.strictEqual(r.status, 403);
+  assert.match(r.json.error.message, /only an administrator/);
+  r = await api('POST', `/workplans/${planId}/activities/${itemId}/status`, { token: o1, body: { status: 'In progress' } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.strictEqual(r.json.activities[0].status, 'In progress');
+
+  // A report linked to the planned activity counts as delivered
+  const report = {
+    activityType: 'Training Program', heading: 'Paralegal training, day 1', introduction: 'Intro', objectives: 'Objectives',
+    implementation: 'Implementation', otherParticipants: 25,
+  };
+  r = await api('POST', '/reports', { token: o1, body: { ...report, workplanId: planId, workplanItemId: 'missing' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(r.json.error.fields.workplanItemId);
+  r = await api('POST', '/reports', { token: o1, body: { ...report, workplanId: planId, workplanItemId: itemId } });
+  assert.strictEqual(r.status, 201, r.text);
+  assert.strictEqual(r.json.activityNumber, 1);
+  const reportId = r.json.id;
+  r = await api('GET', `/workplans/${planId}/activities/${itemId}`, { token: o1 });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.json.delivered, 1);
+  assert.strictEqual(r.json.reached, 25);
+  assert.strictEqual(r.json.eventsPct, 50);
+  assert.deepStrictEqual(r.json.reports.map((x) => x.id), [reportId]);
+  r = await api('GET', `/reports?workplanId=${planId}`, { token: o1 });
+  assert.deepStrictEqual(r.json.data.map((x) => x.id), [reportId]);
+  r = await api('GET', '/workplans?status=Approved', { token: o1 });
+  const listed = r.json.data.find((p) => p.id === planId);
+  assert.strictEqual(listed.totals.delivered, 1);
+  assert.strictEqual(listed.totals.reached, 25);
+  r = await api('PATCH', `/reports/${reportId}`, { token: o1, body: { workplanId: '', workplanItemId: '' } });
+  assert.strictEqual(r.status, 200, r.text);
+  assert.strictEqual(r.json.workplanId, '', 'sending both empty unlinks the report');
+
+  // Copy, close, delete
+  r = await api('POST', `/workplans/${planId}/copy`, { token: o1 });
+  assert.strictEqual(r.status, 201);
+  assert.strictEqual(r.json.status, 'Draft');
+  assert.strictEqual(r.json.activities[0].status, 'Not started');
+  const copyId = r.json.id;
+  r = await api('POST', `/workplans/${planId}/status`, { token: admin, body: { status: 'Closed' } });
+  assert.strictEqual(r.json.status, 'Closed');
+  r = await api('POST', `/workplans/${planId}/activities/${itemId}/status`, { token: o1, body: { status: 'Completed' } });
+  assert.strictEqual(r.status, 403, 'a closed plan cannot change');
+  r = await api('DELETE', `/workplans/${copyId}`, { token: o1 });
+  assert.strictEqual(r.status, 403);
+  r = await api('DELETE', `/workplans/${copyId}/activities/no-such-activity`, { token: o1 });
+  assert.strictEqual(r.status, 404);
+  r = await api('DELETE', `/workplans/${copyId}`, { token: admin });
+  assert.strictEqual(r.status, 204);
+  r = await api('GET', `/workplans/${copyId}`, { token: o1 });
+  assert.strictEqual(r.status, 404);
+
+  r = await api('GET', '/openapi.json');
+  assert.ok(r.json.paths['/workplans/{id}/activities/{itemId}'].patch);
+  assert.ok(r.json.tags.some((t) => t.name === 'Work plans'));
+});
+
 test('stakeholders, referrals and follow ups', async () => {
   const { officer1: o1, officer2: o2, admin, caseId } = ctx;
   let r = await api('POST', '/stakeholders', { token: o1, body: { name: 'Legal Aid Board', contactPerson: 'Mrs Zulu', phone: '0977000000', email: 'bad-email' } });

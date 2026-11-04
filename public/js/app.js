@@ -98,6 +98,20 @@
     syncRoom();
   }
 
+  // Activity report form: choosing a planned activity fills in the fields that are still empty
+  var planPick = document.querySelector('select[data-fill-from-plan]');
+  if (planPick) {
+    var fills = { heading: 'heading', activityNumber: 'number', activityType: 'type', district: 'district', projectId: 'project' };
+    planPick.addEventListener('change', function () {
+      var opt = planPick.options[planPick.selectedIndex];
+      Object.keys(fills).forEach(function (id) {
+        var field = document.getElementById(id);
+        var value = opt ? opt.getAttribute('data-' + fills[id]) : '';
+        if (field && value && !field.value) field.value = value;
+      });
+    });
+  }
+
   // Attendance register: add more rows
   var addRows = document.getElementById('add-rows');
   var bulk = document.getElementById('bulk-table');
