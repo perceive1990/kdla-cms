@@ -1,18 +1,22 @@
 <%- include('../partials/header') %>
-<% const who = (id) => (users[id] ? (users[id].fullName || users[id].username) : ''); %>
+<% const who = (id) => (users[id] ? (users[id].fullName || users[id].username) : ''); const sb = showBudget; %>
 <div class="page-head d-print-none">
   <div>
     <div class="crumbs"><a href="/workplans">Work plans</a> / <a href="/workplans/<%= plan.id %>"><%= plan.title %></a></div>
     <h1>Print work plan</h1>
     <p class="sub">The whole work plan on landscape A4, to print, sign or save as PDF</p>
   </div>
-  <div class="d-flex gap-2"><button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button></div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button>
+    <a class="btn btn-outline-secondary" href="/workplans/<%= plan.id %>/print<%= sb ? '?budget=0' : '' %>"><i class="bi bi-<%= sb ? 'eye-slash' : 'eye' %>" aria-hidden="true"></i> <%= sb ? 'Without the budget (for external people)' : 'With the budget (internal use)' %></a>
+  </div>
 </div>
+<div class="callout mb-3 d-print-none"><i class="bi bi-<%= sb ? 'exclamation-triangle' : 'shield-check' %>" aria-hidden="true"></i> <%= sb ? 'This version shows the budget. It is for internal use: for external people, choose "Without the budget".' : 'This version leaves out all budget amounts, so you can share it with external people.' %></div>
 <article class="wp-doc">
   <header class="ig-head">
     <img src="/static/images/logo.png" alt="" width="64" height="54">
     <div>
-      <h2><%= plan.title %></h2>
+      <h2><%= plan.title %><% if (sb) { %> <span class="wp-internal">Internal: includes budget</span><% } %></h2>
       <p><%= config.orgFullName %><%= plan.office ? ' · ' + plan.office : '' %><% if (project) { %> · <%= project.title %><%= project.donor ? ' (' + project.donor + ')' : '' %><% } %> · <%= h.fmtDate(plan.periodStart) %> to <%= h.fmtDate(plan.periodEnd) %> · <%= plan.status %> · as at <%= h.fmtDate(t0) %></p>
     </div>
   </header>
@@ -21,7 +25,7 @@
     <div><dt>Completed</dt><dd><%= totals.completed %></dd></div>
     <div><dt>Times held</dt><dd><%= totals.delivered %> of <%= totals.targetEvents %></dd></div>
     <div><dt>People reached</dt><dd><%= totals.reached.toLocaleString('en-GB') %> of <%= totals.targetPeople.toLocaleString('en-GB') %></dd></div>
-    <div><dt>Planned budget</dt><dd><%= plan.currency %> <%= wp.money(totals.budget) || '0' %></dd></div>
+    <% if (sb) { %><div><dt>Planned budget</dt><dd><%= plan.currency %> <%= wp.money(totals.budget) || '0' %></dd></div><% } %>
     <div><dt>Overdue</dt><dd><%= totals.overdue %></dd></div>
   </dl>
   <% if (plan.notes) { %><p class="wp-doc-notes"><strong>Purpose and notes:</strong> <%= plan.notes %></p><% } %>
@@ -30,10 +34,10 @@
   <% } else { %>
   <div class="table-wrap">
   <table class="table wp-print">
-    <colgroup><col class="c-no"><col class="c-act"><col class="c-where"><col class="c-who"><col class="c-when"><col class="c-n"><col class="c-n"><col class="c-budget"><col class="c-status"></colgroup>
+    <colgroup><col class="c-no"><col class="c-act"><col class="c-where"><col class="c-who"><col class="c-when"><col class="c-n"><col class="c-n"><% if (sb) { %><col class="c-budget"><% } %><col class="c-status"></colgroup>
     <thead><tr>
       <th scope="col" class="text-end">No.</th><th scope="col">Activity and logframe link</th><th scope="col">Venue and district</th><th scope="col">Responsible</th><th scope="col">Dates</th>
-      <th scope="col" class="text-end">Times held</th><th scope="col" class="text-end">People reached</th><th scope="col" class="text-end">Budget (<%= plan.currency %>)</th><th scope="col">Status</th>
+      <th scope="col" class="text-end">Times held</th><th scope="col" class="text-end">People reached</th><% if (sb) { %><th scope="col" class="text-end">Budget (<%= plan.currency %>)</th><% } %><th scope="col">Status</th>
     </tr></thead>
     <tbody>
     <% for (const it of items) { const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; %>
@@ -50,7 +54,7 @@
         <td class="nowrap"><%= wp.span(it, plan) %><% if (it.overdue) { %><div class="wp-p-warn">Overdue</div><% } %></td>
         <td class="text-end nowrap"><%= it.delivered %><%= it.targetEvents ? ' of ' + it.targetEvents : '' %></td>
         <td class="text-end nowrap"><%= it.reached.toLocaleString('en-GB') %><%= it.targetPeople ? ' of ' + it.targetPeople.toLocaleString('en-GB') : '' %></td>
-        <td class="text-end nowrap"><%= it.budget !== null && it.budget !== undefined ? wp.money(it.budget) : '' %></td>
+        <% if (sb) { %><td class="text-end nowrap"><%= it.budget !== null && it.budget !== undefined ? wp.money(it.budget) : '' %></td><% } %>
         <td><%= it.status %></td>
       </tr>
     <% } %>
@@ -59,7 +63,7 @@
       <th scope="row" colspan="5" class="text-end">Total</th>
       <td class="text-end nowrap fw-semibold"><%= totals.delivered %> of <%= totals.targetEvents %></td>
       <td class="text-end nowrap fw-semibold"><%= totals.reached.toLocaleString('en-GB') %> of <%= totals.targetPeople.toLocaleString('en-GB') %></td>
-      <td class="text-end nowrap fw-semibold"><%= wp.money(totals.budget) || '0' %></td>
+      <% if (sb) { %><td class="text-end nowrap fw-semibold"><%= wp.money(totals.budget) || '0' %></td><% } %>
       <td></td>
     </tr></tfoot>
   </table>

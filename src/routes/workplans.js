@@ -56,7 +56,7 @@ function combinedQuery(q) {
   let from = ok(q.from) ? q.from : `${y}-01-01`;
   let to = ok(q.to) ? q.to : `${y}-12-31`;
   if (from > to) [from, to] = [to, from];
-  return { from, to, projectId: str(q.projectId, 60), includeDrafts: q.drafts === '1' };
+  return { from, to, projectId: str(q.projectId, 60), includeDrafts: q.drafts === '1', showBudget: q.budget === '1' };
 }
 
 router.get('/combined', async (req, res) => {
@@ -91,11 +91,11 @@ router.get('/combined.csv', async (req, res) => {
     { label: 'End', value: (r) => r.item.endDate },
     { label: 'Planned number of times', value: (r) => r.item.targetEvents },
     { label: 'People to reach', value: (r) => r.item.targetPeople },
-    { label: 'Currency', value: 'currency' },
-    { label: 'Budget', value: (r) => r.item.budget },
+    // The budget columns are left out unless the internal version is asked for
+    ...(opts.showBudget ? [{ label: 'Currency', value: 'currency' }, { label: 'Budget', value: (r) => r.item.budget }] : []),
     { label: 'Status', value: (r) => r.item.status },
   ], rows);
-  return sendCsv(res, `combined-work-plan-${opts.from}-to-${opts.to}.csv`, csv);
+  return sendCsv(res, `combined-work-plan-${opts.from}-to-${opts.to}${opts.showBudget ? '-with-budget' : ''}.csv`, csv);
 });
 
 // ---------- New plan ----------
@@ -155,7 +155,7 @@ router.get('/:id/print', async (req, res) => {
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
   const lfLabels = await logframes.linkLabels(req.db, plan.items);
   res.render('workplans/print', {
-    title: `${plan.title} (print)`, plan, items, totals, users, project, lfLabels, t0: today(), wp: svc.view, printLandscape: true,
+    title: `${plan.title} (print)`, plan, items, totals, users, project, lfLabels, t0: today(), wp: svc.view, printLandscape: true, showBudget: req.query.budget !== '0',
   });
 });
 

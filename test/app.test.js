@@ -1132,12 +1132,20 @@ test('a combined work plan brings together the plans of all offices, with their 
   r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31');
   assert.strictEqual(r.status, 200);
   assert.match(r.text, /<body class="print-landscape">/);
-  for (const part of ['Combined meeting A', 'Combined meeting B', 'Combined hall', 'Budget by office', 'Budget by project', `${o1} total`, `${o2} total`, 'ZMW 4,000', 'Approved by']) {
+  for (const part of ['Combined meeting A', 'Combined meeting B', 'Combined hall', 'Activities by office', 'Activities by project', `${o1} total`, `${o2} total`, 'Approved by', 'leaves out all budget amounts']) {
     assert.ok(r.text.includes(part), `combined plan shows ${part}`);
+  }
+  // Shared with external people by default: no budget amount anywhere in the page
+  for (const amount of ['1,000', '3,000', '4,000', 'Budget (ZMW)', 'Total budget', 'Budget by office']) {
+    assert.ok(!r.text.includes(amount), `the version for external people leaves out ${amount}`);
+  }
+  r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31&budget=1');
+  for (const part of ['Budget by office', 'Budget by project', 'ZMW 4,000', 'ZMW 1,000', 'Internal: includes budget', 'budget=1']) {
+    assert.ok(r.text.includes(part), `the internal version shows ${part}`);
   }
   assert.ok(!r.text.includes('Combined draft meeting'), 'drafts are left out by default');
   assert.ok(!r.text.includes('Combined meeting cancelled'), 'cancelled activities are left out');
-  r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31&drafts=1');
+  r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31&drafts=1&budget=1');
   assert.ok(r.text.includes('Combined draft meeting'));
   assert.ok(r.text.includes('ZMW 4,500'));
   r = await a.req('/workplans/combined?from=2031-03-01&to=2031-03-31');
@@ -1146,7 +1154,14 @@ test('a combined work plan brings together the plans of all offices, with their 
   assert.match(r.headers.get('content-type'), /text\/csv/);
   assert.match(r.text, /^\uFEFF?Office,Work plan,Project/);
   assert.match(r.text, /Combined meeting B/);
+  assert.ok(!/Budget|3000/.test(r.text), 'the CSV for external people has no budget');
+  r = await a.req('/workplans/combined.csv?from=2031-01-01&to=2031-03-31&budget=1');
   assert.match(r.text, /,ZMW,3000,/);
+  // A single plan's printout can leave the budget out too
+  r = await a.req(`/workplans/${p2}/print`);
+  assert.ok(r.text.includes('3,000') && r.text.includes('Without the budget'));
+  r = await a.req(`/workplans/${p2}/print?budget=0`);
+  assert.ok(!r.text.includes('3,000') && !r.text.includes('Planned budget'), 'no budget on the printout for external people');
   const o = new Client();
   await o.login('officer3', 'officer-password-3');
   r = await o.req('/workplans/combined?from=2031-01-01&to=2031-03-31');
