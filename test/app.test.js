@@ -1108,3 +1108,47 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   assert.match(r.text, /1 planned activity does not come from the project logframe/);
   assert.match(r.text, /Not from the logframe/);
 });
+
+test('a combined work plan brings together the plans of all offices, with their budgets', async () => {
+  const a = ctx.admin;
+  const [o1, o2] = require('../src/choices').offices;
+  const mk = async (title, office) => {
+    const r = await a.post('/workplans', { title, periodStart: '2031-01-01', periodEnd: '2031-03-31', office, currency: 'ZMW' }, '/workplans/new');
+    return r.location.split('/')[2];
+  };
+  const p1 = await mk('Combined test plan one', o1);
+  const p2 = await mk('Combined test plan two', o2);
+  const p3 = await mk('Combined test draft', o2);
+  const add = (id, title, budget, extra = {}) => a.post(`/workplans/${id}/activities`, {
+    title, status: 'Not started', startDate: '2031-02-01', endDate: '2031-02-10', targetEvents: '2', targetPeople: '50', budget, venue: 'Combined hall', ...extra,
+  }, `/workplans/${id}/activities/new`);
+  await add(p1, 'Combined meeting A', '1000');
+  await add(p1, 'Combined meeting cancelled', '9999', { status: 'Cancelled' });
+  await add(p2, 'Combined meeting B', '3000');
+  await add(p3, 'Combined draft meeting', '500');
+  for (const id of [p1, p2]) await a.post(`/workplans/${id}/status`, { status: 'Approved' }, `/workplans/${id}`);
+  let r = await a.req('/workplans');
+  assert.match(r.text, /href="\/workplans\/combined"/);
+  r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /<body class="print-landscape">/);
+  for (const part of ['Combined meeting A', 'Combined meeting B', 'Combined hall', 'Budget by office', 'Budget by project', `${o1} total`, `${o2} total`, 'ZMW 4,000', 'Approved by']) {
+    assert.ok(r.text.includes(part), `combined plan shows ${part}`);
+  }
+  assert.ok(!r.text.includes('Combined draft meeting'), 'drafts are left out by default');
+  assert.ok(!r.text.includes('Combined meeting cancelled'), 'cancelled activities are left out');
+  r = await a.req('/workplans/combined?from=2031-01-01&to=2031-03-31&drafts=1');
+  assert.ok(r.text.includes('Combined draft meeting'));
+  assert.ok(r.text.includes('ZMW 4,500'));
+  r = await a.req('/workplans/combined?from=2031-03-01&to=2031-03-31');
+  assert.ok(!r.text.includes('Combined meeting A'), 'activities dated outside the period are left out');
+  r = await a.req('/workplans/combined.csv?from=2031-01-01&to=2031-03-31');
+  assert.match(r.headers.get('content-type'), /text\/csv/);
+  assert.match(r.text, /^\uFEFF?Office,Work plan,Project/);
+  assert.match(r.text, /Combined meeting B/);
+  assert.match(r.text, /,ZMW,3000,/);
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  r = await o.req('/workplans/combined?from=2031-01-01&to=2031-03-31');
+  assert.strictEqual(r.status, 200, 'every colleague can open the combined plan');
+});
