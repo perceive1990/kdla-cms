@@ -513,11 +513,61 @@ const view = {
   },
 };
 
+/**
+ * One work plan for the whole organisation: the planned activities of every office's plans that overlap
+ * a period, with their budgets added up by office and by project. Drafts are left out unless asked for,
+ * and so are cancelled activities and activities dated outside the period.
+ */
+async function combined(db, { from, to, projectId = '', includeDrafts = false } = {}, t0 = today()) {
+  const plans = (await db.find('workplans', { orderBy: ['periodStart', 'ASC'] }))
+    .filter((p) => p.periodStart <= to && p.periodEnd >= from)
+    .filter((p) => includeDrafts || p.status !== 'Draft')
+    .filter((p) => !projectId || p.projectId === projectId);
+  const projects = await mapByIds(db, 'projects', plans.map((p) => p.projectId));
+  const users = await mapByIds(db, 'users', plans.flatMap((p) => (p.items || []).map((it) => it.responsibleId)));
+  const officeOrder = (o) => { const i = choices.offices.indexOf(o); return i < 0 ? 999 : i; };
+  const offices = new Map();
+  const byProject = new Map();
+  const total = { plans: plans.length, activities: 0, targetEvents: 0, targetPeople: 0, delivered: 0, reached: 0, budget: {} };
+  const currencies = new Set();
+  const addBudget = (into, cur, n) => { if (n) into[cur] = Math.round(((into[cur] || 0) + Number(n)) * 100) / 100; };
+  for (const plan of plans) {
+    const { items } = await progress(db, plan, t0);
+    const cur = plan.currency || 'ZMW';
+    const inPeriod = items.filter((it) => it.status !== 'Cancelled'
+      && !(it.startDate && it.startDate > to) && !(it.endDate && it.endDate < from));
+    const office = plan.office || 'No office given';
+    if (!offices.has(office)) offices.set(office, { office, plans: [], rows: [], activities: 0, targetEvents: 0, targetPeople: 0, budget: {} });
+    const g = offices.get(office);
+    g.plans.push(plan);
+    const pKey = plan.projectId || '';
+    if (!byProject.has(pKey)) byProject.set(pKey, { title: projects[pKey] ? projects[pKey].title : 'No project', donor: projects[pKey] ? projects[pKey].donor || '' : '', activities: 0, budget: {} });
+    const pg = byProject.get(pKey);
+    for (const it of inPeriod) {
+      g.rows.push({ plan, item: it, currency: cur });
+      for (const t of [g, total]) {
+        t.activities += 1; t.targetEvents += Number(it.targetEvents) || 0; t.targetPeople += Number(it.targetPeople) || 0;
+        addBudget(t.budget, cur, it.budget);
+      }
+      total.delivered += it.delivered; total.reached += it.reached;
+      pg.activities += 1; addBudget(pg.budget, cur, it.budget);
+      if (it.budget) currencies.add(cur);
+    }
+  }
+  const groups = [...offices.values()].sort((a, b) => officeOrder(a.office) - officeOrder(b.office) || a.office.localeCompare(b.office));
+  for (const g of groups) g.rows.sort((a, b) => String(a.item.startDate || '9').localeCompare(String(b.item.startDate || '9')) || (a.item.number ?? 1e9) - (b.item.number ?? 1e9));
+  return {
+    from, to, plans, groups, projects, users, total,
+    byProject: [...byProject.values()].filter((p) => p.activities).sort((a, b) => a.title.localeCompare(b.title)),
+    currencies: [...currencies].sort(),
+  };
+}
+
 /** People named on a plan, for display. */
 const planUsers = (db, plan) => mapByIds(db, 'users', [plan.preparedById, plan.approvedById, ...(plan.items || []).map((it) => it.responsibleId)]);
 
 module.exports = {
-  DONE, readPlan, validatePlan, planQuery, getPlan, canEdit, canUpdateProgress, createPlan, updatePlan, setPlanStatus,
+  combined, DONE, readPlan, validatePlan, planQuery, getPlan, canEdit, canUpdateProgress, createPlan, updatePlan, setPlanStatus,
   copyPlan, deletePlan, readActivity, validateActivity, requiredFramework, notFromLogframe, nextNumber, getItem, addActivity, addActivities, updateActivity,
   setActivityStatus, deleteActivity, progress, totalsFor, activityOptions, dueFor, planUsers, view, moveItems,
 };

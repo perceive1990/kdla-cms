@@ -49,6 +49,55 @@ router.get('/', async (req, res) => {
   });
 });
 
+// ---------- Combined work plan (all offices) ----------
+function combinedQuery(q) {
+  const y = today().slice(0, 4);
+  const ok = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !Number.isNaN(Date.parse(d));
+  let from = ok(q.from) ? q.from : `${y}-01-01`;
+  let to = ok(q.to) ? q.to : `${y}-12-31`;
+  if (from > to) [from, to] = [to, from];
+  return { from, to, projectId: str(q.projectId, 60), includeDrafts: q.drafts === '1' };
+}
+
+router.get('/combined', async (req, res) => {
+  const opts = combinedQuery(req.query);
+  const data = await svc.combined(req.db, opts);
+  const lfLabels = await logframes.linkLabels(req.db, data.groups.flatMap((g) => g.rows.map((r) => r.item)));
+  const allProjects = await req.db.find('projects', { fields: ['id', 'title', 'donor'], orderBy: ['title', 'ASC'] });
+  const project = opts.projectId ? allProjects.find((p) => p.id === opts.projectId) : null;
+  res.render('workplans/combined', {
+    title: 'Combined work plan', opts, data, lfLabels, allProjects, project, t0: today(), wp: svc.view, printLandscape: true,
+  });
+});
+
+router.get('/combined.csv', async (req, res) => {
+  const opts = combinedQuery(req.query);
+  const data = await svc.combined(req.db, opts);
+  const lfLabels = await logframes.linkLabels(req.db, data.groups.flatMap((g) => g.rows.map((r) => r.item)));
+  const who = (id) => (data.users[id] ? data.users[id].fullName || data.users[id].username : '');
+  const rows = data.groups.flatMap((g) => g.rows.map((r) => ({ ...r, office: g.office })));
+  const csv = toCsv([
+    { label: 'Office', value: 'office' },
+    { label: 'Work plan', value: (r) => r.plan.title },
+    { label: 'Project', value: (r) => (data.projects[r.plan.projectId] ? data.projects[r.plan.projectId].title : '') },
+    { label: 'Activity number', value: (r) => r.item.number },
+    { label: 'Activity', value: (r) => r.item.title },
+    { label: 'Logframe', value: (r) => { const l = lfLabels[`${r.item.logframeId}:${r.item.logframeResultId}`]; return l ? `${l.label}: ${l.text}` : ''; } },
+    { label: 'Type of activity', value: (r) => r.item.activityType },
+    { label: 'Venue', value: (r) => r.item.venue },
+    { label: 'District', value: (r) => r.item.district },
+    { label: 'Responsible', value: (r) => who(r.item.responsibleId) },
+    { label: 'Start', value: (r) => r.item.startDate },
+    { label: 'End', value: (r) => r.item.endDate },
+    { label: 'Planned number of times', value: (r) => r.item.targetEvents },
+    { label: 'People to reach', value: (r) => r.item.targetPeople },
+    { label: 'Currency', value: 'currency' },
+    { label: 'Budget', value: (r) => r.item.budget },
+    { label: 'Status', value: (r) => r.item.status },
+  ], rows);
+  return sendCsv(res, `combined-work-plan-${opts.from}-to-${opts.to}.csv`, csv);
+});
+
 // ---------- New plan ----------
 router.get('/new', async (req, res) => {
   const y = today().slice(0, 4);

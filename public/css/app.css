@@ -319,13 +319,26 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .wp-p-warn { font-size: .8em; font-weight: 600; color: var(--bs-danger-text-emphasis); }
 .wp-sign { display: grid; grid-template-columns: repeat(2, minmax(0, 22rem)); gap: 3rem; margin-top: 2rem; break-inside: avoid; }
 .wp-sign-line { border-bottom: 1px solid var(--bs-body-color); height: 2.5rem; margin-bottom: .25rem; }
+.wp-doc-h { font-size: 1rem; font-weight: 700; margin: 1.25rem 0 .5rem; }
+.wp-doc-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 0 2rem; }
+.wp-doc-two .wp-print { min-width: 0; }
+.wp-share { display: inline-flex; align-items: center; gap: .35rem; font-variant-numeric: tabular-nums; }
+.wp-share-bar { display: inline-block; width: 3.5rem; height: .5rem; border-radius: 4px; background: var(--hover); overflow: hidden; }
+.wp-share-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.wp-office { break-before: auto; }
+.wp-office .wp-doc-h { break-after: avoid; }
 @media (max-width: 767.98px) { .wp-print { min-width: 56rem; } .wp-sign { grid-template-columns: 1fr; gap: 1.5rem; } }
 @media print {
   .wp-print { font-size: 7.5pt; }
   .wp-print thead { display: table-header-group; }
   .wp-print tr { break-inside: avoid; }
   .wp-doc .table-wrap { overflow: visible; }
-  .wp-doc-sum { grid-template-columns: repeat(6, 1fr); }
+  .wp-doc-sum { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+  .wp-doc-two { grid-template-columns: 1fr 1fr; break-inside: avoid; }
+  /* Totals print once, after the last row, and stay with it */
+  .wp-print tfoot { display: table-row-group; }
+  .wp-print tfoot tr { break-before: avoid; }
+  .wp-share-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .wp-doc-sum dd { font-size: 10pt; }
 }
 /* Logframe matrix */
