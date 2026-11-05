@@ -254,7 +254,7 @@ This is general information, not legal advice. Please confirm the details with a
 5. **Follow progress** on the plan page: activities completed, times delivered against planned, people reached against the target, the budget and overdue activities. Each person's dashboard lists their activities due in the next 30 days.
 6. **Close the plan** at the end of the period (administrators). A closed plan cannot change until an administrator reopens it.
 
-**Copy** starts the next period from an existing plan: the same activities, with progress reset and no reports linked. Change the period of the copy with "Move the activity dates with the plan" ticked, and the activities move with it (a plan moved from 1 January to 1 April moves every activity three months). **Export CSV** and **Print** give the plan with its planned and delivered figures, for donor reports and team meetings.
+**Copy** starts the next period from an existing plan: the same activities, with progress reset and no reports linked. Change the period of the copy with "Move the activity dates with the plan" ticked, and the activities move with it (a plan moved from 1 January to 1 April moves every activity three months). **Export CSV** gives the plan with its planned and delivered figures. **Print** gives the whole plan on landscape A4 with the KDLA header, a summary, every activity (logframe link, venue, responsible, dates, times held, people reached, budget and status), totals and signature lines for who prepared and who approved it, to print or save as PDF for donor reports and team meetings.
 
 ## M&E (logframes)
 

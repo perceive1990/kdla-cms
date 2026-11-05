@@ -1,0 +1,74 @@
+<%- include('../partials/header') %>
+<% const who = (id) => (users[id] ? (users[id].fullName || users[id].username) : ''); %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="/workplans">Work plans</a> / <a href="/workplans/<%= plan.id %>"><%= plan.title %></a></div>
+    <h1>Print work plan</h1>
+    <p class="sub">The whole work plan on landscape A4, to print, sign or save as PDF</p>
+  </div>
+  <div class="d-flex gap-2"><button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button></div>
+</div>
+<article class="wp-doc">
+  <header class="ig-head">
+    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <div>
+      <h2><%= plan.title %></h2>
+      <p><%= config.orgFullName %><%= plan.office ? ' · ' + plan.office : '' %><% if (project) { %> · <%= project.title %><%= project.donor ? ' (' + project.donor + ')' : '' %><% } %> · <%= h.fmtDate(plan.periodStart) %> to <%= h.fmtDate(plan.periodEnd) %> · <%= plan.status %> · as at <%= h.fmtDate(t0) %></p>
+    </div>
+  </header>
+  <dl class="wp-doc-sum">
+    <div><dt>Planned activities</dt><dd><%= totals.activities - totals.cancelled %></dd></div>
+    <div><dt>Completed</dt><dd><%= totals.completed %></dd></div>
+    <div><dt>Times held</dt><dd><%= totals.delivered %> of <%= totals.targetEvents %></dd></div>
+    <div><dt>People reached</dt><dd><%= totals.reached.toLocaleString('en-GB') %> of <%= totals.targetPeople.toLocaleString('en-GB') %></dd></div>
+    <div><dt>Planned budget</dt><dd><%= plan.currency %> <%= wp.money(totals.budget) || '0' %></dd></div>
+    <div><dt>Overdue</dt><dd><%= totals.overdue %></dd></div>
+  </dl>
+  <% if (plan.notes) { %><p class="wp-doc-notes"><strong>Purpose and notes:</strong> <%= plan.notes %></p><% } %>
+  <% if (!items.length) { %>
+    <p class="text-body-secondary">No planned activities yet.</p>
+  <% } else { %>
+  <div class="table-wrap">
+  <table class="table wp-print">
+    <colgroup><col class="c-no"><col class="c-act"><col class="c-where"><col class="c-who"><col class="c-when"><col class="c-n"><col class="c-n"><col class="c-budget"><col class="c-status"></colgroup>
+    <thead><tr>
+      <th scope="col" class="text-end">No.</th><th scope="col">Activity and logframe link</th><th scope="col">Venue and district</th><th scope="col">Responsible</th><th scope="col">Dates</th>
+      <th scope="col" class="text-end">Times held</th><th scope="col" class="text-end">People reached</th><th scope="col" class="text-end">Budget (<%= plan.currency %>)</th><th scope="col">Status</th>
+    </tr></thead>
+    <tbody>
+    <% for (const it of items) { const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; %>
+      <tr<%= it.status === 'Cancelled' ? ' class="wp-cancelled"' : '' %>>
+        <td class="text-end fw-semibold"><%= it.number ?? '' %></td>
+        <td>
+          <div class="fw-semibold"><%= it.title %></div>
+          <% if (it.activityType) { %><div class="wp-p-sub"><%= it.activityType %></div><% } %>
+          <% if (lfl) { %><div class="wp-p-sub"><%= lfl.label %>: <%= lfl.text.length > 90 ? lfl.text.slice(0, 88) + '…' : lfl.text %></div><% } %>
+          <% if (it.output) { %><div class="wp-p-sub">Expected: <%= it.output %></div><% } %>
+        </td>
+        <td><%= it.venue || '' %><% if (it.district) { %><div class="wp-p-sub"><%= it.district %></div><% } %></td>
+        <td><%= who(it.responsibleId) %></td>
+        <td class="nowrap"><%= wp.span(it, plan) %><% if (it.overdue) { %><div class="wp-p-warn">Overdue</div><% } %></td>
+        <td class="text-end nowrap"><%= it.delivered %><%= it.targetEvents ? ' of ' + it.targetEvents : '' %></td>
+        <td class="text-end nowrap"><%= it.reached.toLocaleString('en-GB') %><%= it.targetPeople ? ' of ' + it.targetPeople.toLocaleString('en-GB') : '' %></td>
+        <td class="text-end nowrap"><%= it.budget !== null && it.budget !== undefined ? wp.money(it.budget) : '' %></td>
+        <td><%= it.status %></td>
+      </tr>
+    <% } %>
+    </tbody>
+    <tfoot><tr>
+      <th scope="row" colspan="5" class="text-end">Total</th>
+      <td class="text-end nowrap fw-semibold"><%= totals.delivered %> of <%= totals.targetEvents %></td>
+      <td class="text-end nowrap fw-semibold"><%= totals.reached.toLocaleString('en-GB') %> of <%= totals.targetPeople.toLocaleString('en-GB') %></td>
+      <td class="text-end nowrap fw-semibold"><%= wp.money(totals.budget) || '0' %></td>
+      <td></td>
+    </tr></tfoot>
+  </table>
+  </div>
+  <% } %>
+  <section class="wp-sign">
+    <div><div class="wp-sign-line"></div><div>Prepared by: <%= who(plan.preparedById) %></div><div class="wp-p-sub">Signature and date</div></div>
+    <div><div class="wp-sign-line"></div><div>Approved by: <%= plan.approvedById ? who(plan.approvedById) + ' on ' + h.fmtDate(plan.approvedAt) : '' %></div><div class="wp-p-sub">Signature and date</div></div>
+  </section>
+  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(t0) %>. Times held counts the activity reports linked to each activity; people reached adds up their registered attendees and head counts.</footer>
+</article>
+<%- include('../partials/footer') %>

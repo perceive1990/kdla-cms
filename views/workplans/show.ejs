@@ -15,7 +15,7 @@
     </p>
   </div>
   <div class="d-flex flex-wrap gap-2 d-print-none">
-    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <a class="btn btn-outline-secondary" href="/workplans/<%= plan.id %>/print"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
     <a class="btn btn-outline-secondary" href="/workplans/<%= plan.id %>/export.csv"><i class="bi bi-download"></i> Export CSV</a>
     <form method="post" action="/workplans/<%= plan.id %>/copy"><%- f.hidden(csrfToken) %><button class="btn btn-outline-secondary" type="submit" title="Start a new draft with the same activities"><i class="bi bi-copy"></i> Copy</button></form>
     <% if (canEdit) { %>
