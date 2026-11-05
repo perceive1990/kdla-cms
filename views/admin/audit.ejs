@@ -1,8 +1,9 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { printLandscape: true }) %>
 <% const byId = Object.fromEntries(users.map((u) => [u.id, u])); %>
 <% const links = { cases: '/cases/', reports: '/reports/', referrals: '/referrals/', stakeholders: '/stakeholders/', rooms: '/rooms/', tasks: '/tasks/' }; %>
 <div class="page-head">
   <div><h1>Audit trail</h1><p class="sub">Who did what, and when. Entries cannot be edited<%= retention ? ' and are kept for ' + retention + ' days' : '' %>.</p></div>
+  <button class="btn btn-outline-secondary" type="button" data-print-all><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
 </div>
 <form class="filters" method="get" action="/admin/audit">
   <select class="form-select" name="userId" aria-label="Person" data-autosubmit>

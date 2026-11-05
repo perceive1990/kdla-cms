@@ -175,3 +175,11 @@ test('M&E: spreadsheet rows, numbering and indicator status', () => {
   assert.strictEqual(lf.timeElapsed({ startDate: '2027-01-01', endDate: '2027-12-31' }, '2026-07-02'), 0);
   assert.strictEqual(lf.timeElapsed({}, '2026-07-02'), null);
 });
+
+test('printing a list puts every matching record on one page', () => {
+  const { pagination } = require('../src/helpers');
+  const normal = pagination({ query: { page: '2' } }, 120);
+  assert.ok(normal.pageSize < 120);
+  const all = pagination({ query: { print: '1', page: '3' } }, 120);
+  assert.deepStrictEqual([all.page, all.pages, all.pageSize, all.offset], [1, 1, 120, 0]);
+});

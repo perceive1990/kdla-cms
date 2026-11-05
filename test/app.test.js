@@ -1074,8 +1074,12 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   r = await o.req(`/logframes/${pid}`);
   assert.match(r.text, /Print logframe/);
   assert.match(r.text, /<body class="print-landscape">/, 'the logframe page prints on landscape too');
+  r = await o.req(`/reports/new`);
+  assert.match(r.text, /<body>/, 'forms and single records keep portrait');
   r = await o.req('/workplans');
-  assert.match(r.text, /<body>/, 'other pages keep portrait');
+  assert.match(r.text, /<body class="print-landscape">/, 'lists print on landscape');
+  assert.match(r.text, /data-print/);
+  assert.match(r.text, /class="print-head"/, 'printouts carry the KDLA letterhead');
   await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
   r = await o.req(`/workplans/${planId}/from-logframe`);
   assert.strictEqual(r.status, 302, 'officers cannot add activities to an approved plan');

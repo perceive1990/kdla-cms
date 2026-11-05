@@ -1,6 +1,7 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { printLandscape: true }) %>
 <div class="page-head">
   <div><h1>Monitoring and evaluation</h1><p class="sub">Each project's logframe, with progress from work plans and activity reports</p></div>
+  <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
 </div>
 <% if (!projects.length) { %>
   <div class="panel"><div class="empty"><i class="bi bi-bullseye"></i>No projects yet. <% if (admin) { %><a href="/admin/projects/new">Add the first project</a>, then set up its logframe.<% } else { %>An administrator adds projects under Administration.<% } %></div></div>

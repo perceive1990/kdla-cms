@@ -124,6 +124,13 @@
 <% } else { %>
 <main class="content content-guest" id="main">
 <% } %>
+<% if (typeof user !== 'undefined' && user) { %>
+    <div class="print-head" aria-hidden="true">
+      <img src="/static/images/logo.png" alt="" width="48" height="40">
+      <div><strong><%= config.orgFullName %></strong><span><%= config.appName %></span></div>
+      <div class="print-head-meta">Printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %> by <%= user.fullName || user.username %></div>
+    </div>
+<% } %>
     <% for (const fl of flashes) { %>
       <div class="alert alert-<%= fl.type %> alert-dismissible fade show d-print-none" role="alert">
         <%= fl.message %>

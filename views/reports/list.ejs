@@ -1,7 +1,8 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { printLandscape: true }) %>
 <div class="page-head">
   <div><h1>Activity reports</h1><p class="sub">Community meetings, trainings, radio programmes and other outreach</p></div>
   <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-print-all><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
     <a class="btn btn-outline-secondary" href="/reports/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([k]) => k !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
     <a class="btn btn-primary" href="/reports/new"><i class="bi bi-plus-lg"></i> New report</a>
   </div>

@@ -100,7 +100,8 @@ async function mapByIds(db, container, ids) {
 }
 
 function pagination(req, total) {
-  const pageSize = config.pageSize;
+  // Printing a list prints every record that matches its filters, up to a safe limit.
+  const pageSize = req.query.print === '1' ? Math.min(Math.max(total, 1), 5000) : config.pageSize;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(Math.max(1, parseInt(req.query.page, 10) || 1), pages);
   const qs = (p) => {

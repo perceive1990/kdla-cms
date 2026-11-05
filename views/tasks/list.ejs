@@ -1,8 +1,11 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { printLandscape: true }) %>
 <% const uname = (id) => usersById[id] ? (usersById[id].fullName || usersById[id].username) : 'Former user'; %>
 <div class="page-head">
   <div><h1>Tasks and hearings</h1><p class="sub">Deadlines, court hearings, mediation sessions and follow ups</p></div>
-  <a class="btn btn-primary" href="/tasks/new"><i class="bi bi-plus-lg"></i> New task or hearing</a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    <a class="btn btn-primary" href="/tasks/new"><i class="bi bi-plus-lg"></i> New task or hearing</a>
+  </div>
 </div>
 <form class="filters" method="get" action="/tasks">
   <select class="form-select" name="who" aria-label="Whose tasks" data-autosubmit>

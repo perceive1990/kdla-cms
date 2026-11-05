@@ -207,6 +207,19 @@
   document.querySelectorAll('[data-print]').forEach(function (btn) {
     btn.addEventListener('click', function () { window.print(); });
   });
+  // Lists split into pages: reload with every matching record (?print=1), then print.
+  document.querySelectorAll('[data-print-all]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var url = new URL(window.location.href);
+      if (url.searchParams.get('print') === '1') { window.print(); return; }
+      url.searchParams.delete('page');
+      url.searchParams.set('print', '1');
+      window.location.href = url.toString();
+    });
+  });
+  if (new URLSearchParams(window.location.search).get('print') === '1') {
+    window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });
+  }
 
   // Formatted text boxes (activity reports): fonts, sizes, bold, lists, alignment.
   if (window.Quill) {
