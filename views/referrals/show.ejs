@@ -7,7 +7,10 @@
     <p class="sub">Recorded <%= h.fmtDate(r.createdAt) %> by <%= uname(r.createdBy) %> ·
       <span class="badge text-bg-<%= r.followUp === 'Needs follow up' ? 'warning' : 'secondary' %>"><%= r.followUp %></span></p>
   </div>
-  <a class="btn btn-outline-primary" href="/referrals/<%= r.id %>/letter"><i class="bi bi-envelope-paper"></i> Referral letter</a>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    <a class="btn btn-outline-primary" href="/referrals/<%= r.id %>/letter"><i class="bi bi-envelope-paper"></i> Referral letter</a>
+  </div>
 </div>
 <% if (gaps && gaps.length) { %>
   <div class="callout mb-3" role="alert"><i class="bi bi-shield-exclamation"></i> Consent to share is not recorded for

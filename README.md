@@ -291,6 +291,10 @@ Staff can install the system on Android phones, iPhones and computers as an app 
 
 ## Appearance
 
+### Printing
+
+Every report and record prints, or saves as PDF, from its **Print** button: activity reports, case files, client and party profiles, referrals and referral letters, stakeholders, statistics and the infographic, work plans, logframes, and the lists of cases, people, activity reports, referrals, stakeholders, tasks, work plans and the audit trail. Printouts carry the KDLA letterhead with the date and who printed them, and leave out buttons, filters and data entry forms. Lists and tables print on landscape A4; single records print on portrait. Printing a list prints every record that matches its filters, not only the page on screen.
+
 Each person chooses light, dark or automatic mode, a colour and the text size under **Appearance** in their account menu. The moon or sun button in the top bar switches between light and dark. Printouts are always light.
 
 ## Changing drop-down options

@@ -9,6 +9,7 @@
       <% if (k.kind !== 'defendant' && p.consentRecord !== 'yes') { %><span class="tag tag-danger ms-1">Consent not recorded</span><% } %></p>
   </div>
   <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
     <% if (k.kind === 'client') { %>
       <a class="btn btn-outline-primary" href="/people/defendants/new?client=<%= p.id %>"><i class="bi bi-person-x"></i> Add other party</a>
       <a class="btn btn-outline-primary" href="/cases/new?client=<%= p.id %>"><i class="bi bi-folder-plus"></i> Open case</a>

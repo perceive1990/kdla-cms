@@ -600,6 +600,7 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   .letter { padding: 1.25rem; }
 }
 
+.print-head { display: none; }
 @media print {
   :root, [data-bs-theme] {
     --ink: #000; --muted: #444; --line: #ccc; --bg: #fff; --surface: #fff; --surface-2: #fff;
@@ -610,6 +611,20 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
   .panel, .table-wrap { border: 0; }
   a { color: inherit; text-decoration: none; }
   .letter { border: 0; padding: 0; max-width: none; }
+  /* Every printout carries the KDLA letterhead, unless the page has its own */
+  .print-head { display: flex; align-items: center; gap: .75rem; border-bottom: 2px solid var(--accent); padding-bottom: .4rem; margin-bottom: .75rem; font-size: 9pt; }
+  .print-head > div:nth-child(2) { display: flex; flex-direction: column; }
+  .print-head-meta { margin-left: auto; color: var(--muted); }
+  body:has(.ig-head, .letter-head) .print-head { display: none; }
+  /* Buttons, filters and page links are for the screen */
+  .btn, .filters, .pagination, .btn-close, .dropdown-menu { display: none !important; }
+  /* Data entry forms (follow ups, diary entries, new tasks) are for the screen too */
+  main form[method="post"] { display: none !important; }
+  .page-head { margin-bottom: .5rem; }
+  .table { font-size: 9pt; }
+  .table thead { display: table-header-group; }
+  .table tr { break-inside: avoid; }
+  .table-wrap { overflow: visible !important; }
 }
 
 /* Filter tabs (consultation rooms) follow the chosen accent colour */

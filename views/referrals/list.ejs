@@ -1,7 +1,10 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header', { printLandscape: true }) %>
 <div class="page-head">
   <div><h1>Referrals</h1><p class="sub">Cases referred to partner organisations, with follow ups</p></div>
-  <a class="btn btn-primary" href="/referrals/new"><i class="bi bi-plus-lg"></i> New referral</a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-print-all><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    <a class="btn btn-primary" href="/referrals/new"><i class="bi bi-plus-lg"></i> New referral</a>
+  </div>
 </div>
 <form class="filters" method="get" action="/referrals">
   <select class="form-select" name="followUp" aria-label="Follow up" data-autosubmit>
