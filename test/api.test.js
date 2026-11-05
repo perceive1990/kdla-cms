@@ -535,6 +535,14 @@ test('work plans: activities, approval, progress from linked reports, versions',
   assert.strictEqual(r.status, 200, r.text);
   assert.strictEqual(r.json.workplanId, '', 'sending both empty unlinks the report');
 
+  // Completed needs a linked activity report
+  r = await api('POST', `/workplans/${planId}/activities`, { token: admin, body: { title: 'Needs a report first', status: 'Not started' } });
+  assert.strictEqual(r.status, 201, r.text);
+  const fresh = r.json.activities.find((x) => x.title === 'Needs a report first');
+  r = await api('POST', `/workplans/${planId}/activities/${fresh.id}/status`, { token: o1, body: { status: 'Completed' } });
+  assert.strictEqual(r.status, 422, 'an activity without a report cannot be Completed');
+  assert.match(r.text, /activity report/);
+
   // Copy, close, delete
   r = await api('POST', `/workplans/${planId}/copy`, { token: o1 });
   assert.strictEqual(r.status, 201);

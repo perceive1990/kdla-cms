@@ -417,6 +417,9 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .wp-table .wp-when { min-width: 9rem; }
 .wp-table .wp-progress { min-width: 8rem; }
 .wp-table .status-select { min-width: 8rem; }
+.wp-reports { list-style: none; padding: 0; margin: .3rem 0 0; font-size: .85rem; }
+.wp-reports li { margin: .1rem 0; }
+.wp-reports i { color: var(--muted); }
 .wp-table .wp-cur { color: var(--muted); font-size: .8rem; }
 .wp-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
 .wp-actions form { margin: 0; }
