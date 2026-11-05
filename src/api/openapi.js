@@ -117,6 +117,7 @@ const activityFields = {
   title: S('The planned activity'),
   activityType: E(['', ...choices.activities], 'Type of activity'),
   district: E(['', ...choices.districts]),
+  venue: S('Venue, for example the community hall or village'),
   responsibleId: S('Colleague responsible (a user id)'),
   startDate: D('Start, within the plan period'),
   endDate: D('End, within the plan period. After this date the activity is overdue until it is Completed or Cancelled'),

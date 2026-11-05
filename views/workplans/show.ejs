@@ -84,6 +84,7 @@
         <td class="wp-main">
           <div class="cell-strong"><%= it.title %></div>
           <% if (it.activityType || it.district) { %><div class="small text-body-secondary"><%= [it.activityType, it.district].filter(Boolean).join(' · ') %></div><% } %>
+          <% if (it.venue) { %><div class="small"><i class="bi bi-geo-alt" aria-hidden="true"></i> <%= it.venue %></div><% } %>
           <% if (it.output) { %><div class="small"><i class="bi bi-flag" aria-hidden="true"></i> <%= it.output %></div><% } %>
           <% if (offPlan.has(it.id)) { %><div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Not from the logframe</span><% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/<%= it.id %>/edit">Choose its logframe activity</a><% } %></div><% } %>
           <% const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; if (lfl) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <a href="<%= lfl.href %>" title="<%= lfl.text %>"><%= lfl.label %></a><span class="text-body-secondary">: <%= lfl.text.length > 70 ? lfl.text.slice(0, 68) + '\u2026' : lfl.text %></span></div><% } %>
