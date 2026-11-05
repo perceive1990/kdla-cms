@@ -271,7 +271,7 @@ This is general information, not legal advice. Please confirm the details with a
    * **Indicators**: every indicator as a bar for the value now, a line for the target and, for counts, a dashed line where it should be by now.
    * **Details**: the full logframe with editing, recorded values and the planned activities linked to each result.
 
-   Counts are judged against the share of the project period that has passed (on track when no more than 10 points behind it); shares such as the percentage of women are judged against their target. **Infographic** gives the same figures on landscape A4 pages to print or save as PDF for donors, the board and partners. **Export CSV** gives the logframe with its figures, in the import layout, for donor reports.
+   Counts are judged against the share of the project period that has passed (on track when no more than 10 points behind it); shares such as the percentage of women are judged against their target. **Print logframe** gives the classic logframe matrix (results, indicators, baseline, target, actual, status and means of verification) on landscape A4; the logframe page and the infographic print on landscape A4 too. **Infographic** gives the same figures on landscape A4 pages to print or save as PDF for donors, the board and partners. **Export CSV** gives the logframe with its figures, in the import layout, for donor reports.
 
 Administrators set up and change the logframe; everyone can record indicator values. The level names can follow each donor's words (for example Goal, Outcome, Output and Activity) under **Settings**.
 

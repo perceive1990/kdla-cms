@@ -1051,6 +1051,16 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   await o.login('officer3', 'officer-password-3');
   r = await o.req(`/logframes/${pid}/infographic`);
   assert.strictEqual(r.status, 200, 'everyone can open the infographic');
+  r = await o.req(`/logframes/${pid}/matrix`);
+  assert.strictEqual(r.status, 200, 'everyone can open the logframe matrix');
+  assert.match(r.text, /<body class="print-landscape">/);
+  assert.match(r.text, /Means of verification/);
+  assert.match(r.text, /Legal desks operational/);
+  r = await o.req(`/logframes/${pid}`);
+  assert.match(r.text, /Print logframe/);
+  assert.match(r.text, /<body class="print-landscape">/, 'the logframe page prints on landscape too');
+  r = await o.req('/workplans');
+  assert.match(r.text, /<body>/, 'other pages keep portrait');
   await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
   r = await o.req(`/workplans/${planId}/from-logframe`);
   assert.strictEqual(r.status, 302, 'officers cannot add activities to an approved plan');

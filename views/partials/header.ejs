@@ -20,7 +20,7 @@
   <% if (locals.richEditor) { %><link rel="stylesheet" href="/vendor/quill/quill.snow.css"><% } %>
   <link rel="stylesheet" href="/static/css/app.css?v=<%= assetVersion %>">
 </head>
-<body>
+<body<%- (typeof printLandscape !== 'undefined' && printLandscape) ? ' class="print-landscape"' : '' %>>
 <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-light" href="#main">Skip to content</a>
 <% if (user) { %>
 <header class="topbar d-print-none">

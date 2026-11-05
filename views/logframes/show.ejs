@@ -8,7 +8,8 @@
   <% if (fw) { %>
   <div class="d-flex flex-wrap gap-2 d-print-none">
     <% if (prog.results.length) { %><a class="btn btn-primary" href="/logframes/<%= project.id %>/infographic"><i class="bi bi-easel" aria-hidden="true"></i> Infographic</a><% } %>
-    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
+    <% if (prog.results.length) { %><a class="btn btn-outline-primary" href="/logframes/<%= project.id %>/matrix"><i class="bi bi-printer" aria-hidden="true"></i> Print logframe</a><% } %>
+    <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print this page</button>
     <a class="btn btn-outline-secondary" href="/logframes/<%= project.id %>/export.csv"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
     <% if (admin) { %>
       <% if (!prog.results.length) { %><a class="btn btn-primary" href="/logframes/<%= project.id %>/import"><i class="bi bi-upload" aria-hidden="true"></i> Import from a spreadsheet</a><% } %>
