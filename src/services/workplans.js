@@ -264,13 +264,38 @@ async function validateActivity(db, plan, v, itemId = null) {
   if (Number.isNaN(v.targetPeople) || (v.targetPeople !== null && v.targetPeople < 0)) e.targetPeople = 'Enter a whole number.';
   if (Number.isNaN(v.budget) || (v.budget !== null && v.budget < 0)) e.budget = 'Enter a valid amount.';
   if (!choices.workplanActivityStatuses.includes(v.status)) e.status = 'Select a valid status.';
-  if (v.logframeId || v.logframeResultId) {
+  const required = await requiredFramework(db, plan);
+  if (required) {
+    // The plan's project has a logframe: every planned activity comes from it.
+    const ok = v.logframeId === required.id && plannableIds(required).has(v.logframeResultId);
+    if (!ok) e.logframeResultId = v.logframeResultId
+      ? 'Choose an activity of this project\'s logframe.'
+      : 'Choose the logframe activity this delivers. Activities in work plans for this project come from its logframe.';
+  } else if (v.logframeId || v.logframeResultId) {
     // Both ids are needed. To unlink, send both empty.
     const fw = /^[\w-]{1,60}$/.test(v.logframeId) ? await db.get('logframes', v.logframeId) : null;
     const result = fw && (fw.results || []).find((r) => r.id === v.logframeResultId);
     if (!result || !['output', 'activity'].includes(result.level)) e.logframeResultId = 'Choose an output or an activity of the logframe.';
   }
   return e;
+}
+
+/**
+ * The logframe a plan's activities must come from: the logframe of the plan's project, once it has
+ * activities (or outputs) to plan. Plans without a project, or whose project has no logframe yet, stay free.
+ */
+async function requiredFramework(db, plan) {
+  if (!plan || !plan.projectId) return null;
+  const lf = require('./logframes'); // required here to keep the two services independent at load time
+  const fw = await lf.getFramework(db, plan.projectId);
+  return fw && lf.plannable(fw).length ? fw : null;
+}
+const plannableIds = (fw) => new Set(require('./logframes').plannable(fw).map((r) => r.resultId));
+/** Activities of the plan that do not come from its required logframe (for example added before it existed). */
+function notFromLogframe(plan, fw) {
+  if (!fw) return [];
+  const ids = plannableIds(fw);
+  return (plan.items || []).filter((it) => it.status !== 'Cancelled' && !(it.logframeId === fw.id && ids.has(it.logframeResultId)));
 }
 
 const nextNumber = (plan) => (plan.items || []).reduce((m, it) => Math.max(m, Number.isInteger(it.number) ? it.number : 0), 0) + 1;
@@ -492,6 +517,6 @@ const planUsers = (db, plan) => mapByIds(db, 'users', [plan.preparedById, plan.a
 
 module.exports = {
   DONE, readPlan, validatePlan, planQuery, getPlan, canEdit, canUpdateProgress, createPlan, updatePlan, setPlanStatus,
-  copyPlan, deletePlan, readActivity, validateActivity, nextNumber, getItem, addActivity, addActivities, updateActivity,
+  copyPlan, deletePlan, readActivity, validateActivity, requiredFramework, notFromLogframe, nextNumber, getItem, addActivity, addActivities, updateActivity,
   setActivityStatus, deleteActivity, progress, totalsFor, activityOptions, dueFor, planUsers, view, moveItems,
 };

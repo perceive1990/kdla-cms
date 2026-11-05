@@ -598,9 +598,9 @@ async function progress(db, fw, project, t0 = today()) {
  * of the plan's project logframe (or of every logframe when the plan is not for one project), plus the
  * current link.
  */
-async function linkOptions(db, { projectId = '', current = {} } = {}) {
+async function linkOptions(db, { projectId = '', current = {}, onlyPlannable = false } = {}) {
   let fws = projectId ? [await getFramework(db, projectId)].filter(Boolean) : await db.find('logframes', {});
-  if (current.logframeId && !fws.some((f) => f.id === current.logframeId)) {
+  if (!onlyPlannable && current.logframeId && !fws.some((f) => f.id === current.logframeId)) {
     const extra = await getFramework(db, current.logframeId);
     if (extra) fws = [...fws, extra];
   }
@@ -608,7 +608,8 @@ async function linkOptions(db, { projectId = '', current = {} } = {}) {
   const groups = [];
   for (const fw of fws) {
     const codeMap = codes(fw);
-    const options = ordered(fw).filter((r) => r.level === 'output' || r.level === 'activity').map((r) => {
+    const leaf = new Set(plannable(fw).map((r) => r.resultId));
+    const options = ordered(fw).filter((r) => r.level === 'output' || r.level === 'activity').filter((r) => !onlyPlannable || leaf.has(r.id)).map((r) => {
       const text = r.text.length > 90 ? `${r.text.slice(0, 88)}\u2026` : r.text;
       return {
         value: `${fw.id}:${r.id}`, label: `${r.level === 'activity' ? '\u2003' : ''}${labelOf(fw, r, codeMap)}: ${text}`, text: r.text.slice(0, 300), level: r.level,
