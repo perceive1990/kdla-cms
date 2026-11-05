@@ -113,6 +113,7 @@ router.get('/:id/export.csv', async (req, res) => {
     { label: 'Activity', value: 'title' },
     { label: 'Type of activity', value: 'activityType' },
     { label: 'District', value: 'district' },
+    { label: 'Venue', value: 'venue' },
     { label: 'Responsible', value: (it) => who(it.responsibleId) },
     { label: 'Start', value: 'startDate' },
     { label: 'End', value: 'endDate' },
@@ -234,7 +235,7 @@ router.post('/:id/from-logframe', async (req, res) => {
   const list = [];
   for (const [key, r] of picked) {
     const v = svc.readActivity({
-      title: r.title, responsibleId: r.responsibleId, startDate: r.startDate, endDate: r.endDate, targetEvents: r.targetEvents,
+      title: r.title, venue: r.venue, responsibleId: r.responsibleId, startDate: r.startDate, endDate: r.endDate, targetEvents: r.targetEvents,
       targetPeople: r.targetPeople, budget: r.budget, status: 'Not started', logframeId: fw.id, logframeResultId: str(r.resultId, 60),
     });
     const e = await svc.validateActivity(req.db, plan, v);

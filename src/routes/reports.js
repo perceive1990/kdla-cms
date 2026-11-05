@@ -43,6 +43,7 @@ async function fromPlannedActivity(db, link) {
     activityNumber: Number.isInteger(item.number) ? item.number : null,
     activityType: item.activityType || '',
     district: item.district || '',
+    location: item.venue || '',
     projectId: plan.projectId || '',
   };
 }

@@ -233,6 +233,7 @@ function readActivity(body) {
     title: str(body.title, 300),
     activityType: str(body.activityType),
     district: str(body.district),
+    venue: str(body.venue, 200),
     responsibleId: str(body.responsibleId),
     startDate: str(body.startDate, 10),
     endDate: str(body.endDate, 10),

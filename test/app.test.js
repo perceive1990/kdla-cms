@@ -730,7 +730,7 @@ test('work plans: draft, planned activities, approval, linked reports and progre
   r = await o.req(`/workplans/${planId}/export.csv`);
   assert.match(r.headers.get('content-type'), /text\/csv/);
   assert.match(r.text, /Delivered \(activity reports\)/);
-  assert.match(r.text, /1,Community sensitisation on customary land,Community Meeting,Kitwe District,List Tester/);
+  assert.match(r.text, /1,Community sensitisation on customary land,Community Meeting,Kitwe District,,List Tester/);
   r = await o.req('/');
   assert.match(r.text, /My work plan activities/);
   assert.match(r.text, /Radio programme on land rights/);
@@ -1016,7 +1016,7 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   assert.match(r.text, /within the plan period/);
   r = await a.post(`/workplans/${planId}/from-logframe`, {
     ...row(iSupport, support.id, { title: 'Monthly support to the Kitwe desk', targetEvents: '3', budget: '4500', responsibleId: await userId('officer3') }),
-    ...row(iReach, reachOutput.id, { title: 'Radio programme on legal aid', targetPeople: '200' }),
+    ...row(iReach, reachOutput.id, { title: 'Radio programme on legal aid', targetPeople: '200', venue: 'Radio Icengelo studio, Kitwe' }),
   }, `/workplans/${planId}/from-logframe`);
   assert.strictEqual(r.status, 302, r.text.slice(0, 400));
   const plan = await db().get('workplans', planId);
@@ -1024,6 +1024,13 @@ test('work plans draw their activities from the logframe; the logframe shows cha
     [1, 'Monthly support to the Kitwe desk', support.id], [2, 'Radio programme on legal aid', reachOutput.id],
   ]);
   assert.strictEqual(plan.items[0].budget, 4500);
+  assert.strictEqual(plan.items[1].venue, 'Radio Icengelo studio, Kitwe');
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /bi-geo-alt[^<]*<\/i> Radio Icengelo studio, Kitwe/);
+  r = await a.req(`/workplans/${planId}/export.csv`);
+  assert.match(r.text, /Venue/);
+  r = await a.req(`/reports/new?workplanItem=${planId}:${plan.items[1].id}`);
+  assert.match(r.text, /data-venue="Radio Icengelo studio, Kitwe"/);
   r = await a.req(`/workplans/${planId}/from-logframe`);
   assert.match(r.text, /already once in this plan/);
   r = await a.req(`/workplans/${planId}`);

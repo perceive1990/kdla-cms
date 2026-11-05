@@ -40,6 +40,7 @@
               <option value="">Not assigned</option>
               <% for (const u of users) { %><option value="<%= u.id %>"<%= v.responsibleId === u.id ? ' selected' : '' %>><%= u.fullName || u.username %></option><% } %>
             </select></label>
+            <label class="wp-pick-field"><span>Venue</span><input class="form-control form-control-sm" name="rows[<%= i %>][venue]" value="<%= v.venue ?? '' %>" maxlength="200" placeholder="e.g. Fisenge hall"></label>
             <label class="wp-pick-field"><span>Start</span><input class="form-control form-control-sm" type="date" name="rows[<%= i %>][startDate]" value="<%= v.startDate ?? plan.periodStart %>" min="<%= plan.periodStart %>" max="<%= plan.periodEnd %>"></label>
             <label class="wp-pick-field"><span>End</span><input class="form-control form-control-sm" type="date" name="rows[<%= i %>][endDate]" value="<%= v.endDate ?? plan.periodEnd %>" min="<%= plan.periodStart %>" max="<%= plan.periodEnd %>"></label>
             <label class="wp-pick-field"><span>How many times</span><input class="form-control form-control-sm" type="number" min="0" name="rows[<%= i %>][targetEvents]" value="<%= v.targetEvents ?? 1 %>"></label>

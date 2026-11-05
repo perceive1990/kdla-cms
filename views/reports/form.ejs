@@ -17,7 +17,7 @@
       <select class="form-select<%= planErr ? ' is-invalid' : '' %>" id="workplanItem" name="workplanItem" data-fill-from-plan aria-describedby="<%= planErr ? 'workplanItem-error ' : '' %>workplanItem-help"<%= planErr ? ' aria-invalid="true"' : '' %>>
         <option value="">Not linked to a work plan</option>
         <% for (const o of workplanOptions) { %>
-          <option value="<%= o.value %>"<%= values.workplanItem === o.value ? ' selected' : '' %> data-heading="<%= o.item.title %>" data-number="<%= Number.isInteger(o.item.number) ? o.item.number : '' %>" data-type="<%= o.item.activityType || '' %>" data-district="<%= o.item.district || '' %>" data-project="<%= o.plan.projectId || '' %>"><%= o.label %></option>
+          <option value="<%= o.value %>"<%= values.workplanItem === o.value ? ' selected' : '' %> data-heading="<%= o.item.title %>" data-number="<%= Number.isInteger(o.item.number) ? o.item.number : '' %>" data-type="<%= o.item.activityType || '' %>" data-district="<%= o.item.district || '' %>" data-venue="<%= o.item.venue || '' %>" data-project="<%= o.plan.projectId || '' %>"><%= o.label %></option>
         <% } %>
       </select>
       <% if (planErr) { %><div class="invalid-feedback d-block" id="workplanItem-error"><%= planErr %></div><% } %>
