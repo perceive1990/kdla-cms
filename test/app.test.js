@@ -1029,6 +1029,14 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   assert.match(r.text, /bi-geo-alt[^<]*<\/i> Radio Icengelo studio, Kitwe/);
   r = await a.req(`/workplans/${planId}/export.csv`);
   assert.match(r.text, /Venue/);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, new RegExp(`href="/workplans/${planId}/print"`));
+  r = await a.req(`/workplans/${planId}/print`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /<body class="print-landscape">/);
+  for (const part of ['Radio programme on legal aid', 'Radio Icengelo studio, Kitwe', 'Activity 1.1.1', 'Prepared by:', 'Approved by:', 'Signature and date', '4,500']) {
+    assert.ok(r.text.includes(part), `printed plan shows ${part}`);
+  }
   r = await a.req(`/reports/new?workplanItem=${planId}:${plan.items[1].id}`);
   assert.match(r.text, /data-venue="Radio Icengelo studio, Kitwe"/);
   r = await a.req(`/workplans/${planId}/from-logframe`);

@@ -98,6 +98,18 @@ router.get('/:id', async (req, res) => {
   });
 });
 
+/** The whole plan on landscape A4, with signature lines, to print or save as PDF. */
+router.get('/:id/print', async (req, res) => {
+  const plan = await svc.getPlan(req.db, req.params.id);
+  const { items, totals } = await svc.progress(req.db, plan);
+  const users = await svc.planUsers(req.db, plan);
+  const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
+  const lfLabels = await logframes.linkLabels(req.db, plan.items);
+  res.render('workplans/print', {
+    title: `${plan.title} (print)`, plan, items, totals, users, project, lfLabels, t0: today(), wp: svc.view, printLandscape: true,
+  });
+});
+
 router.get('/:id/export.csv', async (req, res) => {
   const plan = await svc.getPlan(req.db, req.params.id);
   const { items } = await svc.progress(req.db, plan);
