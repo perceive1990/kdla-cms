@@ -69,9 +69,18 @@ router.post('/', async (req, res) => {
     });
   }
   const doc = await svc.createPlan(req, v);
-  req.flash('success', 'Work plan created. Now add the planned activities.');
-  return res.redirect(`/workplans/${doc.id}`);
+  const fromLogframe = v.projectId && await logframes.getFramework(req.db, v.projectId);
+  req.flash('success', fromLogframe
+    ? 'Work plan created. Now add its activities from the project logframe.'
+    : 'Work plan created. Now add the planned activities.');
+  return res.redirect(fromLogframe ? `/workplans/${doc.id}/from-logframe` : `/workplans/${doc.id}`);
 });
+
+/** Is there a logframe this plan can draw its activities from? */
+async function canDraw(db, plan) {
+  if (plan.projectId) return Boolean(await logframes.getFramework(db, plan.projectId));
+  return (await db.count('logframes', {})) > 0;
+}
 
 // ---------- One plan ----------
 router.get('/:id', async (req, res) => {
@@ -80,8 +89,9 @@ router.get('/:id', async (req, res) => {
   const users = await svc.planUsers(req.db, plan);
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
   const lfLabels = await logframes.linkLabels(req.db, plan.items);
+  const draw = svc.canEdit(req.user, plan) && await canDraw(req.db, plan);
   res.render('workplans/show', {
-    title: plan.title, plan, items, totals, users, project, lfLabels,
+    title: plan.title, plan, items, totals, users, project, lfLabels, draw,
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
   });
 });
@@ -170,6 +180,70 @@ router.post('/:id/delete', async (req, res) => {
   if (!result) return undefined;
   req.flash('success', `Work plan deleted.${result.unlinked ? ` ${result.unlinked} activity report${result.unlinked === 1 ? ' was' : 's were'} kept and unlinked.` : ''}`);
   return res.redirect('/workplans');
+});
+
+// ---------- Planned activities drawn from the logframe ----------
+async function drawPage(req, res, plan, { rowValues = {}, rowErrors = {}, status = 200 } = {}) {
+  const projectId = plan.projectId || str(req.query.project || req.body.project, 60);
+  const fw = projectId ? await logframes.getFramework(req.db, projectId) : null;
+  const { users } = await lists(req.db);
+  if (!fw) {
+    // A plan for no particular project: choose which project's logframe to draw from.
+    const fws = await req.db.find('logframes', { fields: ['id', 'projectId'] });
+    const projects = Object.values(await mapByIds(req.db, 'projects', fws.map((x) => x.projectId)));
+    if (!projects.length) {
+      req.flash('warning', 'There is no logframe to draw from yet. An administrator sets one up under M&E.');
+      return res.redirect(`/workplans/${plan.id}`);
+    }
+    return res.status(status).render('workplans/from-logframe', {
+      title: 'Add activities from the logframe', plan, fw: null, projects, rows: [], users, rowValues, rowErrors, project: null,
+    });
+  }
+  const project = await req.db.get('projects', fw.projectId);
+  return res.status(status).render('workplans/from-logframe', {
+    title: 'Add activities from the logframe', plan, fw, project, projects: [], rows: logframes.plannable(fw, plan), users, rowValues, rowErrors,
+  });
+}
+
+router.get('/:id/from-logframe', async (req, res) => {
+  const plan = await svc.getPlan(req.db, req.params.id);
+  if (!svc.canEdit(req.user, plan)) {
+    req.flash('warning', 'This work plan is approved or closed, so only an administrator can add activities.');
+    return res.redirect(`/workplans/${plan.id}`);
+  }
+  return drawPage(req, res, plan);
+});
+
+router.post('/:id/from-logframe', async (req, res) => {
+  const plan = await svc.getPlan(req.db, req.params.id);
+  if (!svc.canEdit(req.user, plan)) {
+    req.flash('warning', 'This work plan is approved or closed, so only an administrator can add activities.');
+    return res.redirect(`/workplans/${plan.id}`);
+  }
+  const projectId = plan.projectId || str(req.body.project, 60);
+  const fw = await logframes.mustFramework(req.db, projectId);
+  const raw = req.body.rows && typeof req.body.rows === 'object' ? req.body.rows : {};
+  const picked = Object.entries(raw).filter(([, r]) => r && r.add === 'on');
+  if (!picked.length) {
+    req.flash('warning', 'Tick at least one activity to add.');
+    return res.redirect(`/workplans/${plan.id}/from-logframe${plan.projectId ? '' : `?project=${encodeURIComponent(projectId)}`}`);
+  }
+  const rowErrors = {};
+  const list = [];
+  for (const [key, r] of picked) {
+    const v = svc.readActivity({
+      title: r.title, responsibleId: r.responsibleId, startDate: r.startDate, endDate: r.endDate, targetEvents: r.targetEvents,
+      targetPeople: r.targetPeople, budget: r.budget, status: 'Not started', logframeId: fw.id, logframeResultId: str(r.resultId, 60),
+    });
+    const e = await svc.validateActivity(req.db, plan, v);
+    if (Object.keys(e).length) rowErrors[key] = Object.values(e).join(' ');
+    list.push(v);
+  }
+  if (Object.keys(rowErrors).length) return drawPage(req, res, plan, { rowValues: raw, rowErrors, status: 400 });
+  const result = await friendly(req, res, plan.id, () => svc.addActivities(req, plan, list));
+  if (!result) return undefined;
+  req.flash('success', `${list.length} planned activit${list.length === 1 ? 'y' : 'ies'} added from the logframe, each linked to its logframe activity. Set their districts and types where needed.`);
+  return res.redirect(`/workplans/${plan.id}`);
 });
 
 // ---------- Planned activities ----------

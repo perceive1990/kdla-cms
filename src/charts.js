@@ -91,6 +91,33 @@ function meter(percent, { title = '', width = 240 } = {}) {
   return `<svg class="viz viz-meter" viewBox="0 0 ${width} 12" role="img" aria-label="${esc(title)}: ${p}%"><title>${esc(title)}: ${p}%</title><rect class="viz-track" x="0" y="0" width="${width}" height="12" rx="6"/>${w > 0 ? `<rect class="viz-bar" x="0" y="0" width="${Math.max(w, 12)}" height="12" rx="6"/>` : ''}</svg>`;
 }
 
+const num1 = (n) => Number(n || 0).toLocaleString('en-GB', { maximumFractionDigits: 1 });
+
+/**
+ * Progress towards a target (a bullet chart): a same-hue track, the bar for the value now (rounded at its
+ * data end), a solid tick at the target and, for counts, a dashed tick where the value should be by now.
+ * The numbers are written next to the chart; the marks repeat them in a tooltip and for screen readers.
+ */
+function bullet({
+  actual = null, target = null, expected = null, unit = 'number', title = '',
+} = {}, { width = 300, height = 22 } = {}) {
+  const fmt = (n) => (unit === 'percent' ? `${num1(n)}%` : num1(n));
+  const top = unit === 'percent' ? 100 : Math.max(Number(target) || 0, Number(actual) || 0, Number(expected) || 0, 1) * 1.08;
+  const x = (v) => Math.max(0, Math.min(width, Math.round((Number(v) / top) * width)));
+  const barH = 10;
+  const y = (height - barH) / 2;
+  const parts = [`<rect class="viz-track" x="0" y="${y}" width="${width}" height="${barH}" rx="5"/>`];
+  if (actual !== null && actual !== undefined && x(actual) > 0) parts.push(`<path class="viz-bar" d="${hbarPath(0, y, Math.max(x(actual), 4), barH, 4)}"/>`);
+  if (expected !== null && expected !== undefined) parts.push(`<line class="viz-expected" x1="${x(expected)}" x2="${x(expected)}" y1="1" y2="${height - 1}"/>`);
+  if (target !== null && target !== undefined) parts.push(`<line class="viz-target" x1="${Math.min(x(target), width - 1)}" x2="${Math.min(x(target), width - 1)}" y1="0" y2="${height}"/>`);
+  const tip = [
+    actual !== null && actual !== undefined ? `now ${fmt(actual)}` : 'no value yet',
+    target !== null && target !== undefined ? `target ${fmt(target)}` : '',
+    expected !== null && expected !== undefined ? `expected by now ${fmt(expected)}` : '',
+  ].filter(Boolean).join(', ');
+  return `<svg class="viz viz-bullet" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(title)}: ${esc(tip)}" preserveAspectRatio="none"><title>${esc(title)}: ${esc(tip)}</title>${parts.join('')}</svg>`;
+}
+
 /** Month-by-month counts between two YYYY-MM-DD dates (at most 36 months). */
 function monthly(dates, from, to) {
   const out = [];
@@ -108,5 +135,5 @@ function monthly(dates, from, to) {
 }
 
 module.exports = {
-  hbars, columns, meter, monthly, num,
+  hbars, columns, meter, bullet, monthly, num, num1,
 };

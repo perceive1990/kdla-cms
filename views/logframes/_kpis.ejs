@@ -1,0 +1,29 @@
+<% const o = prog.overall; const t = prog.totals; const heldPct = o.targetEvents ? Math.min(100, Math.round((o.delivered / o.targetEvents) * 100)) : 0; %>
+<div class="lf-kpis">
+  <div class="stat">
+    <div class="label"><i class="bi bi-people" aria-hidden="true"></i> People reached</div>
+    <div class="lf-hero"><%= charts.num(o.reach) %></div>
+    <div class="small text-body-secondary"><%= o.targetPeople ? 'of ' + charts.num(o.targetPeople) + ' planned in work plans. ' : '' %><%= charts.num(o.attendees) %> registered, <%= charts.num(o.heads) %> counted</div>
+  </div>
+  <div class="stat">
+    <div class="label"><i class="bi bi-journal-check" aria-hidden="true"></i> Activities held</div>
+    <div class="value"><%= charts.num(o.delivered) %> <small class="fs-6 fw-normal text-body-secondary">of <%= charts.num(o.targetEvents) %> planned</small></div>
+    <%- charts.meter(heldPct, { title: 'Planned activities held' }) %>
+    <div class="small text-body-secondary mt-1"><%= t.linked %> planned activit<%= t.linked === 1 ? 'y' : 'ies' %> linked, <%= o.completed %> completed</div>
+  </div>
+  <div class="stat">
+    <div class="label"><i class="bi bi-bullseye" aria-hidden="true"></i> Indicators (<%= t.indicators %>)</div>
+    <ul class="lf-counts">
+      <li><span class="tag <%= t.achieved ? 'tag-done' : 'tag-muted' %>"><i class="bi bi-check-circle" aria-hidden="true"></i> <%= t.achieved %> achieved</span></li>
+      <li><span class="tag <%= t.onTrack ? '' : 'tag-muted' %>"><i class="bi bi-arrow-right-circle" aria-hidden="true"></i> <%= t.onTrack %> on track</span></li>
+      <li><span class="tag <%= t.behind ? 'tag-warn' : 'tag-muted' %>"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <%= t.behind %> behind or below target</span></li>
+      <li><span class="tag tag-muted"><i class="bi bi-dash-circle" aria-hidden="true"></i> <%= t.noData %> without data</span></li>
+    </ul>
+  </div>
+  <div class="stat">
+    <div class="label"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Project time passed</div>
+    <div class="value"><%= prog.elapsed === null ? 'Not set' : prog.elapsed + '%' %></div>
+    <% if (prog.elapsed !== null) { %><%- charts.meter(prog.elapsed, { title: 'Project time passed' }) %><% } %>
+    <div class="small text-body-secondary mt-1"><%= h.fmtDate(project.startDate) %> to <%= h.fmtDate(project.endDate) %></div>
+  </div>
+</div>

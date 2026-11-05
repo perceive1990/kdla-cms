@@ -1,0 +1,24 @@
+<%
+  const o = prog.overall;
+  const st = prog.shareTargets;
+  const outputs = prog.results.filter((r) => r.level === 'output');
+  const curs = {};
+  for (const out of outputs) for (const [c, n] of Object.entries(out.rollup.budget)) curs[c] = (curs[c] || 0) + n;
+  const mainCur = Object.keys(curs).sort((a, b) => curs[b] - curs[a])[0];
+  const groups = [['Women and girls', o.women, st.women], ['Children (girls and boys)', o.children, st.children], ['Persons with disabilities', o.disabled, st.disabled]];
+%>
+<h3>Who the activities reached</h3>
+<% if (!o.attendees && !o.heads) { %>
+  <p class="small text-body-secondary mb-0">No activity reports are linked to this logframe yet. Link planned activities in the work plans, then write their reports with attendance registers.</p>
+<% } else { %>
+  <% for (const [label, n, target] of groups) { const pct = o.attendees ? Math.round((n / o.attendees) * 1000) / 10 : null; %>
+  <div class="lf-share">
+    <div class="lf-share-head"><span><%= label %></span><span><strong><%= pct === null ? 'No data' : lf.num(pct, 'percent') %></strong><% if (target !== null) { %> <span class="text-body-secondary">target <%= lf.num(target, 'percent') %></span><% } %></span></div>
+    <%- charts.bullet({ actual: pct, target, unit: 'percent', title: label + ' among registered attendees' }) %>
+    <div class="ig-note"><%= charts.num(n) %> of <%= charts.num(o.attendees) %> registered attendees</div>
+  </div>
+  <% } %>
+  <h4 class="lf-subhead">Registered attendees by age and sex</h4>
+  <%- charts.hbars(['Woman', 'Man', 'Girl', 'Boy', 'Not recorded'].filter((k) => k !== 'Not recorded' || o.byAge[k]).map((k) => ({ label: k, count: o.byAge[k] || 0 })), { title: 'Registered attendees by age and sex', unit: 'people', labelWidth: 110, width: 440 }) %>
+  <% if (o.heads) { %><p class="ig-note mt-2 mb-0">A further <%= charts.num(o.heads) %> people were counted without registration, so they are not broken down.</p><% } %>
+<% } %>

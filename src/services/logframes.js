@@ -393,9 +393,11 @@ async function deleteValue(req, fw, indicatorId, valueId) {
 function emptyRollup() {
   return {
     planned: 0, completed: 0, overdue: 0, targetEvents: 0, delivered: 0, targetPeople: 0, attendances: 0,
-    attendees: 0, heads: 0, reach: 0, women: 0, children: 0, disabled: 0, budget: {},
+    attendees: 0, heads: 0, reach: 0, women: 0, children: 0, disabled: 0, budget: {}, byAge: {},
   };
 }
+
+const AGE_ORDER = ['Woman', 'Man', 'Girl', 'Boy'];
 
 /** Totals for a set of planned activities and their reports. */
 function rollup(links, reportsOf, people, t0) {
@@ -425,7 +427,30 @@ function rollup(links, reportsOf, people, t0) {
   out.women = regs.filter((p) => ['Woman', 'Girl'].includes(p.ageCategory)).length;
   out.children = regs.filter((p) => ['Girl', 'Boy'].includes(p.ageCategory)).length;
   out.disabled = regs.filter((p) => p.disability === 'Disabled').length;
+  for (const p of regs) {
+    const k = AGE_ORDER.includes(p.ageCategory) ? p.ageCategory : 'Not recorded';
+    out.byAge[k] = (out.byAge[k] || 0) + 1;
+  }
   return out;
+}
+
+const SEVERITY = ['Behind', 'Below target', 'On track', 'Achieved'];
+
+/**
+ * One status for a result from its own indicators: the most serious one among those with a value
+ * (Behind, then Below target, then On track), Achieved when all are achieved, No data otherwise.
+ */
+function health(inds) {
+  const measured = inds.filter((i) => SEVERITY.includes(i.status));
+  if (!measured.length) return inds.length ? 'No data' : 'No indicators';
+  return SEVERITY.find((s) => measured.some((i) => i.status === s));
+}
+
+/** Where a count should be by now if it grows evenly over the project period. */
+function expectedNow(ind, elapsed) {
+  if (ind.unit === 'percent' || elapsed === null || ind.target === null || ind.target === undefined) return null;
+  const base = ind.baseline ?? 0;
+  return Math.round((base + ((ind.target - base) * elapsed) / 100) * 10) / 10;
 }
 
 const share = (n, of) => (of ? Math.round((n / of) * 1000) / 10 : null);
@@ -517,7 +542,7 @@ async function progress(db, fw, project, t0 = today()) {
       const last = manual && (ind.values || []).length ? [...ind.values].sort(byDate).pop() : null;
       const value = manual ? (last ? last.value : null) : autoValue(ind.source, agg, projectTotals);
       return {
-        ...ind, actual: value, asAt: manual ? (last ? last.date : null) : t0, automatic: !manual, ...judge(ind, value, elapsed),
+        ...ind, actual: value, asAt: manual ? (last ? last.date : null) : t0, automatic: !manual, expected: expectedNow(ind, elapsed), ...judge(ind, value, elapsed),
       };
     });
     return {
@@ -525,6 +550,7 @@ async function progress(db, fw, project, t0 = today()) {
       code: codeMap[r.id],
       label: labelOf(fw, r, codeMap),
       indicators: inds,
+      health: health(inds),
       rollup: agg,
       direct: links.filter((l) => l.item.logframeResultId === r.id).map(({ plan, item }) => ({
         plan: { id: plan.id, title: plan.title, status: plan.status, currency: plan.currency },
@@ -542,9 +568,16 @@ async function progress(db, fw, project, t0 = today()) {
   const unlinked = projectPlans.flatMap((p) => (p.items || [])
     .filter((it) => it.status !== 'Cancelled' && !(it.logframeId && it.logframeResultId))
     .map((it) => ({ plan: { id: p.id, title: p.title }, item: it })));
+  // Targets for the shares of women and girls, children and persons with disabilities, if the logframe has them.
+  const shareTarget = (source) => {
+    const i = allInds.find((x) => x.source === source && x.target !== null && x.target !== undefined);
+    return i ? i.target : null;
+  };
   return {
     results,
     elapsed,
+    overall: rollup(links, reportsOf, people, t0),
+    shareTargets: { women: shareTarget('womenPct'), children: shareTarget('childrenPct'), disabled: shareTarget('disabledPct') },
     totals: {
       indicators: allInds.length,
       achieved: count('Achieved'),
@@ -577,11 +610,35 @@ async function linkOptions(db, { projectId = '', current = {} } = {}) {
     const codeMap = codes(fw);
     const options = ordered(fw).filter((r) => r.level === 'output' || r.level === 'activity').map((r) => {
       const text = r.text.length > 90 ? `${r.text.slice(0, 88)}\u2026` : r.text;
-      return { value: `${fw.id}:${r.id}`, label: `${r.level === 'activity' ? '\u2003' : ''}${labelOf(fw, r, codeMap)}: ${text}` };
+      return {
+        value: `${fw.id}:${r.id}`, label: `${r.level === 'activity' ? '\u2003' : ''}${labelOf(fw, r, codeMap)}: ${text}`, text: r.text.slice(0, 300), level: r.level,
+      };
     });
     if (options.length) groups.push({ label: projects[fw.projectId] ? projects[fw.projectId].title : 'Project', options });
   }
   return groups;
+}
+
+/**
+ * What a work plan can draw from a logframe: every activity (and every output without activities), in
+ * logframe order, with its output and how many planned activities of the given plan already deliver it.
+ */
+function plannable(fw, plan = null) {
+  const codeMap = codes(fw);
+  const rows = ordered(fw);
+  const out = [];
+  let output = null;
+  for (const r of rows) {
+    if (r.level === 'output') output = r;
+    const isLeafOutput = r.level === 'output' && !rows.some((x) => x.parentId === r.id && x.level === 'activity');
+    if (r.level !== 'activity' && !isLeafOutput) continue;
+    const already = plan ? (plan.items || []).filter((it) => it.logframeId === fw.id && it.logframeResultId === r.id).length : 0;
+    out.push({
+      resultId: r.id, level: r.level, label: labelOf(fw, r, codeMap), text: r.text,
+      outputId: output ? output.id : '', outputLabel: output ? labelOf(fw, output, codeMap) : '', outputText: output ? output.text : '', already,
+    });
+  }
+  return out;
 }
 
 /** Short labels for linked planned activities: { "logframeId:resultId": "Activity 1.2.1: Community awareness-raising" }. */
@@ -753,6 +810,7 @@ const STATUS_LOOK = {
   'Below target': { cls: 'tag-warn', icon: 'exclamation-triangle' },
   'No target': { cls: 'tag-muted', icon: 'dash-circle' },
   'No data': { cls: 'tag-muted', icon: 'dash-circle' },
+  'No indicators': { cls: 'tag-muted', icon: 'dash-circle' },
 };
 const view = {
   status: (s) => STATUS_LOOK[s] || STATUS_LOOK['No data'],
@@ -769,6 +827,6 @@ module.exports = {
   names, getFramework, mustFramework, canChange, createFramework, readSettings, updateSettings, deleteFramework,
   ordered, codes, labelOf, getResult, readResult, validateResult, addResult, updateResult, deleteResult,
   getIndicator, readIndicator, validateIndicator, addIndicator, updateIndicator, deleteIndicator,
-  readValue, validateValue, addValue, deleteValue, progress, judge, timeElapsed, linkOptions, linkLabels,
-  parseRows, parseOutline, importOutline, exportRows, template, unlinkActivities, view,
+  readValue, validateValue, addValue, deleteValue, progress, judge, health, timeElapsed, linkOptions, linkLabels,
+  parseRows, parseOutline, importOutline, exportRows, template, unlinkActivities, plannable, view,
 };

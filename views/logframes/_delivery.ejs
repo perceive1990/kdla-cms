@@ -1,0 +1,27 @@
+<%
+  const o = prog.overall;
+  const st = prog.shareTargets;
+  const outputs = prog.results.filter((r) => r.level === 'output');
+  const curs = {};
+  for (const out of outputs) for (const [c, n] of Object.entries(out.rollup.budget)) curs[c] = (curs[c] || 0) + n;
+  const mainCur = Object.keys(curs).sort((a, b) => curs[b] - curs[a])[0];
+  const groups = [['Women and girls', o.women, st.women], ['Children (girls and boys)', o.children, st.children], ['Persons with disabilities', o.disabled, st.disabled]];
+%>
+<h3>Activities held, by output</h3>
+<% if (!outputs.length) { %><p class="small text-body-secondary mb-0">The logframe has no outputs yet.</p><% } %>
+<% for (const out of outputs) { const g = out.rollup; %>
+  <div class="lf-share">
+    <div class="lf-share-head"><span class="text-truncate" title="<%= out.text %>"><strong><%= out.code %></strong> <%= out.text %></span><span class="nowrap"><% if (g.planned) { %><strong><%= g.delivered %></strong> <span class="text-body-secondary">of <%= g.targetEvents %> held</span><% } else { %><span class="text-body-secondary">Not planned yet</span><% } %></span></div>
+    <% if (g.planned) { %>
+      <%- charts.bullet({ actual: g.delivered, target: g.targetEvents || null, title: out.label + ': activities held' }) %>
+      <div class="ig-note"><%= g.planned %> planned activit<%= g.planned === 1 ? 'y' : 'ies' %>, <%= charts.num(g.reach) %> people reached</div>
+    <% } else { %>
+      <div class="ig-note">No planned activity in a work plan delivers this output yet.</div>
+    <% } %>
+  </div>
+<% } %>
+<% if (mainCur) { %>
+  <h4 class="lf-subhead">Planned budget by output (<%= mainCur %>)</h4>
+  <%- charts.hbars(outputs.map((out) => ({ label: (out.code ? out.code + ' ' : '') + out.text, count: Math.round(out.rollup.budget[mainCur] || 0) })), { title: 'Planned budget by output in ' + mainCur, unit: mainCur, labelWidth: 170, width: 440 }) %>
+  <% if (Object.keys(curs).length > 1) { %><p class="ig-note mt-2 mb-0">Some planned activities use another currency: <%= lf.money(Object.fromEntries(Object.entries(curs).filter(([c]) => c !== mainCur))) %>.</p><% } %>
+<% } %>

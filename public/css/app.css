@@ -227,6 +227,132 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
   .lf-ind { font-size: 9pt; }
 }
 
+/* Logframe visuals: key figures, results chain, charts */
+.lf-tabs { margin-bottom: 1rem; }
+.lf-tabs .nav-link { color: var(--muted); }
+.lf-tabs .nav-link.active { color: var(--accent-text); font-weight: 600; }
+.lf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .75rem; }
+.lf-kpis .label i { color: var(--accent-text); margin-right: .15rem; }
+.lf-hero { font-size: 2.6rem; font-weight: 750; line-height: 1.05; color: var(--accent-text); margin: .15rem 0; }
+.lf-counts { list-style: none; padding: 0; margin: .4rem 0 0; display: flex; flex-wrap: wrap; gap: .25rem; }
+.lf-counts .tag { margin: 0; }
+.viz-target { stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.viz-expected { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.viz-bullet { height: 22px; }
+.rc-ind .viz-bullet { height: 12px; }
+.lf-charts { margin-top: .75rem; }
+.lf-share { margin-bottom: .85rem; }
+.lf-share-head { display: flex; justify-content: space-between; gap: .75rem; font-size: .88rem; margin-bottom: .2rem; }
+.lf-share-head > span:first-child { min-width: 0; }
+.ig-card { min-width: 0; }
+.lf-subhead { font-size: .9rem; font-weight: 650; margin: 1.1rem 0 .5rem; }
+.lf-legend { display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; align-items: center; }
+.lf-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.lf-bgroup + .lf-bgroup { margin-top: 1.1rem; }
+.lf-bgroup-head { font-size: .95rem; font-weight: 600; display: flex; flex-wrap: wrap; gap: .2rem .6rem; align-items: baseline; margin: 0 0 .3rem; }
+.lf-brow { display: grid; grid-template-columns: minmax(12rem, 2fr) minmax(8rem, 3fr) 9rem 9.5rem; gap: .35rem 1rem; align-items: center; padding: .55rem 0; border-top: 1px solid var(--line); }
+.lf-bname a { font-weight: 600; text-decoration: none; }
+.lf-bval { font-variant-numeric: tabular-nums; }
+@media (max-width: 767.98px) {
+  .lf-brow { grid-template-columns: 1fr auto; }
+  .lf-bname, .lf-bchart { grid-column: 1 / -1; }
+}
+
+/* Results chain: activities deliver outputs, outputs achieve the objectives (read from the bottom up) */
+.rc { font-size: .82rem; }
+.rc-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text); }
+.rc-text { margin: .15rem 0 .35rem; line-height: 1.35; }
+.rc-meta { display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: center; color: var(--muted); }
+.rc-meta .tag { margin: 0; }
+.rc-objective { border: 1px solid rgba(var(--accent-text-rgb), .35); border-left: 5px solid var(--accent-text); background: var(--accent-soft); border-radius: 10px; padding: .8rem 1rem; }
+.rc-objective .rc-text { font-size: .95rem; font-weight: 600; }
+.rc-cols { display: grid; gap: 1.5rem .75rem; margin-top: 1.6rem; grid-template-columns: minmax(0, 1fr); }
+.rc-col { display: flex; flex-direction: column; gap: 1.6rem; min-width: 0; }
+.rc-io { background: var(--accent-soft-strong); border-radius: 10px; padding: .7rem .85rem; }
+.rc-io .rc-text { font-weight: 600; }
+.rc-outs { display: grid; gap: 1.6rem .75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.rc-outcol { display: flex; flex-direction: column; gap: 1.6rem; min-width: 0; }
+.rc-out { background: var(--surface); border: 1px solid rgba(var(--accent-text-rgb), .4); border-radius: 10px; padding: .65rem .75rem; }
+.rc-acts { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.rc-act { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: .45rem .55rem; }
+.rc-act .rc-text { margin-bottom: .2rem; }
+.rc-act .progress-line { margin-top: .3rem; }
+.rc-act.is-empty { border-style: dashed; background: transparent; }
+.rc-act.is-empty .rc-text { color: var(--muted); }
+/* the arrows: each box points up to the level it contributes to */
+.rc-up { position: relative; }
+.rc-up::before { content: ""; position: absolute; left: 50%; top: -1.2rem; width: 2px; height: .75rem; background: var(--accent-text); transform: translateX(-50%); }
+.rc-up::after { content: ""; position: absolute; left: 50%; top: -1.45rem; transform: translateX(-50%); border: 6px solid transparent; border-bottom: 7px solid var(--accent-text); border-top: 0; }
+.rc-ind { margin-top: .45rem; }
+.rc-ind-name { font-size: .74rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rc-ind-row { display: flex; align-items: center; gap: .45rem; }
+.rc-ind-row .viz-bullet { flex: 1 1 auto; min-width: 2.5rem; }
+.rc-ind-val { white-space: nowrap; font-size: .74rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rc-more { margin-top: .3rem; color: var(--muted); font-size: .75rem; }
+@media (min-width: 1200px) {
+  .rc-wide .rc-cols { grid-template-columns: repeat(var(--rc-n), minmax(0, 1fr)); }
+  .rc-wide .rc-col { grid-column: span var(--rc-span); }
+  .rc-wide .rc-outs { grid-template-columns: repeat(var(--rc-span), minmax(0, 1fr)); }
+}
+
+/* Logframe infographic (printable) */
+.lf-ig .lf-kpis { margin-bottom: .75rem; }
+.lf-cols { columns: 2 22rem; column-gap: 2rem; }
+.lf-cols > h3 { column-span: all; }
+.lf-cols .lf-subhead { break-before: column; margin-top: 0; }
+.lf-cols .lf-share { break-inside: avoid; }
+.lf-ig .ig-card + .ig-card, .lf-ig .ig-grid + .ig-card, .lf-ig .ig-card + .ig-grid { margin-top: .75rem; }
+/* Logframe pages print on landscape A4, like a Theory of Change slide */
+@page lf-landscape { size: A4 landscape; margin: 10mm; }
+@media print {
+  .lf-ig, .lf-print { page: lf-landscape; }
+  .lf-panes > .tab-pane { display: block !important; opacity: 1 !important; }
+  .lf-panes > .tab-pane + .tab-pane { break-before: page; }
+  .lf-ig .lf-kpis, .lf-print .lf-kpis { grid-template-columns: repeat(4, 1fr); }
+  .lf-ig .ig-grid, .lf-print .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Let long sections flow across pages; keep each box, chart row and indicator whole. */
+  .lf-ig .ig-card, .lf-print .ig-card { break-inside: auto; }
+  .lf-ig .lf-charts, .lf-print .lf-charts { display: block; }
+  .lf-ig .lf-charts .ig-card + .ig-card, .lf-print .lf-charts .ig-card + .ig-card { margin-top: .6rem; }
+  .lf-ig .lf-ig-chain { break-before: page; break-inside: avoid; }
+  /* Without this, Chrome moves the lower part of a key figure (after its meter) onto the next page. */
+  .lf-kpis .stat { overflow: hidden; }
+  .rc-ind-name { -webkit-line-clamp: 1; }
+  .rc-ind { margin-top: .25rem; }
+  .rc-text { margin: .1rem 0 .2rem; }
+  .lf-ig .lf-ig-delivery { break-before: page; }
+  .lf-subhead, .lf-bgroup-head, .lf-legend { break-after: avoid; }
+  .rc { font-size: 7pt; }
+  .rc-cols { gap: 1rem .5rem; margin-top: 1.1rem; }
+  .rc-col, .rc-outcol { gap: 1.1rem; }
+  .rc-outs { gap: 1.1rem .5rem; }
+  .rc-up::before { top: -.85rem; height: .5rem; }
+  .rc-up::after { top: -1.05rem; }
+  .rc-objective, .rc-io, .rc-out, .rc-act { padding: .35rem .5rem; }
+  .rc-wide .rc-cols { grid-template-columns: repeat(var(--rc-n), minmax(0, 1fr)); }
+  .rc-wide .rc-col { grid-column: span var(--rc-span); }
+  .rc-wide .rc-outs { grid-template-columns: repeat(var(--rc-span), minmax(0, 1fr)); }
+  .lf-brow { grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) 7.5rem 8rem; }
+  .lf-brow .lf-bname, .lf-brow .lf-bchart { grid-column: auto; }
+  .rc-out, .rc-act, .rc-io, .lf-brow, .lf-share { break-inside: avoid; }
+  .rc-up::before, .rc-up::after, .rc-objective, .rc-io, .rc-out, .rc-act, .viz-bar, .viz-track { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .lf-hero { font-size: 22pt; }
+}
+
+/* Drawing planned activities from the logframe */
+.wp-pick { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.wp-pick-group { padding: .6rem 1rem; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: .88rem; }
+.wp-pick-row { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); }
+.wp-pick-row:last-child { border-bottom: 0; }
+.wp-pick-row.is-picked { background: var(--accent-soft); }
+.wp-pick-row.has-error { box-shadow: inset 4px 0 0 var(--bs-danger); }
+.wp-pick-row .form-check-input { margin-top: .2rem; }
+.wp-pick-row > label, .wp-pick-head { display: block; margin-bottom: .3rem; font-size: .85rem; }
+.wp-pick-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .5rem .75rem; margin-top: .5rem; }
+/* With the page script, the dates, targets and budget appear once a row is ticked */
+.js-pick .wp-pick-row:not(.is-picked) .wp-pick-fields { display: none; }
+.wp-pick-field span { display: block; font-size: .75rem; color: var(--muted); margin-bottom: .1rem; }
+
 /* Work plan activities: a table on wider screens, one card per activity on phones */
 .wp-table > tbody > tr > td { vertical-align: top; }
 .wp-table .wp-main { min-width: 15rem; }
@@ -395,7 +521,7 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .ig-wide { grid-column: 1 / -1; }
 .ig-big { font-size: 2.4rem; font-weight: 750; color: var(--accent-text); line-height: 1; margin-bottom: .5rem; }
 .ig-foot { margin-top: 1rem; color: var(--muted); font-size: .78rem; }
-@media (max-width: 767.98px) { .ig-grid { grid-template-columns: 1fr; } .infographic { padding: 1rem; } }
+@media (max-width: 767.98px) { .ig-grid { grid-template-columns: minmax(0, 1fr); } .infographic { padding: 1rem; } }
 @media print {
   .infographic { border: 0; padding: 0; max-width: none; }
   .ig-tiles { grid-template-columns: repeat(3, 1fr); }
