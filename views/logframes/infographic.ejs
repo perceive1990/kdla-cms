@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="/logframes">M&amp;E</a> / <a href="/logframes/<%= project.id %>"><%= project.title %></a></div>
+    <h1>Infographic</h1>
+    <p class="sub">The logframe's progress on one page, to print or save as PDF for donors, the board and partners</p>
+  </div>
+  <div class="d-flex gap-2"><button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button></div>
+</div>
+<article class="infographic lf-ig">
+  <header class="ig-head">
+    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <div>
+      <h2><%= project.title %>: results so far</h2>
+      <p><%= config.orgFullName %><%= project.donor ? ' · ' + project.donor : '' %> · <%= h.fmtDate(project.startDate) %> to <%= h.fmtDate(project.endDate) %> · as at <%= h.fmtDate(t0) %></p>
+    </div>
+  </header>
+  <%- include('_kpis') %>
+  <section class="ig-card lf-cols lf-ig-reach"><%- include('_reach') %></section>
+  <section class="ig-card lf-ig-chain">
+    <h3>How the activities contribute to the results</h3>
+    <%- include('_chain') %>
+  </section>
+  <section class="ig-card lf-cols lf-ig-delivery"><%- include('_delivery') %></section>
+  <section class="ig-card lf-ig-inds">
+    <h3>Indicators</h3>
+    <%- include('_bullets') %>
+  </section>
+  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(t0) %>. People reached counts different registered attendees plus head counts on the activity reports of the planned activities linked to the logframe. Counts are compared with the share of the project period that has passed; shares with their target.</footer>
+</article>
+<%- include('../partials/footer') %>

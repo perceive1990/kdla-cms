@@ -112,6 +112,57 @@
     });
   }
 
+  // Tabs: open the tab that holds the element a link or the address points to (for example #res-... on a logframe)
+  var showTabFor = function (id) {
+    var el = id ? document.getElementById(id) : null;
+    var pane = el ? el.closest('.tab-pane') : null;
+    if (!pane || pane.classList.contains('active') || !window.bootstrap) return false;
+    var btn = document.querySelector('[data-bs-target="#' + pane.id + '"]');
+    if (!btn) return false;
+    window.bootstrap.Tab.getOrCreateInstance(btn).show();
+    setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 180);
+    return true;
+  };
+  if (location.hash.length > 1) showTabFor(decodeURIComponent(location.hash.slice(1)));
+  window.addEventListener('hashchange', function () {
+    if (location.hash.length > 1) showTabFor(decodeURIComponent(location.hash.slice(1)));
+  });
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (link && link.getAttribute('href').length > 1 && showTabFor(link.getAttribute('href').slice(1))) {
+      e.preventDefault();
+      history.replaceState(null, '', link.getAttribute('href'));
+    }
+  });
+
+  // Drawing activities from the logframe: changing a row's fields ticks the row, and ticked rows stand out
+  document.querySelectorAll('[data-autotick]').forEach(function (list) {
+    var mark = function (row) {
+      var box = row.querySelector('input[type="checkbox"]');
+      row.classList.toggle('is-picked', Boolean(box && box.checked));
+    };
+    list.classList.add('js-pick');
+    list.querySelectorAll('[data-row]').forEach(mark);
+    list.addEventListener('change', function (e) {
+      var row = e.target.closest('[data-row]');
+      if (!row) return;
+      var box = row.querySelector('input[type="checkbox"]');
+      if (box && e.target !== box) box.checked = true;
+      mark(row);
+    });
+  });
+
+  // Planned activity form: choosing a logframe activity fills in an empty title
+  var lfPick = document.querySelector('select[data-fill-title]');
+  if (lfPick) {
+    lfPick.addEventListener('change', function () {
+      var opt = lfPick.options[lfPick.selectedIndex];
+      var title = document.getElementById('title');
+      var text = opt ? opt.getAttribute('data-title') : '';
+      if (title && text && !title.value) title.value = text;
+    });
+  }
+
   // Attendance register: add more rows
   var addRows = document.getElementById('add-rows');
   var bulk = document.getElementById('bulk-table');

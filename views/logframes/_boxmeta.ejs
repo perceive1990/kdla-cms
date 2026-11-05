@@ -1,0 +1,12 @@
+<% const look = lf.status(r.health); const g = r.rollup; %>
+<div class="rc-meta">
+  <span class="tag <%= look.cls %>"><i class="bi bi-<%= look.icon %>" aria-hidden="true"></i> <%= r.health %></span>
+  <% if (g.planned) { %><span><%= g.delivered %><%= g.targetEvents ? ' of ' + g.targetEvents : '' %> held · <%= charts.num(g.reach) %> reached</span><% } %>
+</div>
+<% for (const i of r.indicators.slice(0, 4)) { %>
+  <div class="rc-ind" title="<%= i.name %>">
+    <div class="rc-ind-name"><%= i.name %></div>
+    <div class="rc-ind-row"><%- charts.bullet({ actual: i.actual, target: i.target, expected: i.expected, unit: i.unit, title: i.name }, { width: 200, height: 12 }) %><span class="rc-ind-val"><%= i.actual === null ? 'no value' : lf.num(i.actual, i.unit) %><%= i.target !== null && i.target !== undefined ? ' / ' + lf.num(i.target, i.unit) : '' %></span></div>
+  </div>
+<% } %>
+<% if (r.indicators.length > 4) { %><div class="rc-more">and <%= r.indicators.length - 4 %> more indicators</div><% } %>

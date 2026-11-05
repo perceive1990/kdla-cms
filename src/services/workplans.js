@@ -303,6 +303,24 @@ async function addActivity(req, plan, v, { ifMatch } = {}) {
   return { plan: saved, item };
 }
 
+/** Add several planned activities at once, for example from the logframe. Nothing is saved if one has a problem. */
+async function addActivities(req, plan, list) {
+  mustEdit(req.user, plan);
+  const items = list.map((v) => ({ id: newId(), ...v }));
+  const saved = await savePlan(req.db, plan, (cur) => {
+    mustEdit(req.user, cur);
+    let next = nextNumber(cur);
+    for (const it of items) {
+      recheck(cur, { ...it, number: null }, null);
+      Object.assign(it, { number: next, updatedAt: now() });
+      next += 1;
+    }
+    return { ...cur, items: sortItems([...(cur.items || []), ...items]) };
+  });
+  audit(req, 'update', 'workplans', plan.id, `Work plan "${plan.title}": added ${items.length} planned activities from the logframe`);
+  return { plan: saved, items };
+}
+
 /**
  * Change a planned activity. `version` is the activity's updatedAt when the form was opened: if a
  * colleague changed this activity since, the save is refused (412) rather than overwriting their change.
@@ -474,6 +492,6 @@ const planUsers = (db, plan) => mapByIds(db, 'users', [plan.preparedById, plan.a
 
 module.exports = {
   DONE, readPlan, validatePlan, planQuery, getPlan, canEdit, canUpdateProgress, createPlan, updatePlan, setPlanStatus,
-  copyPlan, deletePlan, readActivity, validateActivity, nextNumber, getItem, addActivity, updateActivity,
+  copyPlan, deletePlan, readActivity, validateActivity, nextNumber, getItem, addActivity, addActivities, updateActivity,
   setActivityStatus, deleteActivity, progress, totalsFor, activityOptions, dueFor, planUsers, view, moveItems,
 };

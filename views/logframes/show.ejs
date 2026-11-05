@@ -7,6 +7,7 @@
   </div>
   <% if (fw) { %>
   <div class="d-flex flex-wrap gap-2 d-print-none">
+    <% if (prog.results.length) { %><a class="btn btn-primary" href="/logframes/<%= project.id %>/infographic"><i class="bi bi-easel" aria-hidden="true"></i> Infographic</a><% } %>
     <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
     <a class="btn btn-outline-secondary" href="/logframes/<%= project.id %>/export.csv"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
     <% if (admin) { %>
@@ -25,16 +26,6 @@
   </div></div>
 <% } else { %>
 <% const kidsOf = (id) => prog.results.filter((r) => (r.parentId || '') === id); const t = prog.totals; %>
-<div class="row g-3 mb-3">
-  <div class="col-6 col-lg"><div class="stat"><div class="label">Project time passed</div><div class="value"><%= prog.elapsed === null ? '' : prog.elapsed + '%' %></div>
-    <% if (prog.elapsed !== null) { %><div class="progress-line mt-1" role="img" aria-label="<%= prog.elapsed %>% of the project period has passed"><span style="width: <%= prog.elapsed %>%"></span></div><% } %></div></div>
-  <div class="col-6 col-lg"><div class="stat"><div class="label">Indicators achieved</div><div class="value"><%= t.achieved %> <small class="fs-6 fw-normal text-body-secondary">of <%= t.indicators %></small></div></div></div>
-  <div class="col-6 col-lg"><div class="stat"><div class="label">On track</div><div class="value"><%= t.onTrack %></div></div></div>
-  <div class="col-6 col-lg"><div class="stat<%= t.behind ? ' alert-stat' : '' %>"><div class="label">Behind or below target</div><div class="value"><%= t.behind %></div></div></div>
-  <div class="col-12 col-lg"><a class="stat" href="#unlinked"><div class="label">Planned activities linked</div><div class="value"><%= t.linked %></div>
-    <div class="small <%= t.unlinked ? 'text-danger-emphasis' : 'text-body-secondary' %>"><%= t.unlinked ? t.unlinked + ' in this project\'s work plans not linked' : 'All planned activities are linked' %></div></a></div>
-</div>
-
 <% if (!prog.results.length) { %>
   <div class="panel"><div class="empty"><i class="bi bi-diagram-3"></i>The logframe is empty.
     <% if (admin) { %>
@@ -44,8 +35,31 @@
       </div>
     <% } else { %> An administrator adds the objectives, outputs and indicators.<% } %>
   </div></div>
-<% } %>
-
+<% } else { %>
+<ul class="nav nav-tabs lf-tabs d-print-none" role="tablist">
+  <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-chain" data-bs-toggle="tab" data-bs-target="#pane-chain" type="button" role="tab" aria-controls="pane-chain" aria-selected="true"><i class="bi bi-diagram-3" aria-hidden="true"></i> Results chain</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-indicators" data-bs-toggle="tab" data-bs-target="#pane-indicators" type="button" role="tab" aria-controls="pane-indicators" aria-selected="false"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> Indicators</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-details" data-bs-toggle="tab" data-bs-target="#pane-details" type="button" role="tab" aria-controls="pane-details" aria-selected="false"><i class="bi bi-list-nested" aria-hidden="true"></i> Details<%= admin ? ' and editing' : '' %></button></li>
+</ul>
+<div class="tab-content lf-panes lf-print">
+<div class="tab-pane fade show active" id="pane-chain" role="tabpanel" aria-labelledby="tab-chain" tabindex="0">
+  <%- include('_kpis') %>
+  <% if (t.unlinked) { %>
+    <div class="callout mt-3"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <%= t.unlinked %> planned activit<%= t.unlinked === 1 ? 'y' : 'ies' %> in this project's work plans <%= t.unlinked === 1 ? 'is' : 'are' %> not linked to the logframe, so <%= t.unlinked === 1 ? 'it does' : 'they do' %> not count yet. <a href="#unlinked">See which</a>.</div>
+  <% } %>
+  <div class="panel mt-3"><div class="panel-body">
+    <div class="panel-head"><h2 class="panel-title">How the activities contribute to the results</h2><span class="small text-body-secondary d-none d-md-inline">Read from the bottom up: activities deliver outputs, outputs achieve the objectives</span></div>
+    <%- include('_chain') %>
+  </div></div>
+  <%- include('_charts') %>
+</div>
+<div class="tab-pane fade" id="pane-indicators" role="tabpanel" aria-labelledby="tab-indicators" tabindex="0">
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Progress towards the targets</h2>
+    <%- include('_bullets') %>
+  </div></div>
+</div>
+<div class="tab-pane fade" id="pane-details" role="tabpanel" aria-labelledby="tab-details" tabindex="0">
 <% for (const top of kidsOf('')) { %>
   <% if (top.level === 'objective') { %>
   <section class="panel lf-block lf-objective" id="res-<%= top.id %>">
@@ -107,6 +121,9 @@
   </div>
 </section>
 <% if (fw.notes) { %><div class="panel"><div class="panel-body"><h2 class="panel-title">Notes</h2><p class="prose mb-0"><%= fw.notes %></p></div></div><% } %>
+</div>
+</div>
 <p class="small text-body-secondary mt-2">Counts are judged against the share of the project period that has passed (on track when no more than 10 points behind it); shares such as the percentage of women are judged against their target. People reached counts different registered attendees plus head counts on the linked activity reports.</p>
+<% } %>
 <% } %>
 <%- include('../partials/footer') %>

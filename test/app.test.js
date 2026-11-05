@@ -858,9 +858,10 @@ test('M&E: logframe import, planned activities linked to it, automatic and recor
 
   // A planned activity of a work plan for the project links to the logframe activity
   r = await a.post('/workplans', { title: 'Copperbelt plan', periodStart: today(-30), periodEnd: today(60), projectId: pid, currency: 'ZMW' }, '/workplans/new');
-  const planId = idFrom(r.location);
+  assert.match(r.location, /\/from-logframe$/, 'a plan for a project with a logframe starts by drawing from it');
+  const planId = r.location.split('/')[2];
   r = await a.req(`/workplans/${planId}/activities/new`);
-  assert.match(r.text, /Contributes to \(logframe\)/);
+  assert.match(r.text, /<label class="form-label" for="logframeResult">Logframe activity<\/label>/);
   assert.match(r.text, new RegExp(`value="${pid}:${awareness.id}"`));
   r = await a.post(`/workplans/${planId}/activities`, { title: 'Wrong link', status: 'Not started', logframeResult: `${pid}:${fw.results[0].id}` }, `/workplans/${planId}/activities/new`);
   assert.strictEqual(r.status, 400);
@@ -963,4 +964,91 @@ test('M&E: logframe import, planned activities linked to it, automatic and recor
     r = await o.req(p);
     assert.strictEqual(r.status, 200, `${p} -> ${r.status}`);
   }
+});
+
+test('work plans draw their activities from the logframe; the logframe shows charts and an infographic', async () => {
+  const a = ctx.admin;
+  let r = await a.post('/admin/projects', {
+    title: 'Legal desks project', donor: 'DIHR', startDate: today(-30), endDate: today(330), budget: '1000', currency: 'ZMW',
+  }, '/admin/projects/new');
+  const pid = (await db().find('projects', { where: { title: 'Legal desks project' } }))[0].id;
+  await a.post(`/logframes/${pid}`, {}, '/logframes');
+  r = await a.post(`/logframes/${pid}/import`, {
+    outline: [
+      'Overall objective,,Access to justice expanded',
+      'Intermediate objective,,Strengthened paralegal legal desks',
+      'Output,,5 community legal desks are operational',
+      'Indicator,,Legal desks operational,Number,0,5,Supervision reports,',
+      'Activity,,Support community legal desks financially',
+      'Activity,,Train paralegals in managing cases from women and children',
+      'Output,,Community members reached',
+      'Indicator,,People reached,Number,0,200,Registers,People reached',
+    ].join('\n'),
+  }, `/logframes/${pid}/import`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const fw = await db().get('logframes', pid);
+  const support = fw.results.find((x) => x.text.startsWith('Support community'));
+  const reachOutput = fw.results.find((x) => x.text === 'Community members reached');
+
+  r = await a.post('/workplans', { title: 'Desks plan', periodStart: today(-10), periodEnd: today(80), projectId: pid, currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  r = await a.req(`/workplans/${planId}/from-logframe`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Activity 1\.1\.1/);
+  assert.match(r.text, /Activity 1\.1\.2/);
+  assert.match(r.text, /Output 1\.2/, 'an output without activities can be planned too');
+  const rowOf = (resultId) => [...r.text.matchAll(/name="rows\[(\d+)\]\[resultId\]" value="([^"]+)"/g)].find((m) => m[2] === resultId)[1];
+  const iSupport = rowOf(support.id);
+  const iReach = rowOf(reachOutput.id);
+  const form = await a.req(`/workplans/${planId}/from-logframe`);
+  assert.ok(form.text.includes('data-autotick'));
+  r = await a.post(`/workplans/${planId}/from-logframe`, { [`rows[${iSupport}][resultId]`]: support.id }, `/workplans/${planId}/from-logframe`);
+  assert.strictEqual(r.status, 302, 'nothing ticked');
+  assert.strictEqual((await db().get('workplans', planId)).items.length, 0);
+  const row = (i, resultId, extra) => Object.fromEntries(Object.entries({
+    resultId, add: 'on', title: '', startDate: today(-10), endDate: today(80), targetEvents: '1', ...extra,
+  }).map(([k, v]) => [`rows[${i}][${k}]`, v]));
+  r = await a.post(`/workplans/${planId}/from-logframe`, { ...row(iSupport, support.id, { title: 'Monthly support to the Kitwe desk', endDate: today(200), targetEvents: '3' }) }, `/workplans/${planId}/from-logframe`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /within the plan period/);
+  r = await a.post(`/workplans/${planId}/from-logframe`, {
+    ...row(iSupport, support.id, { title: 'Monthly support to the Kitwe desk', targetEvents: '3', budget: '4500', responsibleId: await userId('officer3') }),
+    ...row(iReach, reachOutput.id, { title: 'Radio programme on legal aid', targetPeople: '200' }),
+  }, `/workplans/${planId}/from-logframe`);
+  assert.strictEqual(r.status, 302, r.text.slice(0, 400));
+  const plan = await db().get('workplans', planId);
+  assert.deepStrictEqual(plan.items.map((it) => [it.number, it.title, it.logframeResultId]), [
+    [1, 'Monthly support to the Kitwe desk', support.id], [2, 'Radio programme on legal aid', reachOutput.id],
+  ]);
+  assert.strictEqual(plan.items[0].budget, 4500);
+  r = await a.req(`/workplans/${planId}/from-logframe`);
+  assert.match(r.text, /already once in this plan/);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /Add from the logframe/);
+  r = await a.req(`/workplans/${planId}/activities/new`);
+  assert.match(r.text, /data-fill-title/);
+
+  // A report for the first activity, then the visual logframe
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Desk support visit', date: today(-2), introduction: 'Intro', objectives: 'Objectives',
+    implementation: 'Implementation', otherParticipants: '12', compiledById: await userId('admin'), workplanItem: `${planId}:${plan.items[0].id}`,
+  }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  r = await a.req(`/logframes/${pid}`);
+  assert.strictEqual(r.status, 200);
+  for (const part of ['Results chain', 'class="rc-objective"', 'How the activities contribute to the results', 'Who the activities reached', 'Activities held, by output', 'class="viz viz-bullet"', 'Progress towards the targets']) {
+    assert.ok(r.text.includes(part), `logframe page shows ${part}`);
+  }
+  assert.match(r.text, /1 of 3 held/);
+  r = await a.req(`/logframes/${pid}/infographic`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Legal desks project: results so far/);
+  assert.match(r.text, /class="viz viz-bullet"/);
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  r = await o.req(`/logframes/${pid}/infographic`);
+  assert.strictEqual(r.status, 200, 'everyone can open the infographic');
+  await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
+  r = await o.req(`/workplans/${planId}/from-logframe`);
+  assert.strictEqual(r.status, 302, 'officers cannot add activities to an approved plan');
 });

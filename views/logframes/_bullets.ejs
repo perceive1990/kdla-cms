@@ -1,0 +1,26 @@
+<% const withInds = prog.results.filter((x) => x.indicators.length); %>
+<% if (!withInds.length) { %>
+  <div class="panel"><div class="empty"><i class="bi bi-bar-chart"></i>No indicators yet.<% if (admin) { %> Add them under Details, or import the logframe with its indicators.<% } %></div></div>
+<% } else { %>
+<p class="lf-legend small text-body-secondary">
+  <span><svg width="26" height="10" aria-hidden="true"><rect class="viz-bar" x="0" y="1" width="26" height="8" rx="4"/></svg> value now</span>
+  <span><svg width="10" height="14" aria-hidden="true"><line class="viz-target" x1="5" x2="5" y1="0" y2="14"/></svg> target</span>
+  <span><svg width="10" height="14" aria-hidden="true"><line class="viz-expected" x1="5" x2="5" y1="0" y2="14"/></svg> where a count should be by now</span>
+</p>
+<% for (const r of withInds) { %>
+<section class="lf-bgroup">
+  <h3 class="lf-bgroup-head"><span class="lf-label"><%= r.label %></span> <span><%= r.text %></span></h3>
+  <% for (const i of r.indicators) { const look = lf.status(i.status); %>
+  <div class="lf-brow">
+    <div class="lf-bname">
+      <a href="/logframes/<%= project.id %>/indicators/<%= i.id %>"><%= i.name %></a>
+      <div class="small text-body-secondary"><%= i.automatic ? SOURCES[i.source].short + ', worked out automatically' : (i.asAt ? 'Recorded, as at ' + h.fmtDate(i.asAt) : 'Recorded by staff, no value yet') %></div>
+    </div>
+    <div class="lf-bchart"><%- charts.bullet({ actual: i.actual, target: i.target, expected: i.expected, unit: i.unit, title: i.name }) %></div>
+    <div class="lf-bval"><strong><%= i.actual === null ? 'No value' : lf.num(i.actual, i.unit) %></strong><% if (i.target !== null && i.target !== undefined) { %> <span class="text-body-secondary">of <%= lf.num(i.target, i.unit) %></span><% } %><% if (i.pct !== null) { %><div class="small text-body-secondary"><%= i.pct %>% of the way</div><% } %></div>
+    <div class="lf-bstatus"><span class="tag <%= look.cls %> nowrap"><i class="bi bi-<%= look.icon %>" aria-hidden="true"></i> <%= i.status %></span></div>
+  </div>
+  <% } %>
+</section>
+<% } %>
+<% } %>

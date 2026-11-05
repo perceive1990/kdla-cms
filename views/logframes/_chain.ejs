@@ -1,0 +1,54 @@
+<%
+  const kids = (id) => prog.results.filter((r) => (r.parentId || '') === id);
+  const objective = prog.results.find((r) => r.level === 'objective');
+  const ios = objective ? kids(objective.id) : prog.results.filter((r) => r.level === 'outcome' && !r.parentId);
+  const columns = ios.reduce((n, io) => n + Math.max(1, kids(io.id).length), 0);
+%>
+<div class="rc<%= columns <= 6 ? ' rc-wide' : '' %>" style="--rc-n: <%= Math.max(1, columns) %>">
+  <% if (objective) { %>
+  <div class="rc-objective">
+    <div class="rc-label"><%= objective.label %></div>
+    <div class="rc-text"><%= objective.text %></div>
+    <%- include('_boxmeta', { r: objective }) %>
+  </div>
+  <% } %>
+  <div class="rc-cols">
+    <% for (const io of ios) { const outs = kids(io.id); %>
+    <div class="rc-col" style="--rc-span: <%= Math.max(1, outs.length) %>">
+      <div class="rc-io rc-up">
+        <div class="rc-label"><%= io.label %></div>
+        <div class="rc-text"><%= io.text %></div>
+        <%- include('_boxmeta', { r: io }) %>
+      </div>
+      <% if (outs.length) { %>
+      <div class="rc-outs">
+        <% for (const out of outs) { const acts = kids(out.id); %>
+        <div class="rc-outcol">
+          <div class="rc-out rc-up">
+            <div class="rc-label"><%= out.label %></div>
+            <div class="rc-text"><%= out.text %></div>
+            <%- include('_boxmeta', { r: out }) %>
+          </div>
+          <ul class="rc-acts rc-up">
+            <% for (const a of acts) { const g = a.rollup; const pct = g.targetEvents ? Math.min(100, Math.round((g.delivered / g.targetEvents) * 100)) : null; %>
+            <li class="rc-act<%= g.planned ? '' : ' is-empty' %>">
+              <div class="rc-label"><%= a.label %></div>
+              <div class="rc-text"><%= a.text %></div>
+              <% if (g.planned) { %>
+                <div class="rc-meta"><span><%= g.delivered %><%= g.targetEvents ? ' of ' + g.targetEvents : '' %> held</span><span><%= charts.num(g.reach) %> reached</span></div>
+                <% if (pct !== null) { %><div class="progress-line" role="img" aria-label="<%= pct %>% of the planned times held"><span style="width: <%= pct %>%"></span></div><% } %>
+              <% } else { %>
+                <div class="rc-meta"><span><i class="bi bi-calendar-x" aria-hidden="true"></i> Not in a work plan yet</span></div>
+              <% } %>
+            </li>
+            <% } %>
+            <% if (!acts.length) { %><li class="rc-act is-empty"><div class="rc-meta"><span>No activities listed</span></div></li><% } %>
+          </ul>
+        </div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>

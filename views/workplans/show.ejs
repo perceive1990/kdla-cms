@@ -20,6 +20,7 @@
     <form method="post" action="/workplans/<%= plan.id %>/copy"><%- f.hidden(csrfToken) %><button class="btn btn-outline-secondary" type="submit" title="Start a new draft with the same activities"><i class="bi bi-copy"></i> Copy</button></form>
     <% if (canEdit) { %>
       <a class="btn btn-outline-primary" href="/workplans/<%= plan.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+      <% if (draw) { %><a class="btn btn-outline-primary" href="/workplans/<%= plan.id %>/from-logframe"><i class="bi bi-diagram-3" aria-hidden="true"></i> Add from the logframe</a><% } %>
       <a class="btn btn-primary" href="/workplans/<%= plan.id %>/activities/new"><i class="bi bi-plus-lg"></i> Add activity</a>
     <% } %>
   </div>
@@ -58,7 +59,14 @@
 <% } %>
 
 <% if (!items.length) { %>
-  <div class="panel"><div class="empty"><i class="bi bi-list-check"></i>No planned activities yet.<% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/new">Add the first activity</a>.<% } %></div></div>
+  <div class="panel"><div class="empty"><i class="bi bi-list-check"></i>No planned activities yet.
+    <% if (canEdit) { %>
+      <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+        <% if (draw) { %><a class="btn btn-primary" href="/workplans/<%= plan.id %>/from-logframe"><i class="bi bi-diagram-3" aria-hidden="true"></i> Add the activities from the logframe</a><% } %>
+        <a class="btn btn-outline-primary" href="/workplans/<%= plan.id %>/activities/new"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add an activity</a>
+      </div>
+    <% } %>
+  </div></div>
 <% } else { %>
 <div class="table-wrap">
   <table class="table wp-table">
