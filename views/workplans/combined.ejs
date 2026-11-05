@@ -1,13 +1,15 @@
 <%- include('../partials/header', { printLandscape: true }) %>
-<% const who = (id) => (data.users[id] ? (data.users[id].fullName || data.users[id].username) : '');
+<% const sb = opts.showBudget;
+   const who = (id) => (data.users[id] ? (data.users[id].fullName || data.users[id].username) : '');
    const money = (b, cur) => (b && b[cur] ? wp.money(b[cur]) : '');
-   const qs = new URLSearchParams({ from: opts.from, to: opts.to, ...(opts.projectId ? { projectId: opts.projectId } : {}), ...(opts.includeDrafts ? { drafts: '1' } : {}) }).toString();
-   const curs = data.currencies.length ? data.currencies : ['ZMW']; %>
+   const qs = new URLSearchParams({ from: opts.from, to: opts.to, ...(opts.projectId ? { projectId: opts.projectId } : {}), ...(opts.includeDrafts ? { drafts: '1' } : {}), ...(sb ? { budget: '1' } : {}) }).toString();
+   // Without the budget (the default, for external sharing) no budget figure is written into the page at all.
+   const curs = !sb ? [] : (data.currencies.length ? data.currencies : ['ZMW']); %>
 <div class="page-head d-print-none">
   <div>
     <div class="crumbs"><a href="/workplans">Work plans</a></div>
     <h1>Combined work plan</h1>
-    <p class="sub">The work plans of all offices in one plan, with the budget, to print, save as PDF or share with stakeholders</p>
+    <p class="sub">The work plans of all offices in one plan, to print, save as PDF or share with stakeholders</p>
   </div>
   <div class="d-flex flex-wrap gap-2">
     <button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button>
@@ -24,14 +26,16 @@
   </select>
   <% } %>
   <label class="form-check small mb-0"><input class="form-check-input" type="checkbox" name="drafts" value="1"<%= opts.includeDrafts ? ' checked' : '' %>> Include draft plans</label>
+  <label class="form-check small mb-0"><input class="form-check-input" type="checkbox" name="budget" value="1"<%= sb ? ' checked' : '' %>> Show the budget (internal use only)</label>
   <button class="btn btn-outline-primary" type="submit">Show</button>
 </form>
 
+<div class="callout mb-3 d-print-none"><i class="bi bi-<%= sb ? 'exclamation-triangle' : 'shield-check' %>" aria-hidden="true"></i> <%= sb ? 'This version shows the budget. It is for internal use: do not share it with external people.' : 'This version leaves out all budget amounts, so you can share it with external people. Tick "Show the budget" for the internal version.' %></div>
 <article class="wp-doc">
   <header class="ig-head">
     <img src="/static/images/logo.png" alt="" width="64" height="54">
     <div>
-      <h2>Combined work plan, <%= h.fmtDate(opts.from) %> to <%= h.fmtDate(opts.to) %></h2>
+      <h2>Combined work plan, <%= h.fmtDate(opts.from) %> to <%= h.fmtDate(opts.to) %><% if (sb) { %> <span class="wp-internal">Internal: includes budget</span><% } %></h2>
       <p><%= config.orgFullName %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : ' · all projects' %> · <%= data.groups.length %> office<%= data.groups.length === 1 ? '' : 's' %> · <%= opts.includeDrafts ? 'approved, closed and draft plans' : 'approved and closed plans' %> · as at <%= h.fmtDate(t0) %></p>
     </div>
   </header>
@@ -50,21 +54,21 @@
 
   <div class="wp-doc-two">
     <section>
-      <h3 class="wp-doc-h">Budget by office</h3>
+      <h3 class="wp-doc-h"><%= sb ? 'Budget by office' : 'Activities by office' %></h3>
       <div class="table-wrap"><table class="table wp-print">
-        <thead><tr><th scope="col">Office</th><th scope="col" class="text-end">Activities</th><th scope="col" class="text-end">Times planned</th><th scope="col" class="text-end">People to reach</th><% for (const c of curs) { %><th scope="col" class="text-end">Budget (<%= c %>)</th><% } %><th scope="col" class="text-end">Share</th></tr></thead>
+        <thead><tr><th scope="col">Office</th><th scope="col" class="text-end">Activities</th><th scope="col" class="text-end">Times planned</th><th scope="col" class="text-end">People to reach</th><% for (const c of curs) { %><th scope="col" class="text-end">Budget (<%= c %>)</th><% } %><% if (sb) { %><th scope="col" class="text-end">Share</th><% } %></tr></thead>
         <tbody>
-        <% const main = curs[0]; const grand = data.total.budget[main] || 0; %>
+        <% const main = curs[0]; const grand = sb ? data.total.budget[main] || 0 : 0; %>
         <% for (const g of data.groups) { const share = grand ? Math.round(((g.budget[main] || 0) / grand) * 100) : null; %>
           <tr><th scope="row"><%= g.office %></th><td class="text-end"><%= g.activities %></td><td class="text-end"><%= g.targetEvents %></td><td class="text-end"><%= g.targetPeople.toLocaleString('en-GB') %></td><% for (const c of curs) { %><td class="text-end nowrap"><%= money(g.budget, c) %></td><% } %>
-            <td class="text-end"><% if (share !== null) { %><span class="wp-share"><span class="wp-share-bar"><span style="width: <%= share %>%"></span></span><%= share %>%</span><% } %></td></tr>
+            <% if (sb) { %><td class="text-end"><% if (share !== null) { %><span class="wp-share"><span class="wp-share-bar"><span style="width: <%= share %>%"></span></span><%= share %>%</span><% } %></td><% } %></tr>
         <% } %>
         </tbody>
-        <tfoot><tr><th scope="row">Total</th><td class="text-end fw-semibold"><%= data.total.activities %></td><td class="text-end fw-semibold"><%= data.total.targetEvents %></td><td class="text-end fw-semibold"><%= data.total.targetPeople.toLocaleString('en-GB') %></td><% for (const c of curs) { %><td class="text-end fw-semibold nowrap"><%= money(data.total.budget, c) || '0' %></td><% } %><td></td></tr></tfoot>
+        <tfoot><tr><th scope="row">Total</th><td class="text-end fw-semibold"><%= data.total.activities %></td><td class="text-end fw-semibold"><%= data.total.targetEvents %></td><td class="text-end fw-semibold"><%= data.total.targetPeople.toLocaleString('en-GB') %></td><% for (const c of curs) { %><td class="text-end fw-semibold nowrap"><%= money(data.total.budget, c) || '0' %></td><% } %><% if (sb) { %><td></td><% } %></tr></tfoot>
       </table></div>
     </section>
     <section>
-      <h3 class="wp-doc-h">Budget by project</h3>
+      <h3 class="wp-doc-h"><%= sb ? 'Budget by project' : 'Activities by project' %></h3>
       <div class="table-wrap"><table class="table wp-print">
         <thead><tr><th scope="col">Project</th><th scope="col" class="text-end">Activities</th><% for (const c of curs) { %><th scope="col" class="text-end">Budget (<%= c %>)</th><% } %></tr></thead>
         <tbody>
@@ -81,10 +85,10 @@
     <h3 class="wp-doc-h"><%= g.office %> <span class="wp-p-sub fw-normal">· <%= g.plans.map((p) => p.title).join('; ') %></span></h3>
     <% if (!g.rows.length) { %><p class="wp-p-sub">No planned activities in this period.</p><% } else { %>
     <div class="table-wrap"><table class="table wp-print">
-      <colgroup><col class="c-no"><col class="c-act"><col class="c-where"><col class="c-who"><col class="c-when"><col class="c-n"><col class="c-n"><col class="c-budget"><col class="c-status"></colgroup>
+      <colgroup><col class="c-no"><col class="c-act"><col class="c-where"><col class="c-who"><col class="c-when"><col class="c-n"><col class="c-n"><% if (sb) { %><col class="c-budget"><% } %><col class="c-status"></colgroup>
       <thead><tr>
         <th scope="col" class="text-end">No.</th><th scope="col">Activity and logframe link</th><th scope="col">Venue and district</th><th scope="col">Responsible</th><th scope="col">Dates</th>
-        <th scope="col" class="text-end">Times</th><th scope="col" class="text-end">People to reach</th><th scope="col" class="text-end">Budget</th><th scope="col">Status</th>
+        <th scope="col" class="text-end">Times</th><th scope="col" class="text-end">People to reach</th><% if (sb) { %><th scope="col" class="text-end">Budget</th><% } %><th scope="col">Status</th>
       </tr></thead>
       <tbody>
       <% for (const { plan, item: it, currency } of g.rows) { const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; %>
@@ -100,12 +104,12 @@
           <td class="nowrap"><%= wp.span(it, plan) %></td>
           <td class="text-end"><%= it.targetEvents ?? '' %></td>
           <td class="text-end"><%= it.targetPeople ? it.targetPeople.toLocaleString('en-GB') : '' %></td>
-          <td class="text-end nowrap"><%= it.budget !== null && it.budget !== undefined ? currency + ' ' + wp.money(it.budget) : '' %></td>
+          <% if (sb) { %><td class="text-end nowrap"><%= it.budget !== null && it.budget !== undefined ? currency + ' ' + wp.money(it.budget) : '' %></td><% } %>
           <td><%= it.status %></td>
         </tr>
       <% } %>
       </tbody>
-      <tfoot><tr><th scope="row" colspan="5" class="text-end"><%= g.office %> total</th><td class="text-end fw-semibold"><%= g.targetEvents %></td><td class="text-end fw-semibold"><%= g.targetPeople.toLocaleString('en-GB') %></td><td class="text-end fw-semibold nowrap"><%= curs.filter((c) => g.budget[c]).map((c) => c + ' ' + money(g.budget, c)).join('; ') || '0' %></td><td></td></tr></tfoot>
+      <tfoot><tr><th scope="row" colspan="5" class="text-end"><%= g.office %> total</th><td class="text-end fw-semibold"><%= g.targetEvents %></td><td class="text-end fw-semibold"><%= g.targetPeople.toLocaleString('en-GB') %></td><% if (sb) { %><td class="text-end fw-semibold nowrap"><%= curs.filter((c) => g.budget[c]).map((c) => c + ' ' + money(g.budget, c)).join('; ') || '0' %></td><% } %><td></td></tr></tfoot>
     </table></div>
     <% } %>
   </section>
@@ -115,6 +119,6 @@
     <div><div class="wp-sign-line"></div><div>Prepared by</div><div class="wp-p-sub">Name, signature and date</div></div>
     <div><div class="wp-sign-line"></div><div>Approved by</div><div class="wp-p-sub">Name, signature and date</div></div>
   </section>
-  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(t0) %>. Includes the planned activities of <%= opts.includeDrafts ? 'all' : 'approved and closed' %> work plans whose period overlaps <%= h.fmtDate(opts.from) %> to <%= h.fmtDate(opts.to) %>; cancelled activities and activities dated outside the period are left out. Budgets are in the currency of each plan.</footer>
+  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(t0) %>. Includes the planned activities of <%= opts.includeDrafts ? 'all' : 'approved and closed' %> work plans whose period overlaps <%= h.fmtDate(opts.from) %> to <%= h.fmtDate(opts.to) %>; cancelled activities and activities dated outside the period are left out.<%= sb ? ' Budgets are in the currency of each plan.' : '' %></footer>
 </article>
 <%- include('../partials/footer') %>
