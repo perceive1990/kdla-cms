@@ -861,18 +861,21 @@ test('M&E: logframe import, planned activities linked to it, automatic and recor
   assert.match(r.location, /\/from-logframe$/, 'a plan for a project with a logframe starts by drawing from it');
   const planId = r.location.split('/')[2];
   r = await a.req(`/workplans/${planId}/activities/new`);
-  assert.match(r.text, /<label class="form-label" for="logframeResult">Logframe activity<\/label>/);
+  assert.match(r.text, /<label class="form-label" for="logframeResult">Logframe activity \*<\/label>/);
   assert.match(r.text, new RegExp(`value="${pid}:${awareness.id}"`));
   r = await a.post(`/workplans/${planId}/activities`, { title: 'Wrong link', status: 'Not started', logframeResult: `${pid}:${fw.results[0].id}` }, `/workplans/${planId}/activities/new`);
   assert.strictEqual(r.status, 400);
-  assert.match(r.text, /Choose an output or an activity of the logframe/);
+  assert.match(r.text, /Choose an activity of this project&#39;s logframe/);
   r = await a.post(`/workplans/${planId}/activities`, {
     title: 'Awareness meetings in Mufulira', status: 'In progress', targetEvents: '2', targetPeople: '100', logframeResult: `${pid}:${awareness.id}`,
   }, `/workplans/${planId}/activities/new`);
   assert.strictEqual(r.status, 302, r.text.slice(0, 300));
   r = await a.post(`/workplans/${planId}/activities`, { title: 'Office planning meeting', status: 'Not started' }, `/workplans/${planId}/activities/new`);
-  assert.strictEqual(r.status, 302);
+  assert.strictEqual(r.status, 400, 'activities of this plan must come from the logframe');
+  // One added before the logframe existed (written straight to the database) stays unlinked
   let plan = await db().get('workplans', planId);
+  await db().replace('workplans', { ...plan, items: [...plan.items, { id: 'office-meeting', number: 5, title: 'Office planning meeting', status: 'Not started' }] });
+  plan = await db().get('workplans', planId);
   const linkedItem = plan.items.find((it) => it.title === 'Awareness meetings in Mufulira');
   assert.strictEqual(linkedItem.logframeResultId, awareness.id);
   r = await a.req(`/workplans/${planId}`);
@@ -1051,4 +1054,28 @@ test('work plans draw their activities from the logframe; the logframe shows cha
   await a.post(`/workplans/${planId}/status`, { status: 'Approved' }, `/workplans/${planId}`);
   r = await o.req(`/workplans/${planId}/from-logframe`);
   assert.strictEqual(r.status, 302, 'officers cannot add activities to an approved plan');
+
+  // Activities in a plan for a project with a logframe must come from that logframe
+  await a.post(`/workplans/${planId}/status`, { status: 'Draft' }, `/workplans/${planId}`);
+  r = await a.req(`/workplans/${planId}/activities/new`);
+  assert.match(r.text, /Choose the logframe activity/);
+  assert.match(r.text, /<select[^>]+id="logframeResult"[^>]+required/);
+  const deskOutput = fw.results.find((x) => x.text.startsWith('5 community legal desks'));
+  assert.ok(!r.text.includes(`value="${pid}:${deskOutput.id}"`), 'an output with activities is not offered');
+  const base = { title: 'Extra desk visit', startDate: today(-5), endDate: today(5), status: 'Not started' };
+  r = await a.post(`/workplans/${planId}/activities`, base, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Activities in work plans for this project come from its logframe/);
+  r = await a.post(`/workplans/${planId}/activities`, { ...base, logframeResult: `${pid}:${deskOutput.id}` }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Choose an activity of this project&#39;s logframe/);
+  r = await a.post(`/workplans/${planId}/activities`, { ...base, logframeResult: `${pid}:${support.id}` }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().get('workplans', planId)).items.length, 3);
+  // An activity added before the rule (here written straight to the database) is flagged on the plan
+  const cur = await db().get('workplans', planId);
+  await db().replace('workplans', { ...cur, items: [...cur.items, { id: 'old-one', number: 9, title: 'Older activity', status: 'Not started' }] });
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /1 planned activity does not come from the project logframe/);
+  assert.match(r.text, /Not from the logframe/);
 });

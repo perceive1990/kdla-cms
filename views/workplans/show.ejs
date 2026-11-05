@@ -54,6 +54,9 @@
   <div class="col-12 col-lg"><div class="stat<%= totals.overdue ? ' alert-stat' : '' %>"><div class="label">Overdue activities</div><div class="value"><%= totals.overdue %></div></div></div>
 </div>
 
+<% if (offPlan.size) { %>
+<div class="callout mb-3 d-print-none"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <%= offPlan.size %> planned activit<%= offPlan.size === 1 ? 'y does' : 'ies do' %> not come from the project logframe. Activities in this plan must come from it: edit <%= offPlan.size === 1 ? 'it' : 'each one' %> and choose its logframe activity, or cancel <%= offPlan.size === 1 ? 'it' : 'them' %>.</div>
+<% } %>
 <% if (plan.notes) { %>
 <div class="panel"><div class="panel-body"><h2 class="panel-title">Purpose and notes</h2><p class="mb-0 prose"><%= plan.notes %></p></div></div>
 <% } %>
@@ -82,6 +85,7 @@
           <div class="cell-strong"><%= it.title %></div>
           <% if (it.activityType || it.district) { %><div class="small text-body-secondary"><%= [it.activityType, it.district].filter(Boolean).join(' · ') %></div><% } %>
           <% if (it.output) { %><div class="small"><i class="bi bi-flag" aria-hidden="true"></i> <%= it.output %></div><% } %>
+          <% if (offPlan.has(it.id)) { %><div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Not from the logframe</span><% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/<%= it.id %>/edit">Choose its logframe activity</a><% } %></div><% } %>
           <% const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; if (lfl) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <a href="<%= lfl.href %>" title="<%= lfl.text %>"><%= lfl.label %></a><span class="text-body-secondary">: <%= lfl.text.length > 70 ? lfl.text.slice(0, 68) + '\u2026' : lfl.text %></span></div><% } %>
           <% if (it.reports.length) { %>
             <div class="small mt-1">

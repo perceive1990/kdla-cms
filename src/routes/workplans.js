@@ -90,8 +90,10 @@ router.get('/:id', async (req, res) => {
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
   const lfLabels = await logframes.linkLabels(req.db, plan.items);
   const draw = svc.canEdit(req.user, plan) && await canDraw(req.db, plan);
+  const lfRequired = await svc.requiredFramework(req.db, plan);
+  const offPlan = svc.notFromLogframe(plan, lfRequired);
   res.render('workplans/show', {
-    title: plan.title, plan, items, totals, users, project, lfLabels, draw,
+    title: plan.title, plan, items, totals, users, project, lfLabels, draw, lfRequired: Boolean(lfRequired), offPlan: new Set(offPlan.map((it) => it.id)),
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
   });
 });
@@ -249,11 +251,12 @@ router.post('/:id/from-logframe', async (req, res) => {
 // ---------- Planned activities ----------
 async function activityForm(req, res, plan, values, errors, isNew, status = 200) {
   const { users } = await lists(req.db);
-  const lfGroups = await logframes.linkOptions(req.db, { projectId: plan.projectId, current: values });
+  const lfRequired = Boolean(await svc.requiredFramework(req.db, plan));
+  const lfGroups = await logframes.linkOptions(req.db, { projectId: plan.projectId, current: values, onlyPlannable: lfRequired });
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
   const logframeResult = values.logframeId ? `${values.logframeId}:${values.logframeResultId || ''}` : '';
   res.status(status).render('workplans/activity-form', {
-    title: isNew ? 'Add planned activity' : 'Edit planned activity', plan, values: { ...values, logframeResult }, errors, isNew, users, lfGroups, project,
+    title: isNew ? 'Add planned activity' : 'Edit planned activity', plan, values: { ...values, logframeResult }, errors, isNew, users, lfGroups, lfRequired, project,
   });
 }
 

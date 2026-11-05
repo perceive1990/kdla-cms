@@ -14,9 +14,9 @@
     <h2 class="panel-title">Activity</h2>
     <% if (lfGroups.length) { const lfErr = errors.logframeResultId; %>
     <div class="col-12">
-      <label class="form-label" for="logframeResult">Logframe activity</label>
-      <select class="form-select<%= lfErr ? ' is-invalid' : '' %>" id="logframeResult" name="logframeResult" data-fill-title aria-describedby="<%= lfErr ? 'logframeResult-error ' : '' %>logframeResult-help"<%= lfErr ? ' aria-invalid="true"' : '' %>>
-        <option value="">Not linked to the logframe</option>
+      <label class="form-label" for="logframeResult">Logframe activity<%= lfRequired ? ' *' : '' %></label>
+      <select class="form-select<%= lfErr ? ' is-invalid' : '' %>" id="logframeResult" name="logframeResult" data-fill-title aria-describedby="<%= lfErr ? 'logframeResult-error ' : '' %>logframeResult-help"<%- lfErr ? ' aria-invalid="true"' : '' %><%= lfRequired ? ' required' : '' %>>
+        <option value=""><%= lfRequired ? 'Choose the logframe activity' : 'Not linked to the logframe' %></option>
         <% for (const g of lfGroups) { %>
           <optgroup label="<%= g.label %>">
             <% for (const o of g.options) { %><option value="<%= o.value %>" data-title="<%= o.text %>"<%= values.logframeResult === o.value ? ' selected' : '' %>><%= o.label %></option><% } %>
@@ -24,7 +24,7 @@
         <% } %>
       </select>
       <% if (lfErr) { %><div class="invalid-feedback d-block" id="logframeResult-error"><%= lfErr %></div><% } %>
-      <div class="form-text" id="logframeResult-help">The logframe activity (or output) this planned activity delivers. Its activity reports then count towards that result under M&amp;E. Choosing one fills in an empty title.</div>
+      <div class="form-text" id="logframeResult-help"><% if (lfRequired) { %>Activities in work plans for <%= project ? project.title : 'this project' %> come from its logframe. Its activity reports then count towards that result under M&amp;E. Choosing one fills in an empty title.<% } else { %>The logframe activity (or output) this planned activity delivers. Its activity reports then count towards that result under M&amp;E. Choosing one fills in an empty title.<% } %></div>
     </div>
     <% } else if (project) { %>
     <div class="col-12"><p class="small text-body-secondary mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> <%= project.title %> has no logframe yet, so this activity cannot be linked to an output. An administrator sets it up under <a href="/logframes">M&amp;E</a>.</p></div>
