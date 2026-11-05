@@ -1,0 +1,57 @@
+<%- include('../partials/header') %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="/logframes">M&amp;E</a> / <a href="/logframes/<%= project.id %>"><%= project.title %></a></div>
+    <h1>Logframe matrix</h1>
+    <p class="sub">The whole logframe as a table on landscape A4, to print or save as PDF</p>
+  </div>
+  <div class="d-flex gap-2"><button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button></div>
+</div>
+<article class="lf-matrix-doc">
+  <header class="ig-head">
+    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <div>
+      <h2><%= project.title %>: logframe</h2>
+      <p><%= config.orgFullName %><%= project.donor ? ' · ' + project.donor : '' %> · <%= h.fmtDate(project.startDate) %> to <%= h.fmtDate(project.endDate) %> · as at <%= h.fmtDate(t0) %></p>
+    </div>
+  </header>
+  <% if (!prog.results.length) { %>
+    <div class="panel"><div class="empty">The logframe is empty.</div></div>
+  <% } else { %>
+  <div class="table-wrap">
+  <table class="table lf-matrix">
+    <colgroup><col class="c-result"><col class="c-ind"><col class="c-num"><col class="c-num"><col class="c-num"><col class="c-status"><col class="c-means"></colgroup>
+    <thead><tr>
+      <th scope="col">Result</th><th scope="col">Indicators</th><th scope="col" class="text-end">Baseline</th><th scope="col" class="text-end">Target</th><th scope="col" class="text-end">Actual</th><th scope="col">Status</th><th scope="col">Means of verification</th>
+    </tr></thead>
+    <% for (const r of prog.results) { const inds = r.indicators; const span = Math.max(1, inds.length); const g = r.rollup; %>
+    <tbody class="lf-m-<%= r.level %>">
+      <% for (let k = 0; k < span; k++) { const i = inds[k]; %>
+      <tr>
+        <% if (k === 0) { %>
+        <th scope="row" rowspan="<%= span %>" class="lf-m-result">
+          <span class="lf-label"><%= r.label %></span>
+          <div class="lf-m-text"><%= r.text %></div>
+          <% if (r.level === 'activity' || g.planned) { %><div class="lf-m-delivery"><%= g.planned ? `Held ${g.delivered}${g.targetEvents ? ' of ' + g.targetEvents : ''} times · ${charts.num(g.reach)} people reached` : 'Not in a work plan yet' %></div><% } %>
+        </th>
+        <% } %>
+        <% if (i) { const look = lf.status(i.status); %>
+          <td><%= i.name %></td>
+          <td class="text-end"><%= lf.num(i.baseline, i.unit) %></td>
+          <td class="text-end"><%= lf.num(i.target, i.unit) %></td>
+          <td class="text-end fw-semibold"><%= lf.num(i.actual, i.unit) %></td>
+          <td><span class="tag <%= look.cls %> nowrap"><i class="bi bi-<%= look.icon %>" aria-hidden="true"></i> <%= i.status %></span></td>
+          <td><%= i.means || (i.automatic ? SOURCES[i.source].label : '') %><%= i.frequency ? ' (' + i.frequency + ')' : '' %></td>
+        <% } else { %>
+          <td colspan="6" class="text-body-secondary">No indicators</td>
+        <% } %>
+      </tr>
+      <% } %>
+    </tbody>
+    <% } %>
+  </table>
+  </div>
+  <% } %>
+  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(t0) %>. Actual values come from the activity reports and attendance registers of the planned activities linked to the logframe, or from values recorded by staff. Counts are compared with the share of the project period that has passed; shares with their target.</footer>
+</article>
+<%- include('../partials/footer') %>

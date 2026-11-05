@@ -304,8 +304,28 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .lf-ig .ig-card + .ig-card, .lf-ig .ig-grid + .ig-card, .lf-ig .ig-card + .ig-grid { margin-top: .75rem; }
 /* Logframe pages print on landscape A4, like a Theory of Change slide */
 @page lf-landscape { size: A4 landscape; margin: 10mm; }
+/* Logframe matrix */
+.lf-matrix { font-size: .875rem; }
+.lf-matrix .c-result { width: 30%; } .lf-matrix .c-ind { width: 24%; } .lf-matrix .c-num { width: 7%; } .lf-matrix .c-status { width: 10%; } .lf-matrix .c-means { width: 15%; }
+.lf-matrix thead th { position: sticky; top: 0; background: var(--bs-body-bg); }
+.lf-matrix td, .lf-matrix th { vertical-align: top; }
+.lf-matrix tbody { border-top: 2px solid var(--bs-border-color); }
+.lf-m-result { font-weight: normal; }
+.lf-m-text { margin-top: .15rem; }
+.lf-m-objective .lf-m-result, .lf-m-outcome .lf-m-result { background: rgba(var(--accent-rgb), .08); }
+.lf-m-objective .lf-m-text { font-weight: 700; } .lf-m-outcome .lf-m-text, .lf-m-output .lf-m-text { font-weight: 600; }
+.lf-m-activity .lf-m-result { padding-left: 1.5rem; }
+.lf-m-delivery { margin-top: .25rem; font-size: .8em; color: var(--bs-secondary-color); }
+.lf-matrix-doc .ig-head { margin-bottom: .75rem; }
+@media (max-width: 767.98px) { .lf-matrix { min-width: 52rem; } }
 @media print {
-  .lf-ig, .lf-print { page: lf-landscape; }
+  /* Pages that carry the logframe print entirely on landscape A4, from the title to the footnote */
+  body.print-landscape, .lf-ig, .lf-print { page: lf-landscape; }
+  .lf-matrix { font-size: 7.5pt; }
+  .lf-matrix thead { display: table-header-group; }
+  .lf-matrix thead th { position: static; }
+  .lf-matrix tr { break-inside: avoid; }
+  .lf-matrix .table-wrap, .lf-matrix-doc .table-wrap { overflow: visible; }
   .lf-panes > .tab-pane { display: block !important; opacity: 1 !important; }
   .lf-panes > .tab-pane + .tab-pane { break-before: page; }
   .lf-ig .lf-kpis, .lf-print .lf-kpis { grid-template-columns: repeat(4, 1fr); }

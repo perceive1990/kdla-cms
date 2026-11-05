@@ -76,7 +76,7 @@ router.get('/:projectId', async (req, res) => {
   const prog = await svc.progress(req.db, fw, project);
   const users = await mapByIds(req.db, 'users', [...prog.results.flatMap((r) => r.direct.map((d) => d.item.responsibleId))]);
   return res.render('logframes/show', {
-    title: `${project.title} logframe`, project, fw, prog, admin, names: svc.names(fw), users, lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(),
+    title: `${project.title} logframe`, project, fw, prog, admin, names: svc.names(fw), users, lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(), printLandscape: true,
   });
 });
 
@@ -85,7 +85,16 @@ router.get('/:projectId/infographic', async (req, res) => {
   const { project, fw } = await load(req);
   const prog = await svc.progress(req.db, fw, project);
   res.render('logframes/infographic', {
-    title: `${project.title} infographic`, project, fw, prog, admin: isAdmin(req.user), names: svc.names(fw), lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(),
+    title: `${project.title} infographic`, project, fw, prog, admin: isAdmin(req.user), names: svc.names(fw), lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(), printLandscape: true,
+  });
+});
+
+/** The classic logframe matrix: one row per indicator, printed on landscape A4. */
+router.get('/:projectId/matrix', async (req, res) => {
+  const { project, fw } = await load(req);
+  const prog = await svc.progress(req.db, fw, project);
+  res.render('logframes/matrix', {
+    title: `${project.title} logframe matrix`, project, fw, prog, lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(), printLandscape: true,
   });
 });
 
