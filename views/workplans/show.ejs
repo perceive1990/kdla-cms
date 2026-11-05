@@ -89,10 +89,11 @@
           <% if (offPlan.has(it.id)) { %><div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Not from the logframe</span><% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/<%= it.id %>/edit">Choose its logframe activity</a><% } %></div><% } %>
           <% const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; if (lfl) { %><div class="small"><i class="bi bi-bullseye" aria-hidden="true"></i> <a href="<%= lfl.href %>" title="<%= lfl.text %>"><%= lfl.label %></a><span class="text-body-secondary">: <%= lfl.text.length > 70 ? lfl.text.slice(0, 68) + '\u2026' : lfl.text %></span></div><% } %>
           <% if (it.reports.length) { %>
-            <div class="small mt-1">
-              <span class="text-body-secondary">Reports:</span>
-              <% for (const r of it.reports) { %><a class="me-2 nowrap" href="/reports/<%= r.id %>"><%= h.fmtDate(r.date) %></a><% } %>
-            </div>
+            <ul class="wp-reports">
+              <% for (const r of it.reports) { %><li><i class="bi bi-journal-text" aria-hidden="true"></i> <a href="/reports/<%= r.id %>"><%= h.fmtDate(r.date) %>: <%= r.heading.length > 60 ? r.heading.slice(0, 58) + '\u2026' : r.heading %></a></li><% } %>
+            </ul>
+          <% } else if (it.status === 'Completed') { %>
+            <div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Completed without an activity report</span> <a class="d-print-none" href="/reports/new?workplanItem=<%= plan.id %>:<%= it.id %>">Write it now</a></div>
           <% } %>
           <%- include('_actions', { it, label, cls: 'd-none d-md-flex' }) %>
         </td>
@@ -112,7 +113,7 @@
             <form method="post" action="/workplans/<%= plan.id %>/activities/<%= it.id %>/progress" class="d-print-none">
               <%- f.hidden(csrfToken) %>
               <select class="form-select form-select-sm status-select" name="status" aria-label="Status of <%= label %>" data-autosubmit>
-                <% for (const s of choices.workplanActivityStatuses) { %><option<%= it.status === s ? ' selected' : '' %>><%= s %></option><% } %>
+                <% for (const s of choices.workplanActivityStatuses) { const locked = s === 'Completed' && !it.reports.length && it.status !== 'Completed'; %><option value="<%= s %>"<%= it.status === s ? ' selected' : '' %><%= locked ? ' disabled' : '' %>><%= locked ? 'Completed (write the report first)' : s %></option><% } %>
               </select>
               <noscript><button class="btn btn-sm btn-outline-primary mt-1" type="submit">Save</button></noscript>
             </form>
@@ -127,6 +128,27 @@
     </tbody>
   </table>
 </div>
-<p class="small text-body-secondary mt-2">Delivered counts the activity reports linked to each activity. People adds up their registered attendees and head counts. Link a report with "Write report", or choose the work plan activity on the report form.</p>
+<% const allReports = items.flatMap((it) => it.reports.map((r) => ({ r, it }))).sort((x, y) => String(y.r.date).localeCompare(String(x.r.date))); %>
+<section class="panel mt-3" id="reports">
+  <div class="panel-body">
+    <div class="panel-head">
+      <h2 class="panel-title">Activity reports for this plan (<%= allReports.length %>)</h2>
+      <% if (allReports.length) { %><a class="small d-print-none" href="/reports?workplanId=<%= plan.id %>">Open them in Activity reports</a><% } %>
+    </div>
+    <% if (!allReports.length) { %>
+      <p class="text-body-secondary mb-0">No activity reports yet. Use "Write report" on an activity; an activity can be marked Completed once its report is written.</p>
+    <% } else { %>
+    <div class="table-wrap"><table class="table table-sm mb-0">
+      <thead><tr><th>Date</th><th>Report</th><th>Planned activity</th><th class="text-end">People</th></tr></thead>
+      <tbody>
+      <% for (const { r, it } of allReports) { %>
+        <tr><td class="nowrap"><%= h.fmtDate(r.date) %></td><td><a href="/reports/<%= r.id %>"><%= r.heading %></a></td><td><%= Number.isInteger(it.number) ? it.number + '. ' : '' %><%= it.title %></td><td class="text-end"><%= ((r.attendeeIds || []).length + (r.otherParticipants || 0)).toLocaleString('en-GB') %></td></tr>
+      <% } %>
+      </tbody>
+    </table></div>
+    <% } %>
+  </div>
+</section>
+<p class="small text-body-secondary mt-2">An activity can only be marked Completed once at least one activity report is linked to it. Delivered counts the activity reports linked to each activity. People adds up their registered attendees and head counts. Link a report with "Write report", or choose the work plan activity on the report form.</p>
 <% } %>
 <%- include('../partials/footer') %>

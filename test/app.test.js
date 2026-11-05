@@ -1167,3 +1167,47 @@ test('a combined work plan brings together the plans of all offices, with their 
   r = await o.req('/workplans/combined?from=2031-01-01&to=2031-03-31');
   assert.strictEqual(r.status, 200, 'every colleague can open the combined plan');
 });
+
+test('an activity can be marked Completed only once its activity report is written; the plan lists its reports', async () => {
+  const a = ctx.admin;
+  let r = await a.post('/workplans', { title: 'Evidence plan', periodStart: '2032-01-01', periodEnd: '2032-12-31', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  r = await a.post(`/workplans/${planId}/activities`, { title: 'Evidence meeting', status: 'Completed' }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 400, 'a new activity cannot start as Completed');
+  assert.match(r.text, /Write the activity report first/);
+  r = await a.post(`/workplans/${planId}/activities`, { title: 'Evidence meeting', status: 'In progress' }, `/workplans/${planId}/activities/new`);
+  assert.strictEqual(r.status, 302);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /<option value="Completed" disabled>Completed \(write the report first\)<\/option>/);
+  assert.match(r.text, /Activity reports for this plan \(0\)/);
+  r = await a.post(`/workplans/${planId}/activities/${itemId}/progress`, { status: 'Completed' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().get('workplans', planId)).items[0].status, 'In progress', 'no report, so it stays In progress');
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /Write the activity report first/);
+  r = await a.post(`/workplans/${planId}/activities/${itemId}`, { title: 'Evidence meeting', status: 'Completed', _version: (await db().get('workplans', planId)).items[0].updatedAt }, `/workplans/${planId}/activities/${itemId}/edit`);
+  assert.strictEqual(r.status, 400, 'nor through the edit form');
+
+  // The report is written, so the activity can be completed
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Evidence meeting at Ndeke hall', date: '2032-02-02', introduction: 'Intro', objectives: 'Objectives',
+    implementation: 'Implementation', otherParticipants: '20', compiledById: await userId('admin'), workplanItem: `${planId}:${itemId}`,
+  }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  const reportId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities/${itemId}/progress`, { status: 'Completed' }, `/workplans/${planId}`);
+  assert.strictEqual((await db().get('workplans', planId)).items[0].status, 'Completed');
+  r = await a.req(`/workplans/${planId}`);
+  assert.ok(r.text.includes(`href="/reports/${reportId}"`), 'the report opens from the activity');
+  assert.match(r.text, /Activity reports for this plan \(1\)/);
+  assert.match(r.text, new RegExp(`href="/reports\\?workplanId=${planId}"`));
+  r = await a.req(`/reports?workplanId=${planId}`);
+  assert.match(r.text, /Evidence meeting at Ndeke hall/);
+
+  // An activity completed before the rule, without a report, is flagged
+  const cur = await db().get('workplans', planId);
+  await db().replace('workplans', { ...cur, items: [...cur.items, { id: 'old-done', number: 2, title: 'Older completed activity', status: 'Completed' }] });
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /Completed without an activity report/);
+});

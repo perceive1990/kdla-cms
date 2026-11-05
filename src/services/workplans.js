@@ -318,6 +318,7 @@ function recheck(cur, v, itemId) {
 
 async function addActivity(req, plan, v, { ifMatch } = {}) {
   mustEdit(req.user, plan);
+  await mustHaveReport(req.db, plan, null, '', v.status);
   const item = { id: newId(), ...v };
   const saved = await savePlan(req.db, plan, (cur) => {
     mustEdit(req.user, cur);
@@ -332,6 +333,7 @@ async function addActivity(req, plan, v, { ifMatch } = {}) {
 /** Add several planned activities at once, for example from the logframe. Nothing is saved if one has a problem. */
 async function addActivities(req, plan, list) {
   mustEdit(req.user, plan);
+  for (const v of list) await mustHaveReport(req.db, plan, null, '', v.status);
   const items = list.map((v) => ({ id: newId(), ...v }));
   const saved = await savePlan(req.db, plan, (cur) => {
     mustEdit(req.user, cur);
@@ -353,7 +355,7 @@ async function addActivities(req, plan, list) {
  */
 async function updateActivity(req, plan, itemId, v, { ifMatch, version } = {}) {
   mustEdit(req.user, plan);
-  getItem(plan, itemId);
+  await mustHaveReport(req.db, plan, itemId, getItem(plan, itemId).status, v.status);
   let item;
   const saved = await savePlan(req.db, plan, (cur) => {
     mustEdit(req.user, cur);
@@ -367,6 +369,17 @@ async function updateActivity(req, plan, itemId, v, { ifMatch, version } = {}) {
   return { plan: saved, item };
 }
 
+/**
+ * An activity can be marked Completed only once an activity report has been written for it, so every
+ * completed activity has its evidence. Activities that were already Completed keep that status.
+ */
+const NEEDS_REPORT = 'Write the activity report first. An activity can only be marked Completed once at least one activity report is linked to it.';
+async function mustHaveReport(db, plan, itemId, oldStatus, newStatus) {
+  if (newStatus !== 'Completed' || oldStatus === 'Completed') return;
+  const n = itemId ? await db.count('reports', { where: { workplanId: plan.id, workplanItemId: itemId } }) : 0;
+  if (!n) throw invalid({ status: NEEDS_REPORT });
+}
+
 /** Progress update: anyone may change the status of an activity while the plan is not closed. */
 async function setActivityStatus(req, plan, itemId, status, { ifMatch } = {}) {
   const closed = () => forbidden('This work plan is closed. An administrator can reopen it.');
@@ -374,6 +387,7 @@ async function setActivityStatus(req, plan, itemId, status, { ifMatch } = {}) {
   if (!choices.workplanActivityStatuses.includes(status)) throw invalid({ status: 'Select a valid status.' });
   const old = getItem(plan, itemId);
   if (old.status === status) return { plan, item: old };
+  await mustHaveReport(req.db, plan, itemId, old.status, status);
   let item;
   const saved = await savePlan(req.db, plan, (cur) => {
     if (!canUpdateProgress(req.user, cur)) throw closed();
