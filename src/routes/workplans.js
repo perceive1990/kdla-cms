@@ -144,6 +144,7 @@ router.get('/:id', async (req, res) => {
   res.render('workplans/show', {
     title: plan.title, plan, items, totals, users, project, lfLabels, draw, lfRequired: Boolean(lfRequired), offPlan: new Set(offPlan.map((it) => it.id)),
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
+    canReport: require('../services/reports').canWriteFor(req.user, plan.office),
   });
 });
 

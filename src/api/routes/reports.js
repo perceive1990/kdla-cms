@@ -18,6 +18,7 @@ router.get('/reports', async (req, res) => {
 
 router.post('/reports', async (req, res) => {
   const v = svc.readReport({ date: today(), compiledById: req.user.id, ...req.body });
+  await svc.settleOffice(req, v);
   h.failIfInvalid(await svc.validateReport(req.db, v));
   const doc = await svc.createReport(req, v, []);
   h.sendOne(res, out(doc), 201, `${h.BASE}/reports/${doc.id}`);
@@ -32,6 +33,7 @@ router.patch('/reports/:id', async (req, res) => {
     const r = await svc.getReport(req.db, req.params.id);
     h.checkIfMatch(req, r);
     const v = svc.readReport({ ...r, ...req.body });
+    await svc.settleOffice(req, v, r);
     h.failIfInvalid(await svc.validateReport(req.db, v));
     return svc.updateReport(req, r, v, { ifMatch: r._etag });
   });

@@ -83,8 +83,9 @@ test.before(async () => {
   await db().init();
   await runMigrations(db());
   await ensureBootstrapAdmin(db());
-  await createUser(db(), { username: 'officer1', password: 'officer-password-1', fullName: 'Mwila Banda' });
-  await createUser(db(), { username: 'officer2', password: 'officer-password-2', fullName: 'Chanda Phiri' });
+  { const [adm] = await db().find('users', { where: { role: 'admin' } }); if (adm) await db().replace('users', { ...adm, office: 'Kitwe Main Office' }); }
+  await createUser(db(), { username: 'officer1', password: 'officer-password-1', fullName: 'Mwila Banda', office: 'Fisenge Office' });
+  await createUser(db(), { username: 'officer2', password: 'officer-password-2', fullName: 'Chanda Phiri', office: 'Fisenge Office' });
   server = createApp().listen(0);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -566,7 +567,7 @@ test('administrators manage the districts and offices lists', async () => {
   r = await ctx.admin.req('/reports/new');
   assert.match(r.text, /Mufulira District/);
   assert.ok(!r.text.includes('<option value="Lufwanyama District"'), 'removed districts are no longer offered');
-  await createUser(db(), { username: 'officer3', password: 'officer-password-3', fullName: 'List Tester' });
+  await createUser(db(), { username: 'officer3', password: 'officer-password-3', fullName: 'List Tester', office: 'Fisenge Office' });
   const o = new Client();
   await o.login('officer3', 'officer-password-3');
   r = await o.req('/admin/lists');
@@ -1210,4 +1211,70 @@ test('an activity can be marked Completed only once its activity report is writt
   await db().replace('workplans', { ...cur, items: [...cur.items, { id: 'old-done', number: 2, title: 'Older completed activity', status: 'Completed' }] });
   r = await a.req(`/workplans/${planId}`);
   assert.match(r.text, /Completed without an activity report/);
+});
+
+test('staff write activity reports only for their own office', async () => {
+  const a = ctx.admin;
+  await createUser(db(), { username: 'kakolo1', password: 'kakolo-password-1', fullName: 'Kakolo Officer', office: 'Kakolo Office' });
+  await createUser(db(), { username: 'fisenge1', password: 'fisenge-password-1', fullName: 'Fisenge Officer', office: 'Fisenge Office' });
+  await createUser(db(), { username: 'nooffice', password: 'nooffice-password-1', fullName: 'No Office' });
+  const k = new Client();
+  await k.login('kakolo1', 'kakolo-password-1');
+  const f = new Client();
+  await f.login('fisenge1', 'fisenge-password-1');
+  let r = await a.post('/workplans', { title: 'Fisenge office plan', periodStart: '2033-01-01', periodEnd: '2033-12-31', office: 'Fisenge Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, { title: 'Fisenge meeting', status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  const base = {
+    activityType: 'Community Meeting', heading: 'Office rule meeting', date: '2033-02-02', introduction: 'Intro', objectives: 'Objectives', implementation: 'Implementation',
+  };
+
+  // Kakolo staff cannot write for the Fisenge plan
+  r = await k.req(`/workplans/${planId}`);
+  assert.ok(!r.text.includes(`/reports/new?workplanItem=${planId}:${itemId}`), 'no Write report button for another office');
+  assert.match(r.text, /Only staff of Fisenge Office write the activity reports of this plan; you are in Kakolo Office/);
+  r = await k.req(`/reports/new?workplanItem=${planId}:${itemId}`);
+  assert.strictEqual(r.status, 302);
+  r = await k.req(`/workplans/${planId}`);
+  assert.match(r.text, /Only staff of Fisenge Office can write or change its activity reports/);
+  r = await k.post('/reports', { ...base, compiledById: await userId('kakolo1'), workplanItem: `${planId}:${itemId}` }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().find('reports', { where: { heading: 'Office rule meeting' } })).length, 0, 'nothing saved');
+  r = await k.req('/reports/new');
+  assert.ok(!r.text.includes(`value="${planId}:${itemId}"`), 'other offices\' activities are not offered');
+  assert.match(r.text, /Office:<\/span> <strong>Kakolo Office<\/strong>/);
+
+  // Fisenge staff can; the report belongs to Fisenge Office, whatever office is sent
+  r = await f.req(`/workplans/${planId}`);
+  assert.ok(r.text.includes(`/reports/new?workplanItem=${planId}:${itemId}`));
+  r = await f.post('/reports', { ...base, office: 'Kakolo Office', compiledById: await userId('fisenge1'), workplanItem: `${planId}:${itemId}` }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  const reportId = r.location.split('/')[2];
+  assert.strictEqual((await db().get('reports', reportId)).office, 'Fisenge Office');
+
+  // Kakolo staff can read it but not change it or add its register
+  r = await k.req(`/reports/${reportId}`);
+  assert.strictEqual(r.status, 200);
+  assert.ok(!r.text.includes(`/reports/${reportId}/edit`));
+  for (const path of [`/reports/${reportId}/edit`, `/reports/${reportId}/attendees`]) {
+    r = await k.req(path);
+    assert.strictEqual(r.status, 302, `${path} is refused`);
+  }
+  r = await k.post(`/reports/${reportId}`, { ...base, heading: 'Changed by Kakolo', compiledById: await userId('kakolo1') }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().get('reports', reportId)).heading, 'Office rule meeting', 'not changed');
+
+  // Staff without an office write no reports; administrators write for any office
+  const n = new Client();
+  await n.login('nooffice', 'nooffice-password-1');
+  r = await n.req('/reports/new');
+  assert.strictEqual(r.status, 302);
+  r = await a.req('/reports/new');
+  assert.match(r.text, /<select[^>]+id="office"/);
+  r = await a.post('/reports', { ...base, heading: 'Admin for Kakolo', office: 'Kakolo Office', compiledById: await userId('admin') }, '/reports/new');
+  assert.strictEqual(r.status, 302);
+  r = await a.req('/reports?office=Kakolo+Office');
+  assert.match(r.text, /Admin for Kakolo/);
+  assert.ok(!r.text.includes('Office rule meeting'), 'the office filter works');
 });

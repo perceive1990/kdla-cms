@@ -3,12 +3,14 @@
   <div>
     <div class="crumbs d-print-none"><a href="/reports">Activity reports</a></div>
     <h1><%= r.heading %></h1>
-    <p class="sub"><%= r.activityType %> · <%= h.fmtDate(r.date) %><%= r.location ? ' · ' + r.location : '' %><%= r.district ? ' · ' + r.district : '' %><%= r.activityNumber ? ' · Activity ' + r.activityNumber : '' %></p>
+    <p class="sub"><%= office ? office + ' · ' : '' %><%= r.activityType %> · <%= h.fmtDate(r.date) %><%= r.location ? ' · ' + r.location : '' %><%= r.district ? ' · ' + r.district : '' %><%= r.activityNumber ? ' · Activity ' + r.activityNumber : '' %></p>
   </div>
   <div class="d-flex gap-2 d-print-none">
     <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
+    <% if (canWrite) { %>
     <a class="btn btn-outline-primary" href="/reports/<%= r.id %>/attendees"><i class="bi bi-person-lines-fill"></i> Add attendance register</a>
     <a class="btn btn-primary" href="/reports/<%= r.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
+    <% } %>
   </div>
 </div>
 

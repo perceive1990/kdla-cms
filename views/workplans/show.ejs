@@ -57,6 +57,9 @@
 <% if (offPlan.size) { %>
 <div class="callout mb-3 d-print-none"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <%= offPlan.size %> planned activit<%= offPlan.size === 1 ? 'y does' : 'ies do' %> not come from the project logframe. Activities in this plan must come from it: edit <%= offPlan.size === 1 ? 'it' : 'each one' %> and choose its logframe activity, or cancel <%= offPlan.size === 1 ? 'it' : 'them' %>.</div>
 <% } %>
+<% if (!canReport && plan.office) { %>
+<div class="alert alert-secondary d-print-none small py-2"><i class="bi bi-building" aria-hidden="true"></i> Only staff of <%= plan.office %> write the activity reports of this plan<%= user && user.office ? '; you are in ' + user.office : '' %>. You can read its reports.</div>
+<% } %>
 <% if (plan.notes) { %>
 <div class="panel"><div class="panel-body"><h2 class="panel-title">Purpose and notes</h2><p class="mb-0 prose"><%= plan.notes %></p></div></div>
 <% } %>
@@ -93,7 +96,7 @@
               <% for (const r of it.reports) { %><li><i class="bi bi-journal-text" aria-hidden="true"></i> <a href="/reports/<%= r.id %>"><%= h.fmtDate(r.date) %>: <%= r.heading.length > 60 ? r.heading.slice(0, 58) + '\u2026' : r.heading %></a></li><% } %>
             </ul>
           <% } else if (it.status === 'Completed') { %>
-            <div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Completed without an activity report</span> <a class="d-print-none" href="/reports/new?workplanItem=<%= plan.id %>:<%= it.id %>">Write it now</a></div>
+            <div class="small"><span class="tag tag-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Completed without an activity report</span> <a class="d-print-none<%= canReport ? '' : ' d-none' %>" href="/reports/new?workplanItem=<%= plan.id %>:<%= it.id %>">Write it now</a></div>
           <% } %>
           <%- include('_actions', { it, label, cls: 'd-none d-md-flex' }) %>
         </td>

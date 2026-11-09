@@ -469,7 +469,7 @@ async function totalsFor(db, plans, t0 = today()) {
 
 /** Planned activities a report can be linked to (plans that are not closed, plus the current link). */
 async function activityOptions(db, current = {}) {
-  const plans = await db.find('workplans', { fields: ['id', 'title', 'status', 'items', 'periodStart', 'projectId'], orderBy: ['periodStart', 'DESC'] });
+  const plans = await db.find('workplans', { fields: ['id', 'title', 'status', 'items', 'periodStart', 'projectId', 'office'], orderBy: ['periodStart', 'DESC'] });
   const out = [];
   for (const p of plans) {
     for (const it of sortItems(p.items || [])) {

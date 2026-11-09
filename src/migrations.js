@@ -25,6 +25,16 @@ async function runMigrations(db) {
     changed += 1;
   }
 
+  // Activity reports: the office each belongs to (from its work plan, else from who compiled it).
+  const reports = await db.find('reports', { where: { office: null } });
+  if (reports.length) {
+    const { officeOf } = require('./services/reports');
+    for (const r of reports) {
+      await db.replace('reports', { ...r, office: await officeOf(db, r) });
+      changed += 1;
+    }
+  }
+
   if (changed) console.log(`Data upgrade: updated ${changed} record(s).`);
   return changed;
 }
