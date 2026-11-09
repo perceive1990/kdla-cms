@@ -14,7 +14,7 @@
     <%- f.select('role', 'Role', [{ value: 'officer', label: 'Officer' }, { value: 'admin', label: 'Administrator' }], values, errors, { col: 'col-md-6', blank: false }) %>
     <%- f.select('category', 'Category', choices.userCategories, values, errors, { col: 'col-md-4' }) %>
     <%- f.select('qualification', 'Qualification level', choices.qualificationLevels, values, errors, { col: 'col-md-4' }) %>
-    <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-4' }) %>
+    <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-4', help: 'Staff write activity reports for this office only. Without an office they cannot write reports.' }) %>
     <%- f.text('password', isNew ? 'Temporary password' : 'Reset password', {}, errors, { type: 'password', required: isNew, col: 'col-md-6', autocomplete: 'new-password', help: isNew ? 'At least 10 characters. They should change it after logging in.' : 'Leave blank to keep the current password.' }) %>
     <%- f.checkbox('active', 'Account is active (can log in)', values.active !== false, { col: 'col-md-6 align-self-end' }) %>
     <% if (!isNew) { %>

@@ -13,6 +13,10 @@
     <option value="">All activities</option>
     <% for (const s of choices.activities) { %><option<%= query.activityType === s ? ' selected' : '' %>><%= s %></option><% } %>
   </select>
+  <select class="form-select" name="office" aria-label="Office" data-autosubmit>
+    <option value="">All offices</option>
+    <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
   <select class="form-select" name="district" aria-label="District" data-autosubmit>
     <option value="">All districts</option>
     <% for (const s of choices.districts) { %><option<%= query.district === s ? ' selected' : '' %>><%= s %></option><% } %>
@@ -24,13 +28,14 @@
 <% } else { %>
 <div class="table-wrap">
   <table class="table table-hover align-middle">
-    <thead><tr><th>Date</th><th>Heading</th><th>Activity</th><th class="d-none d-md-table-cell">District</th><th class="text-end">Attendees</th><th class="d-none d-lg-table-cell">Compiled by</th></tr></thead>
+    <thead><tr><th>Date</th><th>Heading</th><th>Activity</th><th class="d-none d-md-table-cell">Office</th><th class="d-none d-md-table-cell">District</th><th class="text-end">Attendees</th><th class="d-none d-lg-table-cell">Compiled by</th></tr></thead>
     <tbody>
     <% for (const r of reports) { %>
       <tr>
         <td class="nowrap"><%= h.fmtDate(r.date) %></td>
         <td><a class="cell-strong" href="/reports/<%= r.id %>"><%= r.heading %></a><%= r.activityNumber ? '' : '' %></td>
         <td><%= r.activityType %></td>
+        <td class="d-none d-md-table-cell"><%= r.office || '' %></td>
         <td class="d-none d-md-table-cell"><%= r.district %></td>
         <td class="text-end"><%= (r.attendeeIds || []).length + (r.otherParticipants || 0) %></td>
         <td class="d-none d-lg-table-cell"><%= users[r.compiledById] ? (users[r.compiledById].fullName || users[r.compiledById].username) : '' %></td>

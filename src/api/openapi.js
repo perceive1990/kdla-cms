@@ -84,6 +84,7 @@ const reportFields = {
   heading: S('Heading'),
   activityNumber: I('Activity number from the work plan'),
   date: D('Date of the activity. Defaults to today'),
+  office: E(choices.offices, 'Office the report belongs to. Staff always write for their own office (this value is ignored for them); administrators choose any office'),
   district: E(['', ...choices.districts]),
   location: S('Venue'),
   projectId: S('Project'),

@@ -53,8 +53,9 @@ test.before(async () => {
   await db().init();
   await runMigrations(db());
   await ensureBootstrapAdmin(db());
-  await createUser(db(), { username: 'officer1', password: 'officer-password-1', fullName: 'Mwila Banda' });
-  await createUser(db(), { username: 'officer2', password: 'officer-password-2', fullName: 'Chanda Phiri' });
+  { const [adm] = await db().find('users', { where: { role: 'admin' } }); if (adm) await db().replace('users', { ...adm, office: 'Kitwe Main Office' }); }
+  await createUser(db(), { username: 'officer1', password: 'officer-password-1', fullName: 'Mwila Banda', office: 'Fisenge Office' });
+  await createUser(db(), { username: 'officer2', password: 'officer-password-2', fullName: 'Chanda Phiri', office: 'Fisenge Office' });
   await createUser(db(), { username: 'locky', password: 'locky-password-1', fullName: 'Lock Test' });
   await createUser(db(), { username: 'twostep', password: 'twostep-password-1', fullName: 'Two Step' });
   server = createApp().listen(0);
@@ -534,6 +535,20 @@ test('work plans: activities, approval, progress from linked reports, versions',
   r = await api('PATCH', `/reports/${reportId}`, { token: o1, body: { workplanId: '', workplanItemId: '' } });
   assert.strictEqual(r.status, 200, r.text);
   assert.strictEqual(r.json.workplanId, '', 'sending both empty unlinks the report');
+
+  // Reports of an office are written only by its staff
+  {
+    await createUser(db(), { username: 'kwacha1', password: 'kwacha-password-1', fullName: 'Kwacha Officer', office: 'Kwacha Office' });
+    const kw = await login('kwacha1', 'kwacha-password-1');
+    const mine = await api('POST', '/reports', { token: o1, body: { heading: 'Office API report', activityType: 'Community Meeting', introduction: 'I', objectives: 'O', implementation: 'Im' } });
+    assert.strictEqual(mine.status, 201, mine.text);
+    assert.strictEqual(mine.json.office, 'Fisenge Office');
+    const other = await api('PATCH', `/reports/${mine.json.id}`, { token: kw, body: { heading: 'Changed' } });
+    assert.strictEqual(other.status, 403);
+    assert.match(other.text, /Only staff of Fisenge Office/);
+    const reg = await api('POST', `/reports/${mine.json.id}/attendees`, { token: kw, body: { rows: [{ firstName: 'A', lastName: 'B' }] } });
+    assert.strictEqual(reg.status, 403);
+  }
 
   // Completed needs a linked activity report
   r = await api('POST', `/workplans/${planId}/activities`, { token: admin, body: { title: 'Needs a report first', status: 'Not started' } });

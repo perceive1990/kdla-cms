@@ -7,7 +7,7 @@ const {
   newId, now, arr, str, intOrNull, mapByIds, isRealDate,
 } = require('../helpers');
 const { removeAttachments } = require('./attachments');
-const { notFound } = require('./errors');
+const { notFound, forbidden } = require('./errors');
 const rich = require('../richtext');
 
 const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'challenges', 'recommendations'];
@@ -28,6 +28,7 @@ function readReport(body) {
     heading: str(body.heading, 300),
     activityNumber: intOrNull(body.activityNumber),
     date: str(body.date, 10),
+    office: str(body.office),
     district: str(body.district),
     location: str(body.location, 200),
     projectId: str(body.projectId),
@@ -51,6 +52,7 @@ async function validateReport(db, v) {
   if (!choices.activities.includes(v.activityType)) e.activityType = 'Select the type of activity.';
   if (!isRealDate(v.date)) e.date = 'Enter the date of the activity.';
   if (v.district && !choices.districts.includes(v.district)) e.district = 'Select a valid district.';
+  if (!choices.offices.includes(v.office)) e.office = 'Select the office this report belongs to.';
   if (Number.isNaN(v.activityNumber)) e.activityNumber = 'Activity number must be a whole number.';
   if (Number.isNaN(v.otherParticipants) || (v.otherParticipants !== null && v.otherParticipants < 0)) e.otherParticipants = 'Enter a whole number.';
   if (!v.introduction) e.introduction = 'Enter an introduction.';
@@ -64,6 +66,8 @@ async function validateReport(db, v) {
     const item = plan && (plan.items || []).find((it) => it.id === v.workplanItemId);
     if (!item) {
       e.workplanItemId = 'Select a valid work plan activity.';
+    } else if (plan.office && v.office && plan.office !== v.office) {
+      e.workplanItemId = `This activity is in the ${plan.office} work plan. Choose an activity of ${v.office}.`;
     } else if (v.activityNumber === null && Number.isInteger(item.number)) {
       v.activityNumber = item.number; // the report takes the activity number from the work plan
     }
@@ -80,6 +84,7 @@ function reportQuery(params = {}) {
   if (choices.districts.includes(params.district)) where.district = params.district;
   if (choices.activities.includes(params.activityType)) where.activityType = params.activityType;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
+  if (choices.offices.includes(params.office)) where.office = params.office;
   if (params.workplanId) where.workplanId = String(params.workplanId).slice(0, 60);
   if (isRealDate(params.from)) where.date = { $gte: params.from };
   if (isRealDate(params.to)) where.date = { ...(where.date || {}), $lte: params.to };
@@ -89,6 +94,57 @@ function reportQuery(params = {}) {
   return q;
 }
 
+// ---------- Offices: staff write activity reports only for their own office ----------
+const isAdmin = (user) => Boolean(user && user.role === 'admin');
+
+/** The office a report belongs to: its own, else its work plan's, else the office of the colleague who compiled it. */
+async function officeOf(db, r) {
+  if (r.office) return r.office;
+  if (r.workplanId) {
+    const plan = await db.get('workplans', r.workplanId);
+    if (plan && plan.office) return plan.office;
+  }
+  if (r.compiledById) {
+    const u = await db.get('users', r.compiledById);
+    if (u && u.office) return u.office;
+  }
+  return '';
+}
+
+/**
+ * Who may write or change a report of an office: administrators for every office, other staff only
+ * for their own. Reports and work plans that belong to no office are open to everyone with an office.
+ */
+function canWriteFor(user, office) {
+  if (isAdmin(user)) return true;
+  return Boolean(user && user.office) && (!office || office === user.office);
+}
+
+function mustWriteFor(user, office) {
+  if (canWriteFor(user, office)) return;
+  if (!user || !user.office) throw forbidden('Your account has no office yet, so you cannot write activity reports. Ask an administrator to set your office.');
+  throw forbidden(`Only staff of ${office} can write or change its activity reports. You are in ${user.office}.`);
+}
+
+/**
+ * Settles the office of a report being written: staff always write for their own office; administrators
+ * choose, and otherwise keep the report's office or take the work plan's or their own. Throws 403 when the
+ * person may not write for the report (an existing one) or for the chosen work plan activity.
+ */
+async function settleOffice(req, v, existing = null) {
+  const user = req.user;
+  if (existing) mustWriteFor(user, await officeOf(req.db, existing));
+  const plan = v.workplanId && /^[\w-]{1,60}$/.test(v.workplanId) ? await req.db.get('workplans', v.workplanId) : null;
+  if (isAdmin(user)) {
+    v.office = v.office || (existing && existing.office) || (plan && plan.office) || (existing ? await officeOf(req.db, existing) : '') || user.office || '';
+  } else {
+    mustWriteFor(user, '');
+    v.office = user.office;
+    if (plan && plan.office) mustWriteFor(user, plan.office);
+  }
+  return v;
+}
+
 async function getReport(db, id) {
   const r = await db.get('reports', id);
   if (!r) throw notFound('Report');
@@ -96,6 +152,7 @@ async function getReport(db, id) {
 }
 
 async function createReport(req, v, attachments = []) {
+  mustWriteFor(req.user, v.office);
   const doc = {
     id: newId(), ...v, attachments, createdBy: req.user.id, createdAt: now(), updatedAt: now(),
   };
@@ -105,6 +162,8 @@ async function createReport(req, v, attachments = []) {
 }
 
 async function updateReport(req, r, v, { ifMatch, attachments = [] } = {}) {
+  mustWriteFor(req.user, await officeOf(req.db, r));
+  mustWriteFor(req.user, v.office);
   const saved = await req.db.replace('reports', {
     ...r, ...v, attachments: [...(r.attachments || []), ...attachments], updatedAt: now(),
   }, { ifMatch });
@@ -127,6 +186,7 @@ const BULK_FIELDS = ['firstName', 'lastName', 'ageCategory', 'age', 'nrc', 'cont
  * otherwise { added, linked, report }.
  */
 async function addAttendees(req, r, rawRows, consent = {}) {
+  mustWriteFor(req.user, await officeOf(req.db, r));
   const rows = (rawRows || []).slice(0, 200).map((row) => Object.fromEntries(BULK_FIELDS.map((f) => [f, str(row && row[f], 200)])));
   const filled = rows.map((row, i) => ({ row, i })).filter(({ row }) => BULK_FIELDS.some((f) => row[f] && !(f === 'disability' && row[f] === 'Not Disabled')));
   if (!filled.length) return { rowErrors: {}, empty: true, rows };
@@ -172,5 +232,5 @@ async function addAttendees(req, r, rawRows, consent = {}) {
 }
 
 module.exports = {
-  RICH_FIELDS, readReport, validateReport, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
+  RICH_FIELDS, officeOf, canWriteFor, mustWriteFor, settleOffice, readReport, validateReport, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
 };
