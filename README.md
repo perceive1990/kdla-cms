@@ -297,6 +297,18 @@ Staff can install the system on Android phones, iPhones and computers as an app 
 
 ## Appearance
 
+### Attendance: invite list, signed registers and approval
+
+Attendance follows five steps, shown on each report's **Attendance** page:
+
+1. **Invite list before the activity.** On a work plan, **Invite list** on each planned activity shortlists who to invite. **Import a village or area** adds every registered activity attendee whose village or area matches (spelling and spacing are matched loosely); **Add people one by one** searches by name, NRC, phone or area. Only staff of the plan's office change it.
+2. **Print the register.** The register for signing prints the invited people first, by village or area, then blank lines for walk-ins.
+3. **Correct after the activity.** On the activity report's **Attendance** page, tick who came, add walk-ins and new people (**Add walk-ins and new people**), and correct people's details.
+4. **Upload the signed registers and submit.** Scans or photos of every signed page are uploaded under **Signed registers**; **Submit attendance** needs at least one, and someone recorded as attending (or a head count).
+5. **Administrator's check.** Administrators see on the dashboard how many reports wait, and **Activity reports** filters by attendance. They compare the ticked people with the signed registers, then **Approve attendance**, or **Return for correction** with a note saying what to fix.
+
+**Only approved attendance counts** as people reached in statistics, work plan progress and the logframe; the activity itself still counts as held once its report exists. Submitted and approved attendance is locked: nobody can tick, add people, change the head count or remove a signed register until an administrator returns it. Reports written before this workflow keep their attendance as approved.
+
 ### Attendance registers for signing
 
 Every activity can print its own attendance register for people to sign at the meeting. On a work plan, **Register** on each planned activity prints one before the meeting; on an activity report, **Register for signing** prints one too, optionally with the names already registered. Each register prints on landscape A4 under the KDLA letterhead, with the activity, type, date, venue, district, office, project, work plan activity and facilitator filled in (blank lines where something is not known yet), a consent statement, and lines numbered across the pages. The columns follow the app's attendance register form (first name, last name, girl, boy, woman or man, age, NRC, phone, disability, village or area, agrees to share, signature or thumbprint), so the filled sheets are quick to type in afterwards under **Add attendance register**. The first page holds 10 lines and each further page 15; by default there are enough lines for the people expected at one session (people to reach divided by the number of times), and **Lines** sets any other number.

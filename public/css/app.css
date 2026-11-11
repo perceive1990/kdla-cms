@@ -356,6 +356,17 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
   .ben-matrix { min-width: 0; }
   .ben-kpis .stat { break-inside: avoid; }
 }
+/* Attendance workflow */
+.att-steps { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; list-style: none; padding: 0; margin: 0 0 1rem; font-size: .85rem; color: var(--muted); }
+.att-steps li { display: flex; align-items: center; gap: .4rem; }
+.att-steps li span { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1.5px solid var(--bs-border-color); font-size: .75rem; font-weight: 700; }
+.att-steps li.done { color: var(--bs-body-color); }
+.att-steps li.done span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.att-table td:nth-child(2) { min-width: 11rem; }
+.att-table tr.is-on td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.att-decide { border-left: 4px solid var(--accent); }
+/* Invite lists */
+.sl-areas { max-height: 18rem; overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .4rem .6rem; }
 /* Attendance registers for signing */
 .reg-sheet { background: #fff; color: #111; border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; overflow-x: auto; }
 .reg-head { display: flex; align-items: center; gap: .75rem; border-bottom: 2px solid #1f6b3a; padding-bottom: .4rem; margin-bottom: .5rem; }

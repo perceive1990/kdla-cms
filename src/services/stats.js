@@ -2,6 +2,7 @@
 // Statistics for a chosen period, disaggregated the way donors usually ask for
 // (age category and sex, disability, case type, outcome, office). Shared by the web page and the API.
 const choices = require('../choices');
+const { counts: attendanceCounts } = require('../attendance-status');
 const {
   tally, mapByIds, today, isRealDate, daysBetween,
 } = require('../helpers');
@@ -32,7 +33,7 @@ async function compute(db, { from, to, office, projectId }) {
     db.find('cases', { where: { ...inOffice, status: { $in: choices.caseStatuses.filter((s) => s.startsWith('Open')) } }, fields: ['id', 'officerId', 'openedOn'] }),
     db.find('people', { where: { kind: 'client', createdAt: { $gte: from, $lte: toTs }, ...(projectId ? { projectId } : {}) }, fields: ['id', 'ageCategory', 'disability', 'referralSource'] }),
     db.find('referrals', { where: { createdAt: { $gte: from, $lte: toTs } }, fields: ['id', 'organizationId', 'followUps', 'caseId'] }),
-    db.find('reports', { where: { date: { $gte: from, $lte: to }, ...(projectId ? { projectId } : {}) }, fields: ['id', 'activityType', 'attendeeIds', 'otherParticipants', 'district'] }),
+    db.find('reports', { where: { date: { $gte: from, $lte: to }, ...(projectId ? { projectId } : {}) }, fields: ['id', 'activityType', 'attendeeIds', 'otherParticipants', 'district', 'attendanceStatus'] }),
     db.find('caseNotes', { where: { date: { $gte: from, $lte: to } }, fields: ['id', 'type', 'minutes', 'authorId'] }),
     db.find('users', { fields: ['id', 'fullName', 'username'] }),
   ]);
@@ -44,9 +45,11 @@ async function compute(db, { from, to, office, projectId }) {
   if (projectId) served = served.filter((p) => p.projectId === projectId);
 
   const orgs = await mapByIds(db, 'stakeholders', referrals.map((r) => r.organizationId));
-  const attendeeMap = await mapByIds(db, 'people', reports.flatMap((r) => r.attendeeIds || []));
+  // People reached count approved attendance only; activities count every report.
+  const approved = reports.filter(attendanceCounts);
+  const attendeeMap = await mapByIds(db, 'people', approved.flatMap((r) => r.attendeeIds || []));
   const attendees = Object.values(attendeeMap);
-  const otherParticipants = reports.reduce((s, r) => s + (r.otherParticipants || 0), 0);
+  const otherParticipants = approved.reduce((s, r) => s + (r.otherParticipants || 0), 0);
 
   const durations = closed.map((c) => daysBetween(c.openedOn, c.closedOn)).filter((d) => d !== null && d >= 0);
   const resolved = closed.filter((c) => String(c.outcome || '').startsWith('Resolved') || String(c.outcome || '').includes('in favour'));

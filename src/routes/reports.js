@@ -128,13 +128,58 @@ router.post('/', async (req, res) => {
   return res.redirect(`/reports/${doc.id}`);
 });
 
+// ---------- Attendance: correct, add the signed registers, submit; administrators approve ----------
+const attendance = require('../services/attendance');
+const attStatus = require('../attendance-status');
+
+router.get('/:id/attendance', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  const office = await svc.officeOf(req.db, r);
+  const data = await attendance.forReport(req.db, r);
+  const users = await mapByIds(req.db, 'users', [r.attendanceSubmittedBy, r.attendanceDecidedBy, ...(r.attachments || []).map((a) => a.uploadedBy)].filter(Boolean));
+  res.render('reports/attendance', {
+    title: `Attendance: ${r.heading}`, r, data, users, status: attStatus.statusOf(r), LABEL: attStatus.LABEL,
+    canWrite: svc.canWriteFor(req.user, office), registers: attendance.registerFiles(r), office,
+  });
+});
+
+async function attendanceAction(req, res, fn) {
+  const r = await svc.getReport(req.db, req.params.id);
+  try {
+    req.flash('success', await fn(r));
+  } catch (e) {
+    if (![403, 409, 412, 422].includes(e.status) && e.code !== 412) throw e;
+    req.flash('danger', e.code === 412 ? 'Someone else changed this report meanwhile. Check the list and save again.' : e.message);
+  }
+  res.redirect(`/reports/${r.id}/attendance`);
+}
+
+router.post('/:id/attendance', (req, res) => attendanceAction(req, res, async (r) => {
+  const saved = await attendance.setAttended(req, r, req.body.attended || []);
+  return `Attendance saved: ${saved.attendeeIds.length} attended.`;
+}));
+router.post('/:id/attendance/registers', (req, res) => attendanceAction(req, res, async (r) => {
+  const files = await saveUploads(req.files, req.user);
+  await attendance.addRegisterFiles(req, r, files);
+  return `${files.length} signed register file${files.length === 1 ? '' : 's'} added.`;
+}));
+router.post('/:id/attendance/submit', (req, res) => attendanceAction(req, res, async (r) => {
+  await attendance.submit(req, r);
+  return 'Attendance submitted. An administrator will check it against the signed registers.';
+}));
+router.post('/:id/attendance/decide', (req, res) => attendanceAction(req, res, async (r) => {
+  const saved = await attendance.decide(req, r, req.body.decision, req.body.note);
+  return saved.attendanceStatus === 'Approved' ? 'Attendance approved. It now counts in statistics, work plans and the logframe.' : 'Attendance returned for correction.';
+}));
+
 /** An attendance register for signing at this activity; it can list the people already registered. */
 router.get('/:id/register', async (req, res) => {
   const reg = require('../registers');
   const r = await svc.getReport(req.db, req.params.id);
-  const withNames = req.query.names === '1';
-  const people = withNames ? Object.values(await mapByIds(req.db, 'people', r.attendeeIds || [])) : [];
-  people.sort((x, y) => `${x.lastName} ${x.firstName}`.localeCompare(`${y.lastName} ${y.firstName}`));
+  // The invite list and the people already recorded print first, by village or area; blank lines follow.
+  const { rows } = await require('../services/attendance').forReport(req.db, r);
+  const withNames = rows.length > 0 && (req.query.names === undefined || [].concat(req.query.names).includes('1'));
+  const people = withNames ? rows.map((x) => x.person) : [];
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
   const who = r.compiledById ? await req.db.get('users', r.compiledById) : null;
   res.render('register', {
@@ -145,7 +190,7 @@ router.get('/:id/register', async (req, res) => {
       facilitator: who ? who.fullName || who.username : '', ref: `Activity report of ${r.date || ''}`,
     },
     sheets: reg.pages(reg.lineCount(req.query.rows, { people: (r.attendeeIds || []).length + (r.otherParticipants || 0) }), people),
-    canName: (r.attendeeIds || []).length > 0, withNames,
+    canName: rows.length > 0, withNames, namesLabel: `Print the ${rows.length} invited or recorded people`,
     back: { href: `/reports/${r.id}`, label: r.heading },
   });
 });
@@ -165,6 +210,7 @@ router.get('/:id', async (req, res) => {
   const office = await svc.officeOf(req.db, r);
   return res.render('reports/show', {
     title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned, lfLink, office, canWrite: svc.canWriteFor(req.user, office),
+    attStatus: require('../attendance-status').statusOf(r), attLabel: require('../attendance-status').LABEL[require('../attendance-status').statusOf(r)],
     byCategory: tally(attendees, 'ageCategory', choices.ageCategories),
     disabledCount: attendees.filter((a) => a.disability === 'Disabled').length,
   });
@@ -175,6 +221,10 @@ const blankRows = (n) => Array.from({ length: n }, () => ({}));
 
 router.get('/:id/attendees', async (req, res) => {
   const r = await svc.getReport(req.db, req.params.id);
+  if (attStatus.locked(r)) {
+    req.flash('danger', `This attendance is ${attStatus.LABEL[attStatus.statusOf(r)].toLowerCase()}, so people cannot be added. An administrator can return it for correction.`);
+    return res.redirect(`/reports/${r.id}/attendance`);
+  }
   try { svc.mustWriteFor(req.user, await svc.officeOf(req.db, r)); } catch (e) { return refused(req, res, e, `/reports/${r.id}`); }
   res.render('reports/attendees', { title: 'Attendance register', r, rows: blankRows(10), rowErrors: {}, consent: {} });
 });
@@ -184,7 +234,10 @@ router.post('/:id/attendees', async (req, res) => {
   const raw = req.body.rows ? Object.values(req.body.rows) : [];
   const consent = { consentRecord: req.body.consentRecord, consentShare: req.body.consentShare };
   let result;
-  try { result = await svc.addAttendees(req, r, raw, consent); } catch (e) { return refused(req, res, e, `/reports/${r.id}`); }
+  try { result = await svc.addAttendees(req, r, raw, consent); } catch (e) {
+    if (e.status === 409) { req.flash('danger', e.message); return res.redirect(`/reports/${r.id}/attendance`); }
+    return refused(req, res, e, `/reports/${r.id}`);
+  }
   if (result.empty) {
     req.flash('warning', 'Enter at least one attendee.');
     return res.redirect(`/reports/${r.id}/attendees`);

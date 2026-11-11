@@ -7,7 +7,8 @@ const {
   newId, now, arr, str, intOrNull, mapByIds, isRealDate,
 } = require('../helpers');
 const { removeAttachments } = require('./attachments');
-const { notFound, forbidden } = require('./errors');
+const { notFound, forbidden, HttpError } = require('./errors');
+const attendanceStatus = require('../attendance-status');
 const rich = require('../richtext');
 
 const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'challenges', 'recommendations'];
@@ -85,6 +86,7 @@ function reportQuery(params = {}) {
   if (choices.activities.includes(params.activityType)) where.activityType = params.activityType;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
   if (choices.offices.includes(params.office)) where.office = params.office;
+  if (['Draft', 'Submitted', 'Returned', 'Approved'].includes(params.attendance)) where.attendanceStatus = params.attendance;
   if (params.workplanId) where.workplanId = String(params.workplanId).slice(0, 60);
   if (isRealDate(params.from)) where.date = { $gte: params.from };
   if (isRealDate(params.to)) where.date = { ...(where.date || {}), $lte: params.to };
@@ -154,7 +156,8 @@ async function getReport(db, id) {
 async function createReport(req, v, attachments = []) {
   mustWriteFor(req.user, v.office);
   const doc = {
-    id: newId(), ...v, attachments, createdBy: req.user.id, createdAt: now(), updatedAt: now(),
+    // Attendance waits for an administrator's approval before it counts.
+    id: newId(), ...v, attendanceStatus: 'Draft', attachments, createdBy: req.user.id, createdAt: now(), updatedAt: now(),
   };
   const saved = await req.db.create('reports', doc);
   audit(req, 'create', 'reports', doc.id, `Created report "${doc.heading}"`);
@@ -164,6 +167,8 @@ async function createReport(req, v, attachments = []) {
 async function updateReport(req, r, v, { ifMatch, attachments = [] } = {}) {
   mustWriteFor(req.user, await officeOf(req.db, r));
   mustWriteFor(req.user, v.office);
+  // Submitted or approved attendance stays as it is: who attended and the head count are locked.
+  if (attendanceStatus.locked(r)) Object.assign(v, { attendeeIds: r.attendeeIds || [], otherParticipants: r.otherParticipants ?? null });
   const saved = await req.db.replace('reports', {
     ...r, ...v, attachments: [...(r.attachments || []), ...attachments], updatedAt: now(),
   }, { ifMatch });
@@ -187,6 +192,9 @@ const BULK_FIELDS = ['firstName', 'lastName', 'ageCategory', 'age', 'nrc', 'cont
  */
 async function addAttendees(req, r, rawRows, consent = {}) {
   mustWriteFor(req.user, await officeOf(req.db, r));
+  if (attendanceStatus.locked(r)) {
+    throw new HttpError(409, 'attendance_locked', `This attendance is ${attendanceStatus.LABEL[attendanceStatus.statusOf(r)].toLowerCase()}, so people cannot be added. An administrator can return it for correction.`);
+  }
   const rows = (rawRows || []).slice(0, 200).map((row) => Object.fromEntries(BULK_FIELDS.map((f) => [f, str(row && row[f], 200)])));
   const filled = rows.map((row, i) => ({ row, i })).filter(({ row }) => BULK_FIELDS.some((f) => row[f] && !(f === 'disability' && row[f] === 'Not Disabled')));
   if (!filled.length) return { rowErrors: {}, empty: true, rows };

@@ -64,6 +64,10 @@ async function addAttachments(req, container, doc, list, { ifMatch } = {}) {
 }
 
 async function deleteAttachment(req, { container, doc, att }, { ifMatch } = {}) {
+  // Signed registers stay while their attendance is submitted or approved: they are its evidence.
+  if (container === 'reports' && att.register && require('../attendance-status').locked(doc)) {
+    throw new HttpError(409, 'attendance_locked', 'This signed register is evidence for submitted or approved attendance and cannot be removed. An administrator can return the attendance for correction first.');
+  }
   const saved = await req.db.replace(container, { ...doc, attachments: doc.attachments.filter((a) => a.id !== att.id), updatedAt: now() }, { ifMatch });
   await getStorage().remove(att.key);
   audit(req, 'delete', container, doc.id, `Removed file ${att.name}`);
