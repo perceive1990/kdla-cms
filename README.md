@@ -297,6 +297,10 @@ Staff can install the system on Android phones, iPhones and computers as an app 
 
 ## Appearance
 
+### Beneficiary statistics
+
+**Statistics, Beneficiary statistics** (also the **Statistics** button on Direct beneficiaries) reports on everyone registered as a beneficiary: clients, other parties and activity attendees. It shows the total, women and girls, children and persons with disabilities (numbers and shares), a table of each type by age and sex (girls, boys, women, men, female, male, total and with disability), beneficiaries registered each month or year, and the breakdown by village or area, project, civil status and how clients heard about KDLA. It covers everyone registered to date unless you choose a period, a type or a project. **Print or save as PDF** gives an A4 report under the KDLA letterhead; **Export CSV** gives every figure for Excel. People counted only by head count on activity reports are not registered beneficiaries and are not included.
+
 ### Printing
 
 Every report and record prints, or saves as PDF, from its **Print** button: activity reports, case files, client and party profiles, referrals and referral letters, stakeholders, statistics and the infographic, work plans, logframes, and the lists of cases, people, activity reports, referrals, stakeholders, tasks, work plans and the audit trail. Printouts carry the KDLA letterhead with the date and who printed them, and leave out buttons, filters and data entry forms. Lists and tables print on landscape A4; single records print on portrait. Printing a list prints every record that matches its filters, not only the page on screen.

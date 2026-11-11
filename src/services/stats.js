@@ -122,4 +122,125 @@ function statsRows(p, s) {
   return rows;
 }
 
-module.exports = { period, compute, statsRows };
+// ---------- Beneficiary statistics: everyone registered, by type, age and sex, disability and more ----------
+const BEN_KINDS = { client: 'Clients', defendant: 'Other parties', attendee: 'Activity attendees' };
+const WOMEN = ['Woman', 'Girl'];
+const CHILDREN = ['Girl', 'Boy'];
+
+/** Filters for the beneficiary statistics: all time unless a period is chosen. */
+function benPeriod(params = {}) {
+  const from = isRealDate(params.from) ? params.from : '';
+  const to = isRealDate(params.to) ? params.to : '';
+  const kind = Object.keys(BEN_KINDS).includes(params.kind) ? params.kind : '';
+  const projectId = params.projectId ? String(params.projectId).slice(0, 60) : '';
+  return { from, to, kind, projectId };
+}
+
+async function beneficiaries(db, { from = '', to = '', kind = '', projectId = '' } = {}) {
+  const where = {};
+  if (kind) where.kind = kind;
+  if (projectId) where.projectId = projectId;
+  if (from || to) where.createdAt = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: `${to}T23:59:59.999Z` } : {}) };
+  const people = await db.find('people', {
+    where, fields: ['id', 'kind', 'ageCategory', 'disability', 'civilStatus', 'location', 'projectId', 'referralSource', 'createdAt', 'consentRecord'],
+  });
+  const projects = await mapByIds(db, 'projects', people.map((p) => p.projectId));
+  const ages = [...choices.ageCategories, 'Not recorded'];
+  const share = (n) => (people.length ? Math.round((n / people.length) * 100) : null);
+  const count = (fn) => people.filter(fn).length;
+
+  // The main table: each type of beneficiary by age category and sex, with totals.
+  const kinds = kind ? [kind] : Object.keys(BEN_KINDS);
+  const matrix = kinds.map((k) => {
+    const rows = people.filter((p) => p.kind === k);
+    const cells = Object.fromEntries(ages.map((a) => [a, rows.filter((p) => (p.ageCategory || 'Not recorded') === a).length]));
+    return {
+      kind: k, label: BEN_KINDS[k], cells, total: rows.length, disabled: rows.filter((p) => p.disability === 'Disabled').length,
+    };
+  });
+  const totalsRow = {
+    label: 'All beneficiaries',
+    cells: Object.fromEntries(ages.map((a) => [a, matrix.reduce((s, m) => s + m.cells[a], 0)])),
+    total: people.length,
+    disabled: count((p) => p.disability === 'Disabled'),
+  };
+
+  // Registrations each month (or each year over long periods).
+  const dates = people.map((p) => String(p.createdAt || '').slice(0, 10)).filter(Boolean).sort();
+  let timeline = [];
+  if (dates.length) {
+    const first = from || dates[0];
+    const last = to || dates[dates.length - 1];
+    const months = (Number(last.slice(0, 4)) - Number(first.slice(0, 4))) * 12 + Number(last.slice(5, 7)) - Number(first.slice(5, 7)) + 1;
+    if (months <= 24) {
+      const out = new Map();
+      for (let y = Number(first.slice(0, 4)), m = Number(first.slice(5, 7)); y * 12 + m <= Number(last.slice(0, 4)) * 12 + Number(last.slice(5, 7)); m += 1) {
+        if (m > 12) { m = 1; y += 1; }
+        out.set(`${y}-${String(m).padStart(2, '0')}`, 0);
+      }
+      for (const d of dates) out.set(d.slice(0, 7), (out.get(d.slice(0, 7)) || 0) + 1);
+      const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      timeline = [...out].map(([k, n], i) => ({ label: `${names[Number(k.slice(5, 7)) - 1]}${i === 0 || k.slice(5, 7) === '01' ? ` ${k.slice(0, 4)}` : ''}`, count: n }));
+    } else {
+      const out = new Map();
+      for (let y = Number(first.slice(0, 4)); y <= Number(last.slice(0, 4)); y += 1) out.set(String(y), 0);
+      for (const d of dates) out.set(d.slice(0, 4), (out.get(d.slice(0, 4)) || 0) + 1);
+      timeline = [...out].map(([label, n]) => ({ label, count: n }));
+    }
+  }
+
+  const clients = people.filter((p) => p.kind === 'client');
+  return {
+    total: people.length,
+    byKind: matrix.map((m) => ({ label: m.label, count: m.total })),
+    ages,
+    matrix,
+    totalsRow,
+    women: count((p) => WOMEN.includes(p.ageCategory)),
+    men: count((p) => ['Man', 'Boy'].includes(p.ageCategory)),
+    children: count((p) => CHILDREN.includes(p.ageCategory)),
+    disabled: totalsRow.disabled,
+    ageRecorded: count((p) => p.ageCategory),
+    womenPct: share(count((p) => WOMEN.includes(p.ageCategory))),
+    childrenPct: share(count((p) => CHILDREN.includes(p.ageCategory))),
+    disabledPct: share(totalsRow.disabled),
+    byAge: tally(people, 'ageCategory', choices.ageCategories),
+    byDisability: tally(people, 'disability', choices.disability),
+    byCivil: tally(people, 'civilStatus', choices.civilStatuses),
+    byPlace: tally(people.map((p) => ({ place: String(p.location || '').trim() })), 'place').sort((a, b) => b.count - a.count),
+    byProject: tally(people.map((p) => ({ project: projects[p.projectId] ? projects[p.projectId].title : '' })), 'project').sort((a, b) => b.count - a.count),
+    heardVia: tally(clients, 'referralSource', choices.activities).sort((a, b) => b.count - a.count),
+    clients: clients.length,
+    noConsent: count((p) => !p.consentRecord || p.consentRecord === 'no'),
+    timeline,
+    timelineYearly: timeline.length && /^\d{4}$/.test(timeline[0].label),
+  };
+}
+
+/** Flat rows (section, item, value) of the beneficiary statistics, for CSV export. */
+function beneficiaryRows(p, b) {
+  const rows = [
+    { section: 'Filters', item: 'Registered from', value: p.from || 'the start' },
+    { section: 'Filters', item: 'Registered to', value: p.to || 'today' },
+    { section: 'Totals', item: 'Beneficiaries', value: b.total },
+    { section: 'Totals', item: 'Women and girls (%)', value: b.womenPct ?? '' },
+    { section: 'Totals', item: 'Children (%)', value: b.childrenPct ?? '' },
+    { section: 'Totals', item: 'Persons with disabilities (%)', value: b.disabledPct ?? '' },
+  ];
+  for (const m of [...b.matrix, b.totalsRow]) {
+    for (const a of b.ages) rows.push({ section: `${m.label} by age and sex`, item: a, value: m.cells[a] });
+    rows.push({ section: `${m.label} by age and sex`, item: 'Total', value: m.total });
+    rows.push({ section: `${m.label} by age and sex`, item: 'Persons with disabilities', value: m.disabled });
+  }
+  const add = (section, list) => list.forEach((x) => rows.push({ section, item: x.label, value: x.count }));
+  add('Civil status', b.byCivil);
+  add('Village or area', b.byPlace);
+  add('Project', b.byProject);
+  add('Clients: heard about KDLA through', b.heardVia);
+  add(b.timelineYearly ? 'Registered each year' : 'Registered each month', b.timeline);
+  return rows;
+}
+
+module.exports = {
+  period, compute, statsRows, BEN_KINDS, benPeriod, beneficiaries, beneficiaryRows,
+};

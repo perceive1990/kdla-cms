@@ -3,7 +3,9 @@
 // so the API returns exactly the same numbers.
 const express = require('express');
 const { audit } = require('../audit');
-const { period, compute, statsRows } = require('../services/stats');
+const {
+  period, compute, statsRows, BEN_KINDS, benPeriod, beneficiaries, beneficiaryRows,
+} = require('../services/stats');
 const { toCsv, sendCsv, today } = require('../helpers');
 const charts = require('../charts');
 
@@ -35,6 +37,25 @@ router.get('/infographic', async (req, res) => {
     activities: byCount(s.activitiesByType),
     districts: byCount(s.activitiesByDistrict),
   });
+});
+
+// Statistics of all registered beneficiaries (clients, other parties and activity attendees), printable.
+router.get('/beneficiaries', async (req, res) => {
+  const p = benPeriod(req.query);
+  const projects = await req.db.find('projects', { fields: ['id', 'title', 'donor'], orderBy: ['title', 'ASC'] });
+  const b = await beneficiaries(req.db, p);
+  res.render('stats-beneficiaries', {
+    title: 'Beneficiary statistics', p, b, projects, project: projects.find((x) => x.id === p.projectId) || null, BEN_KINDS, charts, generated: today(),
+  });
+});
+
+router.get('/beneficiaries.csv', async (req, res) => {
+  const p = benPeriod(req.query);
+  const b = await beneficiaries(req.db, p);
+  audit(req, 'export', 'statistics', null, 'Exported beneficiary statistics');
+  sendCsv(res, `beneficiary-statistics-${today()}.csv`, toCsv([
+    { label: 'Section', value: 'section' }, { label: 'Item', value: 'item' }, { label: 'Value', value: 'value' },
+  ], beneficiaryRows(p, b)));
 });
 
 router.get('/export.csv', async (req, res) => {

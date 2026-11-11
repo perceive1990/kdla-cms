@@ -342,6 +342,20 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
   .wp-share-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .wp-doc-sum dd { font-size: 10pt; }
 }
+/* Beneficiary statistics */
+.ben-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin-bottom: .5rem; }
+.ben-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 0 2rem; }
+.ben-sec { break-inside: avoid; min-width: 0; }
+.ben-sec svg { max-width: 100%; height: auto; }
+.ben-matrix { min-width: 40rem; }
+.ben-sec .wp-print:not(.ben-matrix) { min-width: 0; }
+.ben-half { max-width: 36rem; }
+@media print {
+  .ben-kpis { grid-template-columns: repeat(4, 1fr); }
+  .ben-grid { grid-template-columns: 1fr 1fr; }
+  .ben-matrix { min-width: 0; }
+  .ben-kpis .stat { break-inside: avoid; }
+}
 /* Logframe matrix */
 .lf-matrix { font-size: .875rem; }
 .lf-matrix .c-result { width: 30%; } .lf-matrix .c-ind { width: 24%; } .lf-matrix .c-num { width: 7%; } .lf-matrix .c-status { width: 10%; } .lf-matrix .c-means { width: 15%; }

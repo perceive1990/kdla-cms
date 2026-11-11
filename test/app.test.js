@@ -1278,3 +1278,26 @@ test('staff write activity reports only for their own office', async () => {
   assert.match(r.text, /Admin for Kakolo/);
   assert.ok(!r.text.includes('Office rule meeting'), 'the office filter works');
 });
+
+test('beneficiary statistics: everyone registered by type, age and sex, printable and exportable', async () => {
+  const a = ctx.admin;
+  const all = await db().find('people', {});
+  const women = all.filter((p) => ['Woman', 'Girl'].includes(p.ageCategory)).length;
+  let r = await a.req('/statistics/beneficiaries');
+  assert.strictEqual(r.status, 200);
+  for (const part of ['Beneficiary statistics', 'Beneficiaries by type, age and sex', 'All beneficiaries', 'Persons with disabilities', 'Print or save as PDF', 'all registered to date']) {
+    assert.ok(r.text.includes(part), `the page shows ${part}`);
+  }
+  assert.ok(r.text.includes(`<div class="value">${all.length.toLocaleString('en-GB')}</div>`), 'the total counts everyone registered');
+  r = await a.req('/statistics/beneficiaries?kind=client&from=2020-01-01&to=2099-12-31');
+  assert.match(r.text, /Clients · registered from/);
+  assert.ok(!r.text.includes('<th scope="row">Activity attendees</th>'), 'the type filter works');
+  r = await a.req('/statistics/beneficiaries.csv');
+  assert.match(r.headers.get('content-type'), /text\/csv/);
+  assert.match(r.text, new RegExp(`Totals,Beneficiaries,${all.length}`));
+  if (all.length) assert.match(r.text, new RegExp(`Totals,Women and girls \\(%\\),${Math.round((women / all.length) * 100)}`));
+  r = await a.req('/statistics');
+  assert.match(r.text, /href="\/statistics\/beneficiaries/);
+  r = await a.req('/people');
+  assert.match(r.text, /href="\/statistics\/beneficiaries"/);
+});
