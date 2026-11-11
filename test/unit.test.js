@@ -197,3 +197,17 @@ test('attendance registers fill whole pages: 10 lines on the first, 15 on the ne
   assert.strictEqual(pages[0][1], null);
   assert.deepStrictEqual(reg.pages(10, Array(12).fill({})).map((p) => p.length), [10, 15], 'room for every registered name');
 });
+
+test('attendance registers are read by what each cell holds', () => {
+  const { peopleFrom, csvRows, splitName } = require('../src/register-import');
+  const rows = peopleFrom([
+    ['S/N', 'Full name', 'Full name', 'NRC', 'SEX', '', 'Present', 'Present', 'PHONE NO.', 'SIGN'],
+    ['1', 'jane  banda', 'jane  banda', '123456/78/1', 'F', 'kantanshi section', 'yes', '', '0971 234 567', ''],
+    ['2', 'John Phiri', '123457/78/1', 'M', 'Palace', '', 'No', '0961234567', ''],
+  ]);
+  assert.strictEqual(rows.length, 2);
+  assert.deepStrictEqual(rows[0], { serial: '1', fullName: 'Jane Banda', nrcRaw: '123456/78/1', sex: 'F', area: 'Kantanshi Section', phone: '0971234567', absent: false });
+  assert.strictEqual(rows[1].absent, true);
+  assert.deepStrictEqual(csvRows('a;b\n"c;d";e\n'), [['a', 'b'], ['c;d', 'e']]);
+  assert.deepStrictEqual(splitName('Christopher Mungai Sula'), { firstName: 'Christopher', lastName: 'Mungai Sula' });
+});

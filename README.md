@@ -297,6 +297,10 @@ Staff can install the system on Android phones, iPhones and computers as an app 
 
 ## Appearance
 
+### Importing activity attendees from a register
+
+**Activity attendees, Import a register** registers everyone on a signed attendance register at once. Upload the register as a Word document (.docx, with the register as a table) or a CSV file, choose the office (staff import for their own office; administrators choose) and, optionally, the type of activity. Columns are recognised by what they hold: full name, NRC, sex (M or F), village or area (the Organization or Community column), present (yes or no) and phone. Registers rarely give ages, so by default F is recorded as Woman and M as Man; untick "Everyone on this register is an adult" for registers with children. A preview shows what happens to each line before anything is saved: new people are registered; people already registered with the same NRC get the office and area where missing; lines repeating an NRC from earlier in the register, and people marked absent, are skipped; mistyped NRCs are left out with a note. The first word of a full name becomes the first name and the rest the last name. Activity attendees now carry an office, shown and filtered on the attendee list and included in the CSV export.
+
 ### Attendance: invite list, signed registers and approval
 
 Attendance follows five steps, shown on each report's **Attendance** page:

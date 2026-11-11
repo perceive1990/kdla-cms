@@ -32,7 +32,10 @@ function readPerson(body, kind) {
     v.referralSource = str(body.referralSource);
   }
   if (kind === 'defendant') v.versusClientId = str(body.versusClientId);
-  if (kind === 'attendee') v.activity = str(body.activity);
+  if (kind === 'attendee') {
+    v.activity = str(body.activity);
+    v.office = str(body.office);
+  }
   if (kind !== 'defendant') {
     const yesNo = (x) => (YES_NO.includes(String(x || '').toLowerCase()) ? String(x).toLowerCase() : '');
     v.consentRecord = yesNo(body.consentRecord);
@@ -54,6 +57,7 @@ async function validatePerson(db, v, kind, selfId) {
   const e = {};
   if (!v.firstName) e.firstName = 'Enter a first name.';
   if (!v.lastName) e.lastName = 'Enter a last name.';
+  if (v.office && !choices.offices.includes(v.office)) e.office = 'Select a valid office.';
   if (v.nrc && !/^\d{6}\/\d{2}\/\d$/.test(v.nrc)) e.nrc = 'NRC must look like 123456/78/1.';
   if (Number.isNaN(v.age) || (v.age !== null && (v.age < 0 || v.age > 120))) e.age = 'Enter an age between 0 and 120.';
   if (!choices.ageCategories.includes(v.ageCategory)) e.ageCategory = 'Select an age category.';

@@ -75,6 +75,7 @@ async function sendPeopleCsv(req, res, k) {
     { label: 'Client file number', value: 'caseNumber' },
     { label: 'Heard about KDLA through', value: 'referralSource' },
     { label: 'Activity', value: 'activity' },
+    { label: 'Office', value: 'office' },
     { label: 'Consent to record', value: 'consentRecord' },
     { label: 'Consent to share on referral', value: 'consentShare' },
     { label: 'Date registered', value: (p) => fmtDate(p.createdAt) },
@@ -84,6 +85,53 @@ async function sendPeopleCsv(req, res, k) {
 }
 
 router.get('/export.csv', async (req, res) => sendPeopleCsv(req, res, null));
+
+// ---------- Import activity attendees from an attendance register (Word or CSV) ----------
+const importer = require('../services/attendee-import');
+const { readRegister } = require('../register-import');
+
+function importForm(req, res, status = 200, extra = {}) {
+  const admin = req.user.role === 'admin';
+  res.status(status).render('people/import', {
+    title: 'Import activity attendees', admin, values: { office: req.user.office || '', adults: true, ...extra.values }, error: '', ...extra, STATUS: importer.STATUS,
+  });
+}
+
+router.get('/attendees/import', (req, res) => importForm(req, res));
+
+router.post('/attendees/import', async (req, res) => {
+  const admin = req.user.role === 'admin';
+  const values = {
+    office: admin ? str(req.body.office) : req.user.office || '', activity: str(req.body.activity), adults: req.body.adults === '1', source: '',
+  };
+  const file = (req.files || [])[0];
+  if (!importer.validOffice(values.office)) return importForm(req, res, 400, { values, error: admin ? 'Choose the office these people belong to.' : 'Your account has no office yet. Ask an administrator to set it.' });
+  if (!file) return importForm(req, res, 400, { values, error: 'Choose the register file (Word .docx or CSV).' });
+  let people;
+  try {
+    people = readRegister(file);
+  } catch {
+    return importForm(req, res, 400, { values, error: 'This file could not be read. Save the register as a Word document (.docx) or a CSV file and try again.' });
+  }
+  if (!people.length) return importForm(req, res, 400, { values, error: 'No people were found in this file. The register needs a table with at least names, and ideally NRC, sex, village or area and phone.' });
+  values.source = str(file.originalname, 200);
+  const rows = await importer.preview(req.db, people, { adults: values.adults });
+  req.session.attendeeImport = { rows, values, at: Date.now() };
+  return importForm(req, res, 200, { values, rows });
+});
+
+router.post('/attendees/import/save', async (req, res) => {
+  const pending = req.session.attendeeImport;
+  if (!pending || Date.now() - pending.at > 60 * 60 * 1000) {
+    req.flash('danger', 'The preview has expired. Upload the register again.');
+    return res.redirect('/people/attendees/import');
+  }
+  delete req.session.attendeeImport;
+  req.body.source = pending.values.source;
+  const { added, updated } = await importer.save(req, pending.rows, pending.values);
+  req.flash('success', `${added} activity attendee${added === 1 ? '' : 's'} registered for ${pending.values.office}${updated ? `; ${updated} already registered updated with the office or area` : ''}.`);
+  return res.redirect(`/people/attendees?office=${encodeURIComponent(pending.values.office)}`);
+});
 router.get('/:kind/export.csv', async (req, res, next) => {
   const k = kindOf(req);
   if (!k) return next();

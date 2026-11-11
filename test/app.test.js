@@ -1532,3 +1532,48 @@ test('a person is recorded on one register per planned activity, but can attend 
   await a.post(`/reports/${c1}/attendance`, { attended: ['once-ruth', 'once-grace'] }, `/reports/${c1}/attendance`);
   assert.strictEqual((await db().get('reports', c1)).attendeeIds.length, 2, 'another activity records them again');
 });
+
+test('activity attendees import from a Word or CSV attendance register, for an office', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  await db().create('people', {
+    id: 'imp-known', kind: 'attendee', firstName: 'Test', lastName: 'Known', nrc: '900006/65/1', ageCategory: 'Man', createdAt: '2036-01-01T00:00:00Z', updatedAt: '2036-01-01T00:00:00Z',
+  });
+  await createUser(db(), { username: 'nkana1', password: 'nkana-password-1', fullName: 'Nkana Officer', office: 'Chief Nkana' });
+  const o = new Client();
+  await o.login('nkana1', 'nkana-password-1');
+  let r = await o.req('/people/attendees');
+  assert.match(r.text, /href="\/people\/attendees\/import"/);
+  r = await o.req('/people/attendees/import');
+  assert.match(r.text, /Chief Nkana/);
+  const docxFile = fs.readFileSync(path.join(__dirname, 'fixtures', 'register-sample.docx'));
+  r = await o.postMultipart('/people/attendees/import', { office: 'Fisenge Office', adults: '1' }, [{
+    name: 'register-sample.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', content: docxFile,
+  }], '/people/attendees/import');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /Preview: register-sample.docx for Chief Nkana/, 'staff import for their own office only');
+  for (const part of ['3 new', '1 already registered', '1 repeated', '1 absent', 'NRC &#34;900003/656/1&#34; looks mistyped', 'same NRC as line 1']) {
+    assert.ok(r.text.includes(part), `the preview shows ${part}`);
+  }
+  r = await o.post('/people/attendees/import/save', {}, '/people/attendees/import');
+  assert.strictEqual(r.status, 302);
+  const mine = await db().find('people', { where: { office: 'Chief Nkana' } });
+  assert.strictEqual(mine.length, 4, '3 new and 1 already registered now carry the office');
+  const first = mine.find((p) => p.nrc === '900001/65/1');
+  assert.deepStrictEqual([first.firstName, first.lastName, first.ageCategory, first.location, first.contact, first.kind], ['Test', 'Mwansa Sample', 'Woman', 'Sample Section', '0970000001', 'attendee']);
+  assert.strictEqual(mine.find((p) => p.lastName === 'Banda').location, 'Sample Section', 'area spelling and spacing are tidied');
+  assert.strictEqual(mine.find((p) => p.lastName === 'Phiri').nrc, '', 'a mistyped NRC is left out');
+  assert.strictEqual((await db().get('people', 'imp-known')).office, 'Chief Nkana');
+  r = await o.req('/people/attendees?office=Chief+Nkana');
+  assert.match(r.text, /Mwansa Sample/);
+  await o.post('/people/attendees/import/save', {}, '/people/attendees/import');
+  assert.strictEqual((await db().find('people', { where: { office: 'Chief Nkana' } })).length, 4, 'a preview is saved once');
+
+  // A CSV register, imported by an administrator for a chosen office
+  const csv = 'S/N,Full name,NRC,Sex,Community,Present,Phone\n1,Csv Tembo,900101/65/1,F,Kafue Section,yes,0970000101\n';
+  r = await ctx.admin.postMultipart('/people/attendees/import', { office: 'Kakolo Office', adults: '1' }, [{ name: 'reg.csv', type: 'text/csv', content: csv }], '/people/attendees/import');
+  assert.match(r.text, /1 new/);
+  await ctx.admin.post('/people/attendees/import/save', {}, '/people/attendees/import');
+  const tembo = (await db().find('people', { where: { nrc: '900101/65/1' } }))[0];
+  assert.deepStrictEqual([tembo.office, tembo.location, tembo.ageCategory], ['Kakolo Office', 'Kafue Section', 'Woman']);
+});
