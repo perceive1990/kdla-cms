@@ -9,7 +9,7 @@
     <button class="btn btn-outline-secondary" type="button" data-print><i class="bi bi-printer"></i> Print</button>
     <a class="btn btn-outline-secondary" href="/reports/<%= r.id %>/register"><i class="bi bi-pen" aria-hidden="true"></i> Register for signing</a>
     <% if (canWrite) { %>
-    <a class="btn btn-outline-primary" href="/reports/<%= r.id %>/attendees"><i class="bi bi-person-lines-fill"></i> Add attendance register</a>
+    <a class="btn btn-outline-primary" href="/reports/<%= r.id %>/attendance"><i class="bi bi-person-check"></i> Attendance</a>
     <a class="btn btn-primary" href="/reports/<%= r.id %>/edit"><i class="bi bi-pencil"></i> Edit</a>
     <% } %>
   </div>
@@ -45,6 +45,11 @@
     </div></div>
   </div>
   <div class="col-lg-4">
+    <div class="panel"><div class="panel-body">
+      <div class="panel-head"><h2 class="panel-title">Attendance</h2><span class="tag <%= { Draft: 'tag-muted', Submitted: 'tag-warn', Returned: 'tag-danger', Approved: 'tag-done' }[attStatus] %>"><%= attLabel %></span></div>
+      <p class="small text-body-secondary mb-2"><%= attStatus === 'Approved' ? 'Checked against the signed registers; it counts in statistics.' : 'It counts once an administrator approves it against the signed registers.' %></p>
+      <a class="btn btn-sm btn-outline-primary d-print-none" href="/reports/<%= r.id %>/attendance"><i class="bi bi-person-check" aria-hidden="true"></i> <%= attStatus === 'Submitted' && user.role === 'admin' ? 'Check and approve' : 'Attendance and signed registers' %></a>
+    </div></div>
     <div class="panel"><div class="panel-body">
       <h2 class="panel-title">Participation</h2>
       <dl class="dl dl-tight">

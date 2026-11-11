@@ -18,6 +18,7 @@ const {
 } = require('../helpers');
 const { HttpError, notFound, forbidden } = require('./errors');
 const { saveLatest, changedMeanwhile } = require('./versioned');
+const { counts: attendanceCounts } = require('../attendance-status');
 
 const DONE = ['Completed', 'Cancelled'];
 
@@ -412,7 +413,7 @@ async function deleteActivity(req, plan, itemId, { ifMatch } = {}) {
 }
 
 // ---------- Planned against achieved ----------
-const REPORT_FIELDS = ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants'];
+const REPORT_FIELDS = ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants', 'attendanceStatus'];
 
 /**
  * Linked activity reports give what was delivered: each report counts as one event, and the people
@@ -423,7 +424,8 @@ async function progress(db, plan, t0 = today(), reports = null) {
   const linked = reports || await db.find('reports', { where: { workplanId: plan.id }, fields: REPORT_FIELDS, orderBy: ['date', 'ASC'] });
   const items = sortItems(plan.items || []).map((it) => {
     const mine = linked.filter((r) => r.workplanItemId === it.id);
-    const reached = mine.reduce((n, r) => n + (r.attendeeIds || []).length + (r.otherParticipants || 0), 0);
+    // People reached counts approved attendance only.
+    const reached = mine.filter(attendanceCounts).reduce((n, r) => n + (r.attendeeIds || []).length + (r.otherParticipants || 0), 0);
     const delivered = mine.length;
     const eventsPct = it.targetEvents ? Math.min(100, Math.round((delivered / it.targetEvents) * 100)) : null;
     return {
@@ -583,5 +585,5 @@ const planUsers = (db, plan) => mapByIds(db, 'users', [plan.preparedById, plan.a
 module.exports = {
   combined, DONE, readPlan, validatePlan, planQuery, getPlan, canEdit, canUpdateProgress, createPlan, updatePlan, setPlanStatus,
   copyPlan, deletePlan, readActivity, validateActivity, requiredFramework, notFromLogframe, nextNumber, getItem, addActivity, addActivities, updateActivity,
-  setActivityStatus, deleteActivity, progress, totalsFor, activityOptions, dueFor, planUsers, view, moveItems,
+  setActivityStatus, deleteActivity, savePlan, progress, totalsFor, activityOptions, dueFor, planUsers, view, moveItems,
 };

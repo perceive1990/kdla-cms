@@ -1,0 +1,77 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/workplans">Work plans</a> / <a href="/workplans/<%= plan.id %>#act-<%= item.id %>"><%= plan.title %></a></div>
+    <h1>Invite list</h1>
+    <p class="sub"><%= Number.isInteger(item.number) ? item.number + '. ' : '' %><%= item.title %><%= item.venue ? ' · ' + item.venue : '' %><%= item.startDate ? ' · ' + h.fmtDate(item.startDate) : '' %></p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="/workplans/<%= plan.id %>/activities/<%= item.id %>/register"><i class="bi bi-pen" aria-hidden="true"></i> Print register with these names</a>
+  </div>
+</div>
+<p class="small text-body-secondary">Shortlist the people to invite before the activity. Import the registered activity attendees of a village or area, or add people one by one. The register for signing then prints their names, and after the activity you tick who came on the activity report.</p>
+<% if (!canChange) { %><div class="alert alert-secondary small py-2"><i class="bi bi-building" aria-hidden="true"></i> Only staff of <%= plan.office || 'the plan\'s office' %> change this invite list<%= plan.status === 'Closed' ? ', and the plan is closed' : '' %>.</div><% } %>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Invited (<%= people.length %>)</h2>
+      <% if (!people.length) { %>
+        <p class="text-body-secondary mb-0">Nobody yet. Import a village or area, or search for people.</p>
+      <% } else { %>
+      <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/remove">
+        <%- f.hidden(csrfToken) %>
+        <div class="table-wrap"><table class="table table-sm">
+          <thead><tr><% if (canChange) { %><th class="d-print-none"><span class="visually-hidden">Remove</span></th><% } %><th>Name</th><th>Village or area</th><th>Age and sex</th><th>Phone</th></tr></thead>
+          <tbody>
+          <% for (const p of people) { %>
+            <tr><% if (canChange) { %><td class="d-print-none"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>" aria-label="Remove <%= p.firstName %> <%= p.lastName %>"></td><% } %>
+              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a></td><td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.contact || '' %></td></tr>
+          <% } %>
+          </tbody>
+        </table></div>
+        <% if (canChange) { %><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Remove the ticked people</button><% } %>
+      </form>
+      <% } %>
+    </div></div>
+  </div>
+  <% if (canChange) { %>
+  <div class="col-lg-4">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Import a village or area</h2>
+      <% if (!areas.length) { %>
+        <p class="small text-body-secondary mb-0">No activity attendees have a village or area recorded yet.</p>
+      <% } else { %>
+      <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/import">
+        <%- f.hidden(csrfToken) %>
+        <div class="sl-areas">
+          <% for (const a of areas) { %>
+            <label class="form-check"><input class="form-check-input" type="checkbox" name="areas" value="<%= a.name %>"<%= item.venue && a.name.toLowerCase() === String(item.venue).toLowerCase() ? ' checked' : '' %>> <%= a.name %> <span class="text-body-secondary small">(<%= a.count %>)</span></label>
+          <% } %>
+        </div>
+        <button class="btn btn-sm btn-primary mt-2" type="submit"><i class="bi bi-download" aria-hidden="true"></i> Add everyone from the ticked areas</button>
+      </form>
+      <% } %>
+    </div></div>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Add people one by one</h2>
+      <form class="d-flex gap-2" method="get">
+        <input class="form-control form-control-sm" type="search" name="q" value="<%= q %>" placeholder="Name, NRC, phone or area" aria-label="Search activity attendees">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
+      </form>
+      <% if (q) { %>
+        <% if (!found.length) { %><p class="small text-body-secondary mt-2 mb-0">No other registered attendee matches. New people are added on the activity report after the activity.</p><% } else { %>
+        <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/add" class="mt-2">
+          <%- f.hidden(csrfToken) %>
+          <% for (const p of found) { %>
+            <label class="form-check small"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>"> <%= p.firstName %> <%= p.lastName %> <span class="text-body-secondary"><%= p.location ? '· ' + p.location : '' %></span></label>
+          <% } %>
+          <button class="btn btn-sm btn-primary mt-2" type="submit">Add the ticked people</button>
+        </form>
+        <% } %>
+      <% } %>
+    </div></div>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/footer') %>

@@ -149,6 +149,57 @@ router.get('/:id', async (req, res) => {
   });
 });
 
+// ---------- Shortlist of invited attendees for a planned activity ----------
+const attendance = require('../services/attendance');
+
+async function loadItem(req) {
+  const plan = await svc.getPlan(req.db, req.params.id);
+  const item = (plan.items || []).find((x) => x.id === req.params.itemId);
+  if (!item) throw notFound('Planned activity');
+  return { plan, item };
+}
+
+router.get('/:id/activities/:itemId/shortlist', async (req, res) => {
+  const { plan, item } = await loadItem(req);
+  const [people, areas, found] = await Promise.all([
+    attendance.shortlistPeople(req.db, item), attendance.areas(req.db), attendance.search(req.db, req.query.q),
+  ]);
+  let canChange = true;
+  try { attendance.mustShortlist(req.user, plan); } catch { canChange = false; }
+  const inList = new Set(item.shortlist || []);
+  res.render('workplans/shortlist', {
+    title: `Invite list: ${item.title}`, plan, item, people, areas, found: found.filter((p) => !inList.has(p.id)), q: String(req.query.q || '').slice(0, 60), canChange,
+  });
+});
+
+async function shortlistAction(req, res, fn) {
+  const { plan, item } = await loadItem(req);
+  const back = `/workplans/${plan.id}/activities/${item.id}/shortlist`;
+  try {
+    const msg = await fn(plan, item);
+    req.flash('success', msg);
+  } catch (e) {
+    if (![403, 409, 422].includes(e.status)) throw e;
+    req.flash('danger', e.message);
+  }
+  res.redirect(back);
+}
+
+router.post('/:id/activities/:itemId/shortlist/import', (req, res) => shortlistAction(req, res, async (plan, item) => {
+  const r = await attendance.importAreas(req, plan, item.id, req.body.areas || []);
+  return `${r.added} attendee${r.added === 1 ? '' : 's'} added to the invite list (${r.found} registered in the chosen area${[].concat(req.body.areas || []).length === 1 ? '' : 's'}; the others were already on it).`;
+}));
+router.post('/:id/activities/:itemId/shortlist/add', (req, res) => shortlistAction(req, res, async (plan, item) => {
+  await attendance.addPeople(req, plan, item.id, req.body.personIds || []);
+  return 'Added to the invite list.';
+}));
+router.post('/:id/activities/:itemId/shortlist/remove', (req, res) => shortlistAction(req, res, async (plan, item) => {
+  const n = [].concat(req.body.personIds || []).length;
+  if (!n) throw Object.assign(new Error('Tick the people to remove first.'), { status: 422 });
+  await attendance.removePeople(req, plan, item.id, req.body.personIds);
+  return `${n} removed from the invite list.`;
+}));
+
 /** A blank attendance register for signing at a planned activity, printed before the meeting. */
 router.get('/:id/activities/:itemId/register', async (req, res) => {
   const reg = require('../registers');
@@ -158,6 +209,9 @@ router.get('/:id/activities/:itemId/register', async (req, res) => {
   const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
   const who = it.responsibleId ? await req.db.get('users', it.responsibleId) : null;
   const num = Number.isInteger(it.number) ? `${it.number}. ` : '';
+  // The invite list prints first, by village or area; blank lines follow for walk-ins.
+  const invited = await require('../services/attendance').shortlistPeople(req.db, it);
+  const withNames = invited.length > 0 && (req.query.names === undefined || [].concat(req.query.names).includes('1'));
   res.render('register', {
     title: `Register: ${it.title}`,
     info: {
@@ -165,7 +219,8 @@ router.get('/:id/activities/:itemId/register', async (req, res) => {
       venue: it.venue || '', district: it.district || '', office: plan.office || '', project: project ? project.title : '', donor: project ? project.donor || '' : '',
       plan: `${num}${plan.title}`, facilitator: who ? who.fullName || who.username : '', ref: `Work plan activity ${num.trim()} ${plan.title}`.trim(),
     },
-    sheets: reg.pages(reg.lineCount(req.query.rows, { people: it.targetPeople, times: it.targetEvents })), canName: false, withNames: false,
+    sheets: reg.pages(reg.lineCount(req.query.rows, { people: it.targetPeople, times: it.targetEvents }), withNames ? invited : []),
+    canName: invited.length > 0, withNames, namesLabel: `Print the ${invited.length} people on the invite list`,
     back: { href: `/workplans/${plan.id}#act-${it.id}`, label: plan.title },
   });
 });

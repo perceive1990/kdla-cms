@@ -9,6 +9,7 @@
 // Who may do what: administrators set up and change the logframe; everyone records indicator values.
 // One logframe per project; its id is the project id.
 const { audit } = require('../audit');
+const { counts: attendanceCounts } = require('../attendance-status');
 const { isAdmin } = require('../access');
 const { compute } = require('./stats');
 const {
@@ -416,6 +417,7 @@ function rollup(links, reportsOf, people, t0) {
     }
     for (const r of reportsOf(plan, item)) {
       out.delivered += 1;
+      if (!attendanceCounts(r)) continue; // people reached count approved attendance only
       out.heads += r.otherParticipants || 0;
       out.attendances += (r.attendeeIds || []).length;
       for (const id of r.attendeeIds || []) if (people[id]) seen.add(id);
@@ -511,7 +513,7 @@ async function progress(db, fw, project, t0 = today()) {
   for (let i = 0; i < planIds.length; i += 100) {
     reports.push(...await db.find('reports', {
       where: { workplanId: { $in: planIds.slice(i, i + 100) } },
-      fields: ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants'],
+      fields: ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants', 'attendanceStatus'],
     }));
   }
   const reportsOf = (plan, item) => reports.filter((r) => r.workplanId === plan.id && r.workplanItemId === item.id);

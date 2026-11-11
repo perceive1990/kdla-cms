@@ -65,6 +65,14 @@ test.before(async () => {
 
 test.after(() => server && server.close());
 
+
+/** Approves the attendance of every report (the administrator's check, done directly for tests about counting). */
+async function approveAttendance() {
+  for (const r of await db().find('reports', {})) {
+    if (r.attendanceStatus && r.attendanceStatus !== 'Approved') await db().replace('reports', { ...r, attendanceStatus: 'Approved' });
+  }
+}
+
 test('public: index, OpenAPI description, docs page, and token required everywhere else', async () => {
   let r = await api('GET', '/');
   assert.strictEqual(r.status, 200);
@@ -520,6 +528,7 @@ test('work plans: activities, approval, progress from linked reports, versions',
   assert.strictEqual(r.status, 201, r.text);
   assert.strictEqual(r.json.activityNumber, 1);
   const reportId = r.json.id;
+  await approveAttendance();
   r = await api('GET', `/workplans/${planId}/activities/${itemId}`, { token: o1 });
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.json.delivered, 1);
@@ -789,6 +798,7 @@ test('M&E: logframe set-up, import, links from planned activities, values and ve
     },
   });
   assert.strictEqual(r.status, 201, r.text);
+  await approveAttendance();
   r = await api('GET', `/projects/${pid}/logframe`, { token: o1 });
   assert.strictEqual(r.status, 200);
   let output = r.json.results[2];

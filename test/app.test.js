@@ -93,6 +93,14 @@ test.before(async () => {
 
 test.after(() => server && server.close());
 
+
+/** Approves the attendance of every report (the administrator's check, done directly for tests about counting). */
+async function approveAttendance() {
+  for (const r of await db().find('reports', {})) {
+    if (r.attendanceStatus && r.attendanceStatus !== 'Approved') await db().replace('reports', { ...r, attendanceStatus: 'Approved' });
+  }
+}
+
 test('public endpoints and anonymous visitors', async () => {
   const c = new Client();
   let r = await c.req('/healthz');
@@ -719,6 +727,7 @@ test('work plans: draft, planned activities, approval, linked reports and progre
   assert.match(r.text, new RegExp(`value="${planId}:${first.id}" selected`), 'edit form keeps the link');
 
   // Planned against delivered
+  await approveAttendance();
   const { items, totals } = await wp.progress(db(), await planOf(planId));
   assert.strictEqual(items[0].delivered, 1);
   assert.strictEqual(items[0].reached, 40);
@@ -901,6 +910,7 @@ test('M&E: logframe import, planned activities linked to it, automatic and recor
   assert.match(r.text, /Logframe: <a href="\/logframes\//);
 
   const project = await db().get('projects', pid);
+  await approveAttendance();
   let prog = await lf.progress(db(), await fwOf(), project);
   const ind = (name) => prog.results.flatMap((x) => x.indicators).find((i) => i.name === name);
   assert.strictEqual(ind('Community members reached').actual, 13, '3 registered attendees plus 10 counted');
@@ -1341,4 +1351,99 @@ test('attendance registers for signing print for each planned activity and activ
   await o.login('officer3', 'officer-password-3');
   r = await o.req(`/workplans/${planId}/activities/${itemId}/register`);
   assert.strictEqual(r.status, 200, 'every colleague can print a register');
+});
+
+test('attendance: invite list by area before the activity, correction, signed registers and approval', async () => {
+  const a = ctx.admin;
+  const mk = (firstName, lastName, location, ageCategory = 'Woman') => db().create('people', {
+    id: `att-${firstName}`.toLowerCase(), kind: 'attendee', firstName, lastName, location, ageCategory, disability: 'Not Disabled', createdAt: '2035-01-01T00:00:00Z', updatedAt: '2035-01-01T00:00:00Z',
+  });
+  await mk('Chileshe', 'Mumba', 'Kantanshi');
+  await mk('Bwalya', 'Zulu', 'kantanshi ');
+  await mk('Mutale', 'Lungu', 'Kantanshi', 'Man');
+  await mk('Natasha', 'Phiri', 'Mindolo');
+  await createUser(db(), { username: 'fisenge2', password: 'fisenge-password-2', fullName: 'Fisenge Two', office: 'Fisenge Office' });
+  await createUser(db(), { username: 'kakolo2', password: 'kakolo-password-2', fullName: 'Kakolo Two', office: 'Kakolo Office' });
+  const f = new Client(); await f.login('fisenge2', 'fisenge-password-2');
+  const k = new Client(); await k.login('kakolo2', 'kakolo-password-2');
+  let r = await a.post('/workplans', { title: 'Attendance plan', periodStart: '2035-01-01', periodEnd: '2035-12-31', office: 'Fisenge Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, { title: 'Kantanshi land meeting', status: 'Not started', venue: 'Kantanshi', targetPeople: '30' }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  const sl = `/workplans/${planId}/activities/${itemId}/shortlist`;
+  const itemOf = async () => (await db().get('workplans', planId)).items[0];
+
+  // 1. The invite list: a whole area, then one more person; another office cannot change it
+  r = await f.req(sl);
+  assert.match(r.text, /Kantanshi <span class="text-body-secondary small">\(3\)<\/span>/, 'areas group spelling and spacing');
+  await f.post(`${sl}/import`, { areas: 'Kantanshi' }, sl);
+  assert.strictEqual((await itemOf()).shortlist.length, 3);
+  await k.post(`${sl}/import`, { areas: 'Mindolo' }, '/workplans');
+  assert.strictEqual((await itemOf()).shortlist.length, 3, 'another office cannot change the invite list');
+  r = await f.req(`${sl}?q=Natasha`);
+  assert.match(r.text, /value="att-natasha"/);
+  await f.post(`${sl}/add`, { personIds: 'att-natasha' }, sl);
+  await f.post(`${sl}/remove`, { personIds: 'att-mutale' }, sl);
+  assert.deepStrictEqual((await itemOf()).shortlist.sort(), ['att-bwalya', 'att-chileshe', 'att-natasha']);
+  r = await f.req(`/workplans/${planId}`);
+  assert.match(r.text, /Invite list \(3\)/);
+
+  // 2. The register prints the invited names
+  r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
+  for (const n of ['Chileshe', 'Bwalya', 'Natasha']) assert.ok(r.text.includes(`<td>${n}</td>`), `register prints ${n}`);
+  r = await f.req(`/workplans/${planId}/activities/${itemId}/register?names=0`);
+  assert.ok(!r.text.includes('<td>Chileshe</td>'), 'a blank register on request');
+
+  // 3. After the activity: the report, who came, and the signed register
+  r = await f.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Kantanshi meeting held', date: '2035-02-02', introduction: 'I', objectives: 'O', implementation: 'Im',
+    compiledById: await userId('fisenge2'), workplanItem: `${planId}:${itemId}`,
+  }, '/reports/new');
+  const reportId = r.location.split('/')[2];
+  const att = `/reports/${reportId}/attendance`;
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Draft');
+  r = await f.req(att);
+  assert.match(r.text, /Who attended \(0 of 3\)/);
+  await f.post(att, { attended: ['att-chileshe', 'att-natasha', 'att-mutale'] }, att);
+  assert.deepStrictEqual((await db().get('reports', reportId)).attendeeIds.sort(), ['att-chileshe', 'att-natasha'], 'only invited or recorded people can be ticked');
+  const reachedNow = async () => (await require('../src/services/workplans').progress(db(), await db().get('workplans', planId))).items[0].reached;
+  assert.strictEqual(await reachedNow(), 0, 'attendance does not count before approval');
+  await f.post(`${att}/submit`, {}, att);
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Draft', 'no submission without the signed register');
+  r = await f.req(att);
+  assert.match(r.text, /Upload at least one scan or photo of the signed register/);
+  r = await f.postMultipart(`${att}/registers`, {}, [{ name: 'register-page-1.jpg', type: 'image/jpeg', content: 'fake image' }], att);
+  assert.strictEqual(r.status, 302);
+  assert.ok((await db().get('reports', reportId)).attachments.some((x) => x.register && x.name === 'register-page-1.jpg'));
+  await f.post(`${att}/submit`, {}, att);
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Submitted');
+
+  // Locked while waiting: no ticking, no walk-ins
+  await f.post(att, { attended: ['att-chileshe'] }, '/reports/new');
+  assert.strictEqual((await db().get('reports', reportId)).attendeeIds.length, 2, 'locked while waiting for approval');
+  r = await f.req(`/reports/${reportId}/attendees`);
+  assert.strictEqual(r.status, 302);
+
+  // 4. The administrator: returning needs a reason; approval makes it count
+  r = await a.req('/');
+  assert.match(r.text, /wait(s)? for you to check the attendance/);
+  r = await a.req('/reports?attendance=Submitted');
+  assert.match(r.text, /Kantanshi meeting held/);
+  await f.post(`${att}/decide`, { decision: 'approve' }, '/reports/new');
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Submitted', 'only administrators approve');
+  await a.post(`${att}/decide`, { decision: 'return', note: '' }, att);
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Submitted', 'a return needs a reason');
+  await a.post(`${att}/decide`, { decision: 'return', note: 'Natasha did not sign page 1' }, att);
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Returned');
+  r = await f.req(att);
+  assert.match(r.text, /Natasha did not sign page 1/);
+  await f.post(att, { attended: ['att-chileshe', 'att-bwalya'] }, att);
+  await f.post(`${att}/submit`, {}, att);
+  await a.post(`${att}/decide`, { decision: 'approve' }, att);
+  const done = await db().get('reports', reportId);
+  assert.strictEqual(done.attendanceStatus, 'Approved');
+  assert.strictEqual(await reachedNow(), 2, 'approved attendance counts');
+  const reg = done.attachments.find((x) => x.register);
+  await f.post(`/files/reports/${reportId}/${reg.id}/delete`, {}, `/reports/${reportId}`);
+  assert.ok((await db().get('reports', reportId)).attachments.some((x) => x.id === reg.id), 'signed registers of approved attendance stay');
 });

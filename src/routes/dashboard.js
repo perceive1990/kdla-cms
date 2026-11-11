@@ -57,6 +57,7 @@ router.get('/', async (req, res) => {
     byAgeCategory: tally(clients, 'ageCategory', choices.ageCategories),
     disabled: clients.filter((c) => c.disability === 'Disabled').length,
     recent, people, users, myTasks, hearings: visibleHearings, taskCases, t0, myActivities,
+    attendanceWaiting: req.user.role === 'admin' ? await db.count('reports', { where: { attendanceStatus: 'Submitted' } }) : 0,
   });
 });
 

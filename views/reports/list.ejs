@@ -13,6 +13,10 @@
     <option value="">All activities</option>
     <% for (const s of choices.activities) { %><option<%= query.activityType === s ? ' selected' : '' %>><%= s %></option><% } %>
   </select>
+  <select class="form-select" name="attendance" aria-label="Attendance" data-autosubmit>
+    <option value="">Any attendance</option>
+    <% for (const [v, l] of [['Draft', 'Not submitted'], ['Submitted', 'Waiting for approval'], ['Returned', 'Returned for correction'], ['Approved', 'Approved']]) { %><option value="<%= v %>"<%= query.attendance === v ? ' selected' : '' %>><%= l %></option><% } %>
+  </select>
   <select class="form-select" name="office" aria-label="Office" data-autosubmit>
     <option value="">All offices</option>
     <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>

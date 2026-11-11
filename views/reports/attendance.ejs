@@ -1,0 +1,107 @@
+<%- include('../partials/header') %>
+<% const name = (id) => (users[id] ? (users[id].fullName || users[id].username) : '');
+   const open = canWrite && ['Draft', 'Returned'].includes(status);
+   const tagCls = { Draft: 'tag-muted', Submitted: 'tag-warn', Returned: 'tag-danger', Approved: 'tag-done' }[status];
+   const step = (n, label, done) => `<li class="${done ? 'done' : ''}"><span>${done ? '✓' : n}</span>${label}</li>`; %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/reports">Activity reports</a> / <a href="/reports/<%= r.id %>"><%= r.heading %></a></div>
+    <h1>Attendance</h1>
+    <p class="sub"><span class="tag <%= tagCls %>"><%= LABEL[status] %></span> <%= h.fmtDate(r.date) %><%= office ? ' · ' + office : '' %><%= r.location ? ' · ' + r.location : '' %></p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="/reports/<%= r.id %>/register"><i class="bi bi-pen" aria-hidden="true"></i> Print register</a>
+  </div>
+</div>
+
+<ol class="att-steps">
+  <%- step(1, 'Invite list before the activity', data.invitedCount > 0) %>
+  <%- step(2, 'Tick who attended, add walk-ins', data.attendedCount > 0 || r.otherParticipants > 0) %>
+  <%- step(3, 'Upload the signed registers', registers.length > 0) %>
+  <%- step(4, 'Submit for approval', ['Submitted', 'Approved'].includes(status)) %>
+  <%- step(5, 'Approved by an administrator', status === 'Approved') %>
+</ol>
+
+<% if (status === 'Returned' && r.attendanceNote) { %>
+  <div class="alert alert-danger"><strong>Returned for correction<%= r.attendanceDecidedBy ? ' by ' + name(r.attendanceDecidedBy) : '' %>:</strong> <%= r.attendanceNote %></div>
+<% } else if (status === 'Submitted') { %>
+  <div class="alert alert-warning small py-2"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Submitted<%= r.attendanceSubmittedBy ? ' by ' + name(r.attendanceSubmittedBy) : '' %><%= r.attendanceSubmittedAt ? ' on ' + h.fmtDate(r.attendanceSubmittedAt) : '' %>. An administrator checks it against the signed registers. Until then it does not count, and it cannot be changed.</div>
+<% } else if (status === 'Approved') { %>
+  <div class="alert alert-success small py-2"><i class="bi bi-patch-check" aria-hidden="true"></i> Approved<%= r.attendanceDecidedBy ? ' by ' + name(r.attendanceDecidedBy) : '' %><%= r.attendanceDecidedAt ? ' on ' + h.fmtDate(r.attendanceDecidedAt) : '' %>. It counts in statistics, work plans and the logframe, and is locked.<%= r.attendanceNote ? ' Note: ' + r.attendanceNote : '' %></div>
+<% } else if (!canWrite) { %>
+  <div class="alert alert-secondary small py-2">Only staff of <%= office %> correct this attendance.</div>
+<% } %>
+
+<% if (user.role === 'admin' && ['Submitted', 'Approved'].includes(status)) { %>
+<div class="panel att-decide"><div class="panel-body">
+  <h2 class="panel-title"><i class="bi bi-shield-check" aria-hidden="true"></i> Administrator's check</h2>
+  <p class="small text-body-secondary">Compare the people ticked below with the signed registers, then approve, or return it with what needs correcting.</p>
+  <form method="post" action="/reports/<%= r.id %>/attendance/decide" class="d-flex flex-wrap gap-2 align-items-end">
+    <%- f.hidden(csrfToken) %>
+    <label class="flex-grow-1 small">Note <span class="text-body-secondary">(required to return)</span><textarea class="form-control" name="note" rows="2" maxlength="1000"></textarea></label>
+    <% if (status === 'Submitted') { %><button class="btn btn-success" type="submit" name="decision" value="approve"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approve attendance</button><% } %>
+    <button class="btn btn-outline-danger" type="submit" name="decision" value="return"><i class="bi bi-arrow-return-left" aria-hidden="true"></i> Return for correction</button>
+  </form>
+</div></div>
+<% } %>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel"><div class="panel-body">
+      <div class="panel-head">
+        <h2 class="panel-title">Who attended (<%= data.attendedCount %> of <%= data.rows.length %>)</h2>
+        <% if (open) { %><a class="small" href="/reports/<%= r.id %>/attendees"><i class="bi bi-person-plus" aria-hidden="true"></i> Add walk-ins and new people</a><% } %>
+      </div>
+      <% if (!data.rows.length) { %>
+        <p class="text-body-secondary mb-0">Nobody invited or recorded yet.<% if (open) { %> <a href="/reports/<%= r.id %>/attendees">Add the people from the signed register</a>.<% } %></p>
+      <% } else { %>
+      <form method="post" action="/reports/<%= r.id %>/attendance">
+        <%- f.hidden(csrfToken) %>
+        <div class="table-wrap"><table class="table table-sm att-table">
+          <thead><tr><th class="text-center">Attended</th><th>Name</th><th>Village or area</th><th>Age and sex</th><th>Disability</th><th>Phone</th></tr></thead>
+          <tbody>
+          <% for (const x of data.rows) { const p = x.person; %>
+            <tr class="<%= x.attended ? 'is-on' : '' %>">
+              <td class="text-center"><input class="form-check-input" type="checkbox" name="attended" value="<%= p.id %>"<%= x.attended ? ' checked' : '' %><%= open ? '' : ' disabled' %> aria-label="<%= p.firstName %> <%= p.lastName %> attended"></td>
+              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a>
+                <div class="small text-body-secondary"><%= x.invited ? 'Invited' : 'Walk-in' %><% if (open) { %> · <a href="/people/attendees/<%= p.id %>/edit">Correct details</a><% } %></div></td>
+              <td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.disability === 'Disabled' ? 'Yes' : '' %></td><td><%= p.contact || '' %></td>
+            </tr>
+          <% } %>
+          </tbody>
+        </table></div>
+        <% if (open) { %><button class="btn btn-primary" type="submit"><i class="bi bi-check2-square" aria-hidden="true"></i> Save who attended</button><% } %>
+      </form>
+      <% } %>
+      <p class="small text-body-secondary mt-2 mb-0">Others not individually registered (head count on the report): <strong><%= r.otherParticipants || 0 %></strong><% if (open) { %> · <a href="/reports/<%= r.id %>/edit">change it on the report</a><% } %>.</p>
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Signed registers (<%= registers.length %>)</h2>
+      <% if (registers.length) { %>
+        <ul class="list-unstyled mb-2">
+          <% for (const a of registers) { %><li class="py-1"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> <a href="/files/reports/<%= r.id %>/<%= a.id %>" target="_blank" rel="noopener"><%= a.name %></a> <span class="small text-body-secondary"><%= h.fmtDate(a.uploadedAt) %><%= name(a.uploadedBy) ? ' · ' + name(a.uploadedBy) : '' %></span></li><% } %>
+        </ul>
+      <% } else { %><p class="small text-body-secondary">None yet. Scan or photograph every signed page.</p><% } %>
+      <% if (open) { %>
+      <form method="post" action="/reports/<%= r.id %>/attendance/registers" enctype="multipart/form-data">
+        <%- f.hidden(csrfToken) %>
+        <input class="form-control form-control-sm" type="file" name="attachments" multiple accept="image/*,application/pdf" aria-label="Scans or photos of the signed registers" required>
+        <button class="btn btn-sm btn-outline-primary mt-2" type="submit"><i class="bi bi-upload" aria-hidden="true"></i> Upload</button>
+      </form>
+      <% } %>
+    </div></div>
+    <% if (open) { %>
+    <div class="panel"><div class="panel-body">
+      <h2 class="panel-title">Submit for approval</h2>
+      <p class="small text-body-secondary">When everyone who came is ticked and every signed page is uploaded, submit. Attendance counts once an administrator approves it.</p>
+      <form method="post" action="/reports/<%= r.id %>/attendance/submit"><%- f.hidden(csrfToken) %>
+        <button class="btn btn-success w-100" type="submit"<%= registers.length ? '' : ' disabled' %>><i class="bi bi-send-check" aria-hidden="true"></i> Submit attendance</button>
+      </form>
+      <% if (!registers.length) { %><p class="small text-danger mt-2 mb-0">Upload the signed registers first.</p><% } %>
+    </div></div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/footer') %>
