@@ -1301,3 +1301,44 @@ test('beneficiary statistics: everyone registered by type, age and sex, printabl
   r = await a.req('/people');
   assert.match(r.text, /href="\/statistics\/beneficiaries"/);
 });
+
+test('attendance registers for signing print for each planned activity and activity report', async () => {
+  const a = ctx.admin;
+  let r = await a.post('/workplans', { title: 'Register plan', periodStart: '2034-01-01', periodEnd: '2034-12-31', office: 'Fisenge Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, {
+    title: 'Chiefs dialogue on land', status: 'Not started', startDate: '2034-03-05', endDate: '2034-03-05', venue: 'Chiwempala hall', targetPeople: '120', targetEvents: '4',
+  }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  r = await a.req(`/workplans/${planId}`);
+  assert.ok(r.text.includes(`/workplans/${planId}/activities/${itemId}/register`), 'each planned activity has a Register button');
+  r = await a.req(`/workplans/${planId}/activities/${itemId}/register`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /<body class="print-landscape">/);
+  for (const part of ['Attendance register', 'Chiefs dialogue on land', 'Chiwempala hall', '05 Mar 2034', 'Fisenge Office', 'Signature or thumbprint', 'Agrees to share', 'By signing, I confirm', "Facilitator's name"]) {
+    assert.ok(r.text.includes(part), `the register shows ${part}`);
+  }
+  assert.strictEqual((r.text.match(/class="reg-sheet"/g) || []).length, 3, '30 people per session: 40 lines on 3 pages');
+  assert.match(r.text, /Page 3 of 3/);
+  r = await a.req(`/workplans/${planId}/activities/${itemId}/register?rows=60`);
+  assert.strictEqual((r.text.match(/class="reg-sheet"/g) || []).length, 5);
+  r = await a.req(`/workplans/${planId}/activities/nope/register`);
+  assert.strictEqual(r.status, 404);
+
+  // From an activity report, with the people already registered
+  const [rep] = await db().find('reports', { where: { attendeeIds: { $ne: null } } });
+  const withPeople = (await db().find('reports', {})).find((x) => (x.attendeeIds || []).length);
+  const target = withPeople || rep;
+  r = await a.req(`/reports/${target.id}`);
+  assert.ok(r.text.includes(`/reports/${target.id}/register`));
+  r = await a.req(`/reports/${target.id}/register?names=1`);
+  assert.strictEqual(r.status, 200);
+  if (withPeople) {
+    const person = await db().get('people', withPeople.attendeeIds[0]);
+    assert.ok(r.text.includes(`<td>${person.lastName}</td>`), 'registered names are printed');
+  }
+  const o = new Client();
+  await o.login('officer3', 'officer-password-3');
+  r = await o.req(`/workplans/${planId}/activities/${itemId}/register`);
+  assert.strictEqual(r.status, 200, 'every colleague can print a register');
+});

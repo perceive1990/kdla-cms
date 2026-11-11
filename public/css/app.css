@@ -356,6 +356,42 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
   .ben-matrix { min-width: 0; }
   .ben-kpis .stat { break-inside: avoid; }
 }
+/* Attendance registers for signing */
+.reg-sheet { background: #fff; color: #111; border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; overflow-x: auto; }
+.reg-head { display: flex; align-items: center; gap: .75rem; border-bottom: 2px solid #1f6b3a; padding-bottom: .4rem; margin-bottom: .5rem; }
+.reg-title h2 { font-size: 1.25rem; font-weight: 800; margin: 0; }
+.reg-org { font-size: .8rem; color: #444; }
+.reg-page { margin-left: auto; font-size: .85rem; color: #444; white-space: nowrap; }
+.reg-info { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem 1.25rem; font-size: .8rem; line-height: 1.25; margin-bottom: .3rem; }
+@media (max-width: 767.98px) { .reg-info { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.reg-info span:first-child { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: #555; }
+.reg-line { display: inline-block; border-bottom: 1px solid #111; height: 1.1em; vertical-align: bottom; }
+.reg-consent { font-size: .75rem; margin: .25rem 0 .4rem; color: #222; }
+.reg-cont { font-size: .8rem; margin: 0 0 .4rem; }
+.reg-table { width: 100%; min-width: 60rem; border-collapse: collapse; table-layout: fixed; font-size: .8rem; }
+.reg-table th, .reg-table td { border: 1px solid #333; padding: .15rem .3rem; vertical-align: middle; }
+.reg-table th { background: #eef3ef; font-size: .7rem; font-weight: 700; line-height: 1.15; text-align: left; }
+.reg-table th small { font-weight: 400; display: block; }
+.reg-table tbody tr { height: 2.15rem; }
+.reg-table .r-no { width: 2.2rem; } .reg-table .r-name { width: 12%; } .reg-table .r-sex { width: 8.5rem; } .reg-table .r-age { width: 3rem; }
+.reg-table .r-nrc { width: 9%; } .reg-table .r-phone { width: 9%; } .reg-table .r-yn { width: 4.2rem; } .reg-table .r-place { width: 11%; } .reg-table .r-sign { width: auto; }
+.reg-n { text-align: right; color: #555; }
+.reg-sexkey { display: grid; grid-template-columns: repeat(4, 1fr); font-weight: 400; font-size: .62rem; margin-top: .1rem; text-align: center; }
+.reg-boxes { display: grid; grid-template-columns: repeat(4, 1fr); justify-items: center; }
+.reg-boxes span, .reg-box { display: inline-block; width: .9rem; height: .9rem; border: 1px solid #333; }
+.reg-boxes span.on { background: #111; }
+.reg-table td:nth-child(10) { text-align: center; }
+.reg-foot { display: flex; flex-wrap: wrap; gap: .5rem 2rem; align-items: flex-end; font-size: .8rem; margin-top: .6rem; }
+.reg-ref { margin-left: auto; font-size: .7rem; color: #555; }
+@media print {
+  .reg-sheet { border: 0; border-radius: 0; padding: 0; margin: 0; overflow: visible; break-after: page; }
+  .reg-sheet:last-of-type { break-after: auto; }
+  .reg-table { min-width: 0; font-size: 8pt; }
+  .reg-table tbody tr { height: 9mm; }
+  .reg-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .reg-boxes span.on { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body:has(.reg-sheet) .print-head { display: none; }
+}
 /* Logframe matrix */
 .lf-matrix { font-size: .875rem; }
 .lf-matrix .c-result { width: 30%; } .lf-matrix .c-ind { width: 24%; } .lf-matrix .c-num { width: 7%; } .lf-matrix .c-status { width: 10%; } .lf-matrix .c-means { width: 15%; }

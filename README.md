@@ -297,6 +297,10 @@ Staff can install the system on Android phones, iPhones and computers as an app 
 
 ## Appearance
 
+### Attendance registers for signing
+
+Every activity can print its own attendance register for people to sign at the meeting. On a work plan, **Register** on each planned activity prints one before the meeting; on an activity report, **Register for signing** prints one too, optionally with the names already registered. Each register prints on landscape A4 under the KDLA letterhead, with the activity, type, date, venue, district, office, project, work plan activity and facilitator filled in (blank lines where something is not known yet), a consent statement, and lines numbered across the pages. The columns follow the app's attendance register form (first name, last name, girl, boy, woman or man, age, NRC, phone, disability, village or area, agrees to share, signature or thumbprint), so the filled sheets are quick to type in afterwards under **Add attendance register**. The first page holds 10 lines and each further page 15; by default there are enough lines for the people expected at one session (people to reach divided by the number of times), and **Lines** sets any other number.
+
 ### Beneficiary statistics
 
 **Statistics, Beneficiary statistics** (also the **Statistics** button on Direct beneficiaries) reports on everyone registered as a beneficiary: clients, other parties and activity attendees. It shows the total, women and girls, children and persons with disabilities (numbers and shares), a table of each type by age and sex (girls, boys, women, men, female, male, total and with disability), beneficiaries registered each month or year, and the breakdown by village or area, project, civil status and how clients heard about KDLA. It covers everyone registered to date unless you choose a period, a type or a project. **Print or save as PDF** gives an A4 report under the KDLA letterhead; **Export CSV** gives every figure for Excel. People counted only by head count on activity reports are not registered beneficiaries and are not included.
