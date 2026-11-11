@@ -25,52 +25,52 @@
 <% if (status === 'Returned' && r.attendanceNote) { %>
   <div class="alert alert-danger"><strong>Returned for correction<%= r.attendanceDecidedBy ? ' by ' + name(r.attendanceDecidedBy) : '' %>:</strong> <%= r.attendanceNote %></div>
 <% } else if (status === 'Submitted') { %>
-  <div class="alert alert-warning small py-2"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Submitted<%= r.attendanceSubmittedBy ? ' by ' + name(r.attendanceSubmittedBy) : '' %><%= r.attendanceSubmittedAt ? ' on ' + h.fmtDate(r.attendanceSubmittedAt) : '' %>. An administrator checks it against the signed registers. Until then it does not count, and it cannot be changed.</div>
+  <div class="alert alert-warning small py-2"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Submitted<%= r.attendanceSubmittedBy ? ' by ' + name(r.attendanceSubmittedBy) : '' %><%= r.attendanceSubmittedAt ? ' on ' + h.fmtDate(r.attendanceSubmittedAt) : '' %>. An administrator checks each person against the signed registers. Until then it does not count, and only an administrator can change it.</div>
 <% } else if (status === 'Approved') { %>
-  <div class="alert alert-success small py-2"><i class="bi bi-patch-check" aria-hidden="true"></i> Approved<%= r.attendanceDecidedBy ? ' by ' + name(r.attendanceDecidedBy) : '' %><%= r.attendanceDecidedAt ? ' on ' + h.fmtDate(r.attendanceDecidedAt) : '' %>. It counts in statistics, work plans and the logframe, and is locked.<%= r.attendanceNote ? ' Note: ' + r.attendanceNote : '' %></div>
+  <div class="alert alert-success small py-2"><i class="bi bi-patch-check" aria-hidden="true"></i> Approved<%= r.attendanceDecidedBy ? ' by ' + name(r.attendanceDecidedBy) : '' %><%= r.attendanceDecidedAt ? ' on ' + h.fmtDate(r.attendanceDecidedAt) : '' %>. Only the people the administrator ticked as verified are on the register and count in statistics, work plans and the logframe. Only an administrator can change it.<%= r.attendanceNote ? ' Note: ' + r.attendanceNote : '' %></div>
 <% } else if (!canWrite) { %>
   <div class="alert alert-secondary small py-2">Only staff of <%= office %> correct this attendance.</div>
-<% } %>
-
-<% if (user.role === 'admin' && ['Submitted', 'Approved'].includes(status)) { %>
-<div class="panel att-decide"><div class="panel-body">
-  <h2 class="panel-title"><i class="bi bi-shield-check" aria-hidden="true"></i> Administrator's check</h2>
-  <p class="small text-body-secondary">Compare the people ticked below with the signed registers, then approve, or return it with what needs correcting.</p>
-  <form method="post" action="/reports/<%= r.id %>/attendance/decide" class="d-flex flex-wrap gap-2 align-items-end">
-    <%- f.hidden(csrfToken) %>
-    <label class="flex-grow-1 small">Note <span class="text-body-secondary">(required to return)</span><textarea class="form-control" name="note" rows="2" maxlength="1000"></textarea></label>
-    <% if (status === 'Submitted') { %><button class="btn btn-success" type="submit" name="decision" value="approve"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approve attendance</button><% } %>
-    <button class="btn btn-outline-danger" type="submit" name="decision" value="return"><i class="bi bi-arrow-return-left" aria-hidden="true"></i> Return for correction</button>
-  </form>
-</div></div>
 <% } %>
 
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="panel"><div class="panel-body">
       <div class="panel-head">
-        <h2 class="panel-title">Who attended (<%= data.attendedCount %> of <%= data.rows.length %>)</h2>
+        <h2 class="panel-title"><%= status === 'Approved' ? 'Verified attendance' : 'Who attended' %> (<%= data.attendedCount %> of <%= data.rows.length %>)</h2>
         <% if (open) { %><a class="small" href="/reports/<%= r.id %>/attendees"><i class="bi bi-person-plus" aria-hidden="true"></i> Add walk-ins and new people</a><% } %>
       </div>
       <% if (!data.rows.length) { %>
         <p class="text-body-secondary mb-0">Nobody invited or recorded yet.<% if (open) { %> <a href="/reports/<%= r.id %>/attendees">Add the people from the signed register</a>.<% } %></p>
       <% } else { %>
-      <form method="post" action="/reports/<%= r.id %>/attendance">
+      <% const check = user.role === 'admin' && ['Submitted', 'Approved'].includes(status); %>
+      <% if (check) { %>
+      <div class="att-decide-note"><i class="bi bi-shield-check" aria-hidden="true"></i> <strong>Administrator's check.</strong> Compare each person with the signed registers and tick only those who signed. Only the ticked people stay on the register and count; the office cannot change it any more.</div>
+      <% } %>
+      <form method="post" action="/reports/<%= r.id %>/attendance<%= check ? '/decide' : '' %>">
         <%- f.hidden(csrfToken) %>
         <div class="table-wrap"><table class="table table-sm att-table">
-          <thead><tr><th class="text-center">Attended</th><th>Name</th><th>Village or area</th><th>Age and sex</th><th>Disability</th><th>Phone</th></tr></thead>
+          <thead><tr><th class="text-center"><%= check || status === 'Approved' ? 'Verified' : 'Attended' %></th><th>Name</th><th>Village or area</th><th>Age and sex</th><th>Disability</th><th>Phone</th></tr></thead>
           <tbody>
-          <% for (const x of data.rows) { const p = x.person; %>
-            <tr class="<%= x.attended ? 'is-on' : '' %>">
-              <td class="text-center"><input class="form-check-input" type="checkbox" name="attended" value="<%= p.id %>"<%= x.attended ? ' checked' : '' %><%= open && !x.elsewhere ? '' : ' disabled' %> aria-label="<%= p.firstName %> <%= p.lastName %> attended"></td>
+          <% for (const x of data.rows) { const p = x.person;
+               const on = check ? (status === 'Approved' ? x.attended : x.claimed) : x.attended; %>
+            <tr class="<%= on ? 'is-on' : '' %>">
+              <td class="text-center"><input class="form-check-input" type="checkbox" name="<%= check ? 'verified' : 'attended' %>" value="<%= p.id %>"<%= on ? ' checked' : '' %><%= (check || open) && !x.elsewhere ? '' : ' disabled' %> aria-label="<%= p.firstName %> <%= p.lastName %> <%= check ? 'verified' : 'attended' %>"></td>
               <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a>
-                <div class="small text-body-secondary"><%= x.invited ? 'Invited' : 'Walk-in' %><% if (x.elsewhere) { %> · <a href="/reports/<%= x.elsewhere.id %>">already on the register of <%= h.fmtDate(x.elsewhere.date) %></a><% } else if (open) { %> · <a href="/people/attendees/<%= p.id %>/edit">Correct details</a><% } %></div></td>
+                <div class="small text-body-secondary"><%= x.invited ? 'Invited' : 'Walk-in' %><% if (x.elsewhere) { %> · <a href="/reports/<%= x.elsewhere.id %>">already on the register of <%= h.fmtDate(x.elsewhere.date) %></a><% } else if (check) { %> · <%= x.claimed ? 'ticked by the office' : 'not ticked by the office' %><% } else if (status === 'Approved' && data.verified && x.claimed && !x.attended) { %> · <span class="text-danger">not confirmed by the administrator</span><% } else if (open) { %> · <a href="/people/attendees/<%= p.id %>/edit">Correct details</a><% } %></div></td>
               <td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.disability === 'Disabled' ? 'Yes' : '' %></td><td><%= p.contact || '' %></td>
             </tr>
           <% } %>
           </tbody>
         </table></div>
-        <% if (open) { %><button class="btn btn-primary" type="submit"><i class="bi bi-check2-square" aria-hidden="true"></i> Save who attended</button><% } %>
+        <% if (open && !check) { %><button class="btn btn-primary" type="submit"><i class="bi bi-check2-square" aria-hidden="true"></i> Save who attended</button><% } %>
+        <% if (check) { %>
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+          <label class="flex-grow-1 small">Note <span class="text-body-secondary">(required to return)</span><textarea class="form-control" name="note" rows="2" maxlength="1000"></textarea></label>
+          <% if (status === 'Submitted') { %><button class="btn btn-success" type="submit" name="decision" value="approve"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approve with the ticked people</button>
+          <% } else { %><button class="btn btn-success" type="submit" name="decision" value="verify"><i class="bi bi-check2-circle" aria-hidden="true"></i> Save verification</button><% } %>
+          <button class="btn btn-outline-danger" type="submit" name="decision" value="return"><i class="bi bi-arrow-return-left" aria-hidden="true"></i> Return for correction</button>
+        </div>
+        <% } %>
       </form>
       <% } %>
       <p class="small text-body-secondary mt-2 mb-1">A person is recorded on one register per planned activity. People already on the register of another session of this activity cannot be ticked here.</p>

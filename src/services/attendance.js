@@ -124,7 +124,8 @@ async function forReport(db, r) {
     const item = plan && (plan.items || []).find((x) => x.id === r.workplanItemId);
     if (item) invited = item.shortlist || [];
   }
-  const ids = [...new Set([...invited, ...(r.attendeeIds || [])])];
+  const claimed = new Set(Array.isArray(r.claimedIds) ? r.claimedIds : (r.attendeeIds || []));
+  const ids = [...new Set([...invited, ...claimed, ...(r.attendeeIds || [])])];
   const people = Object.values(await mapByIds(db, 'people', ids))
     .sort((a, b) => areaKey(a.location).localeCompare(areaKey(b.location)) || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
   const attended = new Set(r.attendeeIds || []);
@@ -132,7 +133,11 @@ async function forReport(db, r) {
   const elsewhere = await reports.onOtherRegisters(db, r, r.id);
   return {
     plan,
-    rows: people.map((p) => ({ person: p, invited: inv.has(p.id), attended: attended.has(p.id), elsewhere: attended.has(p.id) ? null : elsewhere.get(p.id) || null })),
+    // attended: on the register now (after approval, as verified by the administrator); claimed: ticked by the office.
+    rows: people.map((p) => ({
+      person: p, invited: inv.has(p.id), attended: attended.has(p.id), claimed: claimed.has(p.id), elsewhere: attended.has(p.id) ? null : elsewhere.get(p.id) || null,
+    })),
+    verified: Array.isArray(r.claimedIds),
     invitedCount: invited.length,
     attendedCount: attended.size,
     walkIns: [...attended].filter((id) => !inv.has(id)).length,
@@ -182,16 +187,38 @@ async function submit(req, r) {
   return saved;
 }
 
-async function decide(req, r, decision, note = '') {
-  if (!isAdmin(req.user)) throw forbidden('Only an administrator can approve or return attendance.');
+/**
+ * The administrator's check. Once attendance is submitted, only an administrator changes the register:
+ * they tick each person the signed registers confirm, and only the ticked people stay on the register and
+ * count. "approve" approves submitted attendance; "verify" changes the ticks of approved attendance;
+ * "return" sends it back to the office with a note. What the office ticked is kept as claimedIds.
+ */
+async function decide(req, r, decision, note = '', verified = []) {
+  if (!isAdmin(req.user)) throw forbidden('Only an administrator can approve, verify or return attendance.');
   const text = str(note, 1000);
-  if (decision === 'approve') {
-    if (statusOf(r) !== 'Submitted') throw conflict('Only submitted attendance can be approved.');
+  if (decision === 'approve' || decision === 'verify') {
+    if (decision === 'approve' && statusOf(r) !== 'Submitted') throw conflict('Only submitted attendance can be approved.');
+    if (decision === 'verify' && statusOf(r) !== 'Approved') throw conflict('Only approved attendance can be verified again.');
+    const { rows } = await forReport(req.db, r);
+    const allowed = new Set(rows.filter((x) => !x.elsewhere).map((x) => x.person.id));
+    const ticked = [...new Set((Array.isArray(verified) ? verified : [verified]).map(String))].filter((id) => allowed.has(id));
+    if (!ticked.length && !(r.otherParticipants > 0)) {
+      throw new HttpError(422, 'validation', 'Tick the people the signed registers confirm attended.', { fields: { verified: 'Tick the people the signed registers confirm attended.' } });
+    }
+    const claimedIds = Array.isArray(r.claimedIds) ? r.claimedIds : (r.attendeeIds || []);
     const saved = await req.db.replace('reports', {
-      ...r, attendanceStatus: 'Approved', attendanceDecidedAt: now(), attendanceDecidedBy: req.user.id, attendanceNote: text, updatedAt: now(),
+      ...r,
+      claimedIds,
+      attendeeIds: ticked,
+      attendanceStatus: 'Approved',
+      attendanceDecidedAt: now(),
+      attendanceDecidedBy: req.user.id,
+      attendanceNote: text || (decision === 'verify' ? r.attendanceNote || '' : ''),
+      updatedAt: now(),
     });
-    audit(req, 'update', 'reports', r.id, 'Attendance approved');
-    return saved;
+    const dropped = claimedIds.filter((id) => !ticked.includes(id)).length;
+    audit(req, 'update', 'reports', r.id, `Attendance ${decision === 'approve' ? 'approved' : 'verification changed'}: ${ticked.length} verified${dropped ? `, ${dropped} ticked by the office not confirmed` : ''}`);
+    return Object.assign(saved, { dropped });
   }
   if (decision === 'return') {
     if (!['Submitted', 'Approved'].includes(statusOf(r))) throw conflict('Only submitted or approved attendance can be returned.');
@@ -199,6 +226,7 @@ async function decide(req, r, decision, note = '') {
     const saved = await req.db.replace('reports', {
       ...r, attendanceStatus: 'Returned', attendanceDecidedAt: now(), attendanceDecidedBy: req.user.id, attendanceNote: text, updatedAt: now(),
     });
+    // The office corrects the register from what the administrator last verified (or its own ticks if never verified).
     audit(req, 'update', 'reports', r.id, `Attendance returned for correction: ${text}`);
     return saved;
   }

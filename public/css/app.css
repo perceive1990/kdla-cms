@@ -364,7 +364,7 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .att-steps li.done span { background: var(--accent); border-color: var(--accent); color: #fff; }
 .att-table td:nth-child(2) { min-width: 11rem; }
 .att-table tr.is-on td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.att-decide { border-left: 4px solid var(--accent); }
+.att-decide-note { border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); padding: .5rem .75rem; border-radius: .25rem; font-size: .875rem; margin-bottom: .75rem; }
 /* Invite lists */
 .sl-areas { max-height: 18rem; overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .4rem .6rem; }
 /* Attendance registers for signing */

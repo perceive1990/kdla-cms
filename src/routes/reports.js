@@ -168,8 +168,10 @@ router.post('/:id/attendance/submit', (req, res) => attendanceAction(req, res, a
   return 'Attendance submitted. An administrator will check it against the signed registers.';
 }));
 router.post('/:id/attendance/decide', (req, res) => attendanceAction(req, res, async (r) => {
-  const saved = await attendance.decide(req, r, req.body.decision, req.body.note);
-  return saved.attendanceStatus === 'Approved' ? 'Attendance approved. It now counts in statistics, work plans and the logframe.' : 'Attendance returned for correction.';
+  const saved = await attendance.decide(req, r, req.body.decision, req.body.note, req.body.verified || []);
+  if (saved.attendanceStatus !== 'Approved') return 'Attendance returned for correction.';
+  const n = saved.attendeeIds.length;
+  return `${req.body.decision === 'verify' ? 'Verification saved' : 'Attendance approved'}: ${n} ${n === 1 ? 'person' : 'people'} verified${saved.dropped ? `, ${saved.dropped} ticked by the office not confirmed and left off the register` : ''}. Only verified people count.`;
 }));
 
 /** An attendance register for signing at this activity; it can list the people already registered. */
