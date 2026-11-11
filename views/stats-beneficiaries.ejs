@@ -1,0 +1,112 @@
+<%- include('partials/header') %>
+<% const qs = new URLSearchParams(Object.fromEntries(Object.entries({ from: p.from, to: p.to, kind: p.kind, projectId: p.projectId }).filter(([, v]) => v))).toString();
+   const pct = (n) => (b.total ? Math.round((n / b.total) * 100) + '%' : '');
+   const n = (x) => Number(x || 0).toLocaleString('en-GB');
+   const female = (c) => (c.Girl || 0) + (c.Woman || 0);
+   const male = (c) => (c.Boy || 0) + (c.Man || 0);
+   const scope = p.kind ? BEN_KINDS[p.kind] : 'Clients, other parties and activity attendees';
+   const when = p.from || p.to ? `registered ${p.from ? 'from ' + h.fmtDate(p.from) : ''}${p.from && p.to ? ' ' : ''}${p.to ? 'to ' + h.fmtDate(p.to) : ''}` : 'all registered to date'; %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="/statistics">Statistics</a> · <a href="/people">Direct beneficiaries</a></div>
+    <h1>Beneficiary statistics</h1>
+    <p class="sub">Everyone registered as a beneficiary, by type, age and sex, disability, place and project, to print or save as PDF</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button>
+    <a class="btn btn-outline-secondary" href="/statistics/beneficiaries.csv<%= qs ? '?' + qs : '' %>"><i class="bi bi-download" aria-hidden="true"></i> Export CSV</a>
+  </div>
+</div>
+<form class="filters d-print-none" method="get" action="/statistics/beneficiaries">
+  <select class="form-select" name="kind" aria-label="Type of beneficiary">
+    <option value="">All beneficiaries</option>
+    <% for (const [k, label] of Object.entries(BEN_KINDS)) { %><option value="<%= k %>"<%= p.kind === k ? ' selected' : '' %>><%= label %></option><% } %>
+  </select>
+  <label class="small">Registered from <input class="form-control" type="date" name="from" value="<%= p.from %>"></label>
+  <label class="small">to <input class="form-control" type="date" name="to" value="<%= p.to %>"></label>
+  <% if (projects.length) { %>
+  <select class="form-select" name="projectId" aria-label="Project">
+    <option value="">All projects</option>
+    <% for (const pr of projects) { %><option value="<%= pr.id %>"<%= p.projectId === pr.id ? ' selected' : '' %>><%= pr.title %></option><% } %>
+  </select>
+  <% } %>
+  <button class="btn btn-outline-primary" type="submit">Show</button>
+  <% if (qs) { %><a class="small" href="/statistics/beneficiaries">All beneficiaries, all time</a><% } %>
+</form>
+
+<article class="ben-doc">
+  <header class="ig-head">
+    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <div>
+      <h2>Beneficiary statistics</h2>
+      <p><%= config.orgFullName %> · <%= scope %> · <%= when %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %> · as at <%= h.fmtDate(generated) %></p>
+    </div>
+  </header>
+
+  <% if (!b.total) { %>
+    <div class="panel"><div class="empty"><i class="bi bi-people"></i>No beneficiaries registered for these filters.</div></div>
+  <% } else { %>
+  <div class="ben-kpis">
+    <div class="stat"><div class="label">Beneficiaries</div><div class="value"><%= n(b.total) %></div><div class="small text-body-secondary"><%= b.byKind.map((k) => n(k.count) + ' ' + k.label.toLowerCase()).join(' · ') %></div></div>
+    <div class="stat"><div class="label">Women and girls</div><div class="value"><%= n(b.women) %> <small class="fs-6 fw-normal text-body-secondary"><%= pct(b.women) %></small></div><div class="small text-body-secondary"><%= n(b.men) %> men and boys</div></div>
+    <div class="stat"><div class="label">Children (girls and boys)</div><div class="value"><%= n(b.children) %> <small class="fs-6 fw-normal text-body-secondary"><%= pct(b.children) %></small></div></div>
+    <div class="stat"><div class="label">Persons with disabilities</div><div class="value"><%= n(b.disabled) %> <small class="fs-6 fw-normal text-body-secondary"><%= pct(b.disabled) %></small></div></div>
+  </div>
+
+  <section class="ben-sec">
+    <h3 class="wp-doc-h">Beneficiaries by type, age and sex</h3>
+    <div class="table-wrap"><table class="table wp-print ben-matrix">
+      <thead><tr>
+        <th scope="col">Type</th><th scope="col" class="text-end">Girls</th><th scope="col" class="text-end">Boys</th><th scope="col" class="text-end">Women</th><th scope="col" class="text-end">Men</th><th scope="col" class="text-end">Not recorded</th>
+        <th scope="col" class="text-end">Female</th><th scope="col" class="text-end">Male</th><th scope="col" class="text-end">Total</th><th scope="col" class="text-end">With disability</th>
+      </tr></thead>
+      <tbody>
+      <% for (const m of b.matrix) { %>
+        <tr><th scope="row"><%= m.label %></th><% for (const a of b.ages) { %><td class="text-end"><%= n(m.cells[a]) %></td><% } %>
+          <td class="text-end"><%= n(female(m.cells)) %></td><td class="text-end"><%= n(male(m.cells)) %></td><td class="text-end fw-semibold"><%= n(m.total) %></td><td class="text-end"><%= n(m.disabled) %></td></tr>
+      <% } %>
+      </tbody>
+      <% if (b.matrix.length > 1) { const t = b.totalsRow; %>
+      <tfoot><tr><th scope="row">All beneficiaries</th><% for (const a of b.ages) { %><td class="text-end fw-semibold"><%= n(t.cells[a]) %></td><% } %>
+        <td class="text-end fw-semibold"><%= n(female(t.cells)) %></td><td class="text-end fw-semibold"><%= n(male(t.cells)) %></td><td class="text-end fw-semibold"><%= n(t.total) %></td><td class="text-end fw-semibold"><%= n(t.disabled) %></td></tr></tfoot>
+      <% } %>
+    </table></div>
+    <% if (b.ageRecorded < b.total) { %><p class="wp-p-sub mb-0"><%= n(b.total - b.ageRecorded) %> beneficiar<%= b.total - b.ageRecorded === 1 ? 'y has' : 'ies have' %> no age category recorded, so the shares of women, girls and children are a minimum.</p><% } %>
+  </section>
+
+  <div class="ben-grid">
+    <section class="ben-sec"><h3 class="wp-doc-h">By age and sex</h3><%- charts.hbars(b.byAge, { title: 'Beneficiaries by age and sex', unit: 'beneficiaries', labelWidth: 110 }) %></section>
+    <section class="ben-sec"><h3 class="wp-doc-h"><%= b.timelineYearly ? 'Registered each year' : 'Registered each month' %></h3><%- charts.columns(b.timeline, { title: 'Beneficiaries registered', unit: 'beneficiaries' }) %></section>
+  </div>
+
+  <div class="ben-grid">
+    <section class="ben-sec">
+      <h3 class="wp-doc-h">Village or area (top 15)</h3>
+      <table class="table wp-print"><tbody>
+        <% for (const x of b.byPlace.slice(0, 15)) { %><tr><td><%= x.label %></td><td class="text-end"><%= n(x.count) %></td><td class="text-end text-body-secondary"><%= pct(x.count) %></td></tr><% } %>
+      </tbody></table>
+      <% if (b.byPlace.length > 15) { %><p class="wp-p-sub mb-0">and <%= b.byPlace.length - 15 %> more places (all in the CSV export).</p><% } %>
+    </section>
+    <section class="ben-sec">
+      <h3 class="wp-doc-h">Project</h3>
+      <table class="table wp-print"><tbody>
+        <% for (const x of b.byProject) { %><tr><td><%= x.label === 'Not recorded' ? 'No project' : x.label %></td><td class="text-end"><%= n(x.count) %></td><td class="text-end text-body-secondary"><%= pct(x.count) %></td></tr><% } %>
+      </tbody></table>
+      <h3 class="wp-doc-h">Civil status</h3>
+      <table class="table wp-print"><tbody>
+        <% for (const x of b.byCivil) { %><tr><td><%= x.label %></td><td class="text-end"><%= n(x.count) %></td><td class="text-end text-body-secondary"><%= pct(x.count) %></td></tr><% } %>
+      </tbody></table>
+    </section>
+  </div>
+
+  <% if (b.clients) { %>
+  <section class="ben-sec ben-half">
+    <h3 class="wp-doc-h">How clients heard about KDLA (<%= n(b.clients) %> clients)</h3>
+    <%- charts.hbars(b.heardVia, { title: 'How clients heard about KDLA', unit: 'clients', max: 10, labelWidth: 200 }) %>
+  </section>
+  <% } %>
+  <% } %>
+
+  <footer class="ig-foot">Source: <%= config.appName %>, <%= h.fmtDate(generated) %>. Counts registered beneficiaries, each person once per type (a person registered as both a client and an attendee counts in both). Age and sex follow the age category recorded for each person (girl, boy, woman, man); children are girls and boys. People counted only by head count on activity reports are not registered beneficiaries and are not included.</footer>
+</article>
+<%- include('partials/footer') %>

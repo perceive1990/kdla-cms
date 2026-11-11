@@ -4,6 +4,7 @@
   <div><h1><%= title %></h1>
     <p class="sub"><%= k ? '' : 'Everyone KDLA has served directly: clients, other parties and activity attendees' %></p></div>
   <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="/statistics/beneficiaries<%= k ? '?kind=' + k.kind : '' %>"><i class="bi bi-bar-chart" aria-hidden="true"></i> Statistics</a>
     <button class="btn btn-outline-secondary" type="button" data-print-all><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
     <a class="btn btn-outline-secondary" href="<%= base %>/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([key]) => key !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
     <% if (k) { %><a class="btn btn-primary" href="<%= base %>/new"><i class="bi bi-plus-lg"></i> Add <%= k.label.toLowerCase() %></a><% } %>
