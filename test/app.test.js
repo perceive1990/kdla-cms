@@ -1439,10 +1439,29 @@ test('attendance: invite list by area before the activity, correction, signed re
   assert.match(r.text, /Natasha did not sign page 1/);
   await f.post(att, { attended: ['att-chileshe', 'att-bwalya'] }, att);
   await f.post(`${att}/submit`, {}, att);
+
+  // The administrator ticks each person the signed registers confirm; only they stay and count
+  r = await a.req(att);
+  assert.match(r.text, /Administrator's check/);
+  assert.match(r.text, /name="verified" value="att-chileshe" checked/, 'the office\'s ticks are the starting point');
   await a.post(`${att}/decide`, { decision: 'approve' }, att);
-  const done = await db().get('reports', reportId);
+  assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Submitted', 'approval needs ticked people');
+  await a.post(`${att}/decide`, { decision: 'approve', verified: ['att-chileshe'] }, att);
+  let done = await db().get('reports', reportId);
   assert.strictEqual(done.attendanceStatus, 'Approved');
-  assert.strictEqual(await reachedNow(), 2, 'approved attendance counts');
+  assert.deepStrictEqual(done.attendeeIds, ['att-chileshe'], 'only verified people stay on the register');
+  assert.deepStrictEqual(done.claimedIds.sort(), ['att-bwalya', 'att-chileshe'], 'what the office ticked is kept');
+  assert.strictEqual(await reachedNow(), 1, 'only verified attendance counts');
+  r = await f.req(att);
+  assert.match(r.text, /not confirmed by the administrator/);
+  // Nobody but an administrator changes the approved register
+  await f.post(att, { attended: ['att-chileshe', 'att-bwalya'] }, '/reports/new');
+  await f.post(`${att}/decide`, { decision: 'verify', verified: ['att-chileshe', 'att-bwalya'] }, '/reports/new');
+  assert.deepStrictEqual((await db().get('reports', reportId)).attendeeIds, ['att-chileshe']);
+  await a.post(`${att}/decide`, { decision: 'verify', verified: ['att-chileshe', 'att-bwalya'] }, att);
+  done = await db().get('reports', reportId);
+  assert.strictEqual(done.attendeeIds.length, 2);
+  assert.strictEqual(await reachedNow(), 2, 'the administrator can verify more people later');
   const reg = done.attachments.find((x) => x.register);
   await f.post(`/files/reports/${reportId}/${reg.id}/delete`, {}, `/reports/${reportId}`);
   assert.ok((await db().get('reports', reportId)).attachments.some((x) => x.id === reg.id), 'signed registers of approved attendance stay');
