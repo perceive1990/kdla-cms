@@ -9,7 +9,7 @@
     <a class="btn btn-primary" href="/workplans/<%= plan.id %>/activities/<%= item.id %>/register"><i class="bi bi-pen" aria-hidden="true"></i> Print register with these names</a>
   </div>
 </div>
-<p class="small text-body-secondary">Shortlist the people to invite before the activity. Import the registered activity attendees of a village or area, or add people one by one. The register for signing then prints their names, and after the activity you tick who came on the activity report.</p>
+<p class="small text-body-secondary">A person is recorded once per planned activity: anyone already on the register of a session of this activity is not invited or printed again. They can still be invited to other activities of the work plan. Shortlist the people to invite before the activity. Import the registered activity attendees of a village or area, or add people one by one. The register for signing then prints their names, and after the activity you tick who came on the activity report.</p>
 <% if (!canChange) { %><div class="alert alert-secondary small py-2"><i class="bi bi-building" aria-hidden="true"></i> Only staff of <%= plan.office || 'the plan\'s office' %> change this invite list<%= plan.status === 'Closed' ? ', and the plan is closed' : '' %>.</div><% } %>
 
 <div class="row g-3">
@@ -26,7 +26,7 @@
           <tbody>
           <% for (const p of people) { %>
             <tr><% if (canChange) { %><td class="d-print-none"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>" aria-label="Remove <%= p.firstName %> <%= p.lastName %>"></td><% } %>
-              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a></td><td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.contact || '' %></td></tr>
+              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a><% if (p.attended) { %><div class="small"><span class="tag tag-done">Attended <%= h.fmtDate(p.attended.date) %></span> <span class="text-body-secondary">not on new registers</span></div><% } %></td><td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.contact || '' %></td></tr>
           <% } %>
           </tbody>
         </table></div>
@@ -64,7 +64,7 @@
         <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/add" class="mt-2">
           <%- f.hidden(csrfToken) %>
           <% for (const p of found) { %>
-            <label class="form-check small"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>"> <%= p.firstName %> <%= p.lastName %> <span class="text-body-secondary"><%= p.location ? '· ' + p.location : '' %></span></label>
+            <label class="form-check small"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>"<%= p.attended ? ' disabled' : '' %>> <%= p.firstName %> <%= p.lastName %> <span class="text-body-secondary"><%= p.location ? '· ' + p.location : '' %><%= p.attended ? ' · already attended this activity on ' + h.fmtDate(p.attended.date) : '' %></span></label>
           <% } %>
           <button class="btn btn-sm btn-primary mt-2" type="submit">Add the ticked people</button>
         </form>

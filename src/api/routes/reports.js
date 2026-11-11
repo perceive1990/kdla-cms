@@ -34,7 +34,7 @@ router.patch('/reports/:id', async (req, res) => {
     h.checkIfMatch(req, r);
     const v = svc.readReport({ ...r, ...req.body });
     await svc.settleOffice(req, v, r);
-    h.failIfInvalid(await svc.validateReport(req.db, v));
+    h.failIfInvalid(await svc.validateReport(req.db, v, r.id));
     return svc.updateReport(req, r, v, { ifMatch: r._etag });
   });
   h.sendOne(res, out(saved));

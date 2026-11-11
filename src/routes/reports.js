@@ -156,7 +156,7 @@ async function attendanceAction(req, res, fn) {
 
 router.post('/:id/attendance', (req, res) => attendanceAction(req, res, async (r) => {
   const saved = await attendance.setAttended(req, r, req.body.attended || []);
-  return `Attendance saved: ${saved.attendeeIds.length} attended.`;
+  return `Attendance saved: ${saved.attendeeIds.length} attended.${saved.skipped ? ` ${saved.skipped} not recorded, because they are already on another register of this planned activity.` : ''}`;
 }));
 router.post('/:id/attendance/registers', (req, res) => attendanceAction(req, res, async (r) => {
   const files = await saveUploads(req.files, req.user);
@@ -177,7 +177,7 @@ router.get('/:id/register', async (req, res) => {
   const reg = require('../registers');
   const r = await svc.getReport(req.db, req.params.id);
   // The invite list and the people already recorded print first, by village or area; blank lines follow.
-  const { rows } = await require('../services/attendance').forReport(req.db, r);
+  const rows = (await require('../services/attendance').forReport(req.db, r)).rows.filter((x) => !x.elsewhere);
   const withNames = rows.length > 0 && (req.query.names === undefined || [].concat(req.query.names).includes('1'));
   const people = withNames ? rows.map((x) => x.person) : [];
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
@@ -249,8 +249,9 @@ router.post('/:id/attendees', async (req, res) => {
       title: 'Attendance register', r, rows: shown, rowErrors: result.rowErrors, consent,
     });
   }
-  const { added, linked } = result;
+  const { added, linked, skipped = [] } = result;
   req.flash('success', `${added} attendee${added === 1 ? '' : 's'} added${linked ? `, ${linked} already registered and linked` : ''}.`);
+  if (skipped.length) req.flash('warning', `Not added, because they are already on another register of this planned activity: ${skipped.join(', ')}. A person is recorded once per planned activity.`);
   return res.redirect(`/reports/${r.id}`);
 });
 
@@ -267,7 +268,7 @@ router.post('/:id', async (req, res) => {
   const r = await svc.getReport(req.db, req.params.id);
   const v = svc.readReport(req.body);
   try { await svc.settleOffice(req, v, r); } catch (e) { return refused(req, res, e, `/reports/${r.id}`); }
-  const errors = await svc.validateReport(req.db, v);
+  const errors = await svc.validateReport(req.db, v, r.id);
   if (Object.keys(errors).length) {
     const values = { ...r, ...v };
     return res.status(400).render('reports/form', {
