@@ -20,6 +20,12 @@
     <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>
   </select>
   <% } %>
+  <% if (comms.length) { %>
+  <select class="form-select" name="community" aria-label="Community" data-autosubmit>
+    <option value="">All communities</option>
+    <% for (const c of comms) { %><option value="<%= c.name %>"<%= query.community && query.community.trim().toLowerCase() === c.key ? ' selected' : '' %>><%= c.name %> (<%= c.count %>)</option><% } %>
+  </select>
+  <% } %>
   <select class="form-select" name="ageCategory" aria-label="Age category" data-autosubmit>
     <option value="">All age categories</option>
     <% for (const s of choices.ageCategories) { %><option<%= query.ageCategory === s ? ' selected' : '' %>><%= s %></option><% } %>
@@ -52,7 +58,7 @@
     <thead><tr>
       <th>Name</th><% if (!k) { %><th>Type</th><% } %>
       <% if (k && k.kind === 'client') { %><th>File no.</th><% } %>
-      <% if (k && k.kind === 'attendee') { %><th>Office</th><th class="d-none d-md-table-cell">Village or area</th><% } %>
+      <% if (k && k.kind === 'attendee') { %><th>Office</th><% } %><th class="d-none d-md-table-cell">Community</th>
       <th class="d-none d-md-table-cell">NRC</th><th>Age category</th><th class="d-none d-lg-table-cell">Contact</th>
       <th class="d-none d-lg-table-cell">Project</th><th class="d-none d-md-table-cell">Registered</th>
     </tr></thead>
@@ -62,7 +68,7 @@
         <td><a class="cell-strong" href="/people/<%= slug %>/<%= p.id %>"><%= h.fullName(p) %></a><% if (p.kind !== 'defendant' && p.consentRecord !== 'yes') { %> <i class="bi bi-shield-exclamation text-warning" title="Consent not recorded"></i><span class="visually-hidden">(consent not recorded)</span><% } %></td>
         <% if (!k) { %><td><%= KIND_LABEL[p.kind] %></td><% } %>
         <% if (k && k.kind === 'client') { %><td><%= p.caseNumber %></td><% } %>
-        <% if (k && k.kind === 'attendee') { %><td><%= p.office || '' %></td><td class="d-none d-md-table-cell"><%= p.location || '' %></td><% } %>
+        <% if (k && k.kind === 'attendee') { %><td><%= p.office || '' %></td><% } %><td class="d-none d-md-table-cell"><%= p.location || '' %></td>
         <td class="d-none d-md-table-cell nowrap"><%= p.nrc %></td>
         <td><%= p.ageCategory %><%= p.age !== null && p.age !== undefined ? ' (' + p.age + ')' : '' %><%= p.disability === 'Disabled' ? ' · Disabled' : '' %></td>
         <td class="d-none d-lg-table-cell"><%= p.contact %></td>

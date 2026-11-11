@@ -47,18 +47,20 @@ async function load(req) {
 
 // All direct beneficiaries (every kind)
 router.get('/', async (req, res) => {
-  const q = svc.peopleQuery(req.query);
+  const comms = await svc.communities(req.db);
+  const q = svc.inCommunity(svc.peopleQuery(req.query), comms, req.query.community);
   const total = await req.db.count('people', q);
   const pg = pagination(req, total);
   const people = await req.db.find('people', { ...q, orderBy: ['createdAt', 'DESC'], offset: pg.offset, limit: pg.pageSize });
   const projects = await req.db.find('projects', { fields: ['id', 'title'] });
   res.render('people/list', {
-    title: 'Direct beneficiaries', k: null, people, pg, projects, KIND_LABEL, SLUG_OF,
+    title: 'Direct beneficiaries', k: null, people, pg, projects, KIND_LABEL, SLUG_OF, comms,
   });
 });
 
 async function sendPeopleCsv(req, res, k) {
-  const people = await req.db.find('people', { ...svc.peopleQuery(req.query, k && k.kind), orderBy: ['createdAt', 'ASC'] });
+  const comms = await svc.communities(req.db, k ? k.kind : '');
+  const people = await req.db.find('people', { ...svc.inCommunity(svc.peopleQuery(req.query, k && k.kind), comms, req.query.community), orderBy: ['createdAt', 'ASC'] });
   const projects = await mapByIds(req.db, 'projects', people.map((p) => p.projectId));
   const csv = toCsv([
     { label: 'Type', value: (p) => KIND_LABEL[p.kind] },
@@ -141,12 +143,15 @@ router.get('/:kind/export.csv', async (req, res, next) => {
 router.get('/:kind', async (req, res, next) => {
   const k = kindOf(req);
   if (!k) return next();
-  const q = svc.peopleQuery(req.query, k.kind);
+  const comms = await svc.communities(req.db, k.kind);
+  const q = svc.inCommunity(svc.peopleQuery(req.query, k.kind), comms, req.query.community);
   const total = await req.db.count('people', q);
   const pg = pagination(req, total);
   const people = await req.db.find('people', { ...q, orderBy: ['createdAt', 'DESC'], offset: pg.offset, limit: pg.pageSize });
   const projects = await req.db.find('projects', { fields: ['id', 'title'] });
-  return res.render('people/list', { title: k.plural, k, people, pg, projects, KIND_LABEL, SLUG_OF });
+  return res.render('people/list', {
+    title: k.plural, k, people, pg, projects, KIND_LABEL, SLUG_OF, comms,
+  });
 });
 
 router.get('/:kind/new', async (req, res, next) => {

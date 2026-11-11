@@ -39,19 +39,27 @@ router.get('/infographic', async (req, res) => {
   });
 });
 
+const people = require('../services/people');
+/** Adds every stored spelling of the chosen community to the filters. */
+function withCommunity(p, comms) {
+  const c = comms.find((x) => x.key === people.communityKey(p.community));
+  return { ...p, community: c ? c.name : p.community, communityValues: c ? c.values : [] };
+}
+
 // Statistics of all registered beneficiaries (clients, other parties and activity attendees), printable.
 router.get('/beneficiaries', async (req, res) => {
   const p = benPeriod(req.query);
   const projects = await req.db.find('projects', { fields: ['id', 'title', 'donor'], orderBy: ['title', 'ASC'] });
-  const b = await beneficiaries(req.db, p);
+  const comms = await people.communities(req.db, p.kind);
+  const b = await beneficiaries(req.db, withCommunity(p, comms));
   res.render('stats-beneficiaries', {
-    title: 'Beneficiary statistics', p, b, projects, project: projects.find((x) => x.id === p.projectId) || null, BEN_KINDS, charts, generated: today(),
+    title: 'Beneficiary statistics', p, b, projects, comms, project: projects.find((x) => x.id === p.projectId) || null, BEN_KINDS, charts, generated: today(),
   });
 });
 
 router.get('/beneficiaries.csv', async (req, res) => {
   const p = benPeriod(req.query);
-  const b = await beneficiaries(req.db, p);
+  const b = await beneficiaries(req.db, withCommunity(p, await people.communities(req.db, p.kind)));
   audit(req, 'export', 'statistics', null, 'Exported beneficiary statistics');
   sendCsv(res, `beneficiary-statistics-${today()}.csv`, toCsv([
     { label: 'Section', value: 'section' }, { label: 'Item', value: 'item' }, { label: 'Value', value: 'value' },
