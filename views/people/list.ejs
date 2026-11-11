@@ -7,12 +7,19 @@
     <a class="btn btn-outline-primary" href="/statistics/beneficiaries<%= k ? '?kind=' + k.kind : '' %>"><i class="bi bi-bar-chart" aria-hidden="true"></i> Statistics</a>
     <button class="btn btn-outline-secondary" type="button" data-print-all><i class="bi bi-printer" aria-hidden="true"></i> Print</button>
     <a class="btn btn-outline-secondary" href="<%= base %>/export.csv?<%= new URLSearchParams(Object.fromEntries(Object.entries(query).filter(([key]) => key !== 'page'))).toString() %>"><i class="bi bi-download"></i> Export CSV</a>
+    <% if (k && k.kind === 'attendee') { %><a class="btn btn-outline-primary" href="/people/attendees/import"><i class="bi bi-upload" aria-hidden="true"></i> Import a register</a><% } %>
     <% if (k) { %><a class="btn btn-primary" href="<%= base %>/new"><i class="bi bi-plus-lg"></i> Add <%= k.label.toLowerCase() %></a><% } %>
   </div>
 </div>
 
 <form class="filters" method="get" action="<%= base %>" role="search">
   <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search name, NRC, contact<%= k && k.kind === 'client' ? ', file number' : '' %>" aria-label="Search">
+  <% if (k && k.kind === 'attendee') { %>
+  <select class="form-select" name="office" aria-label="Office" data-autosubmit>
+    <option value="">All offices</option>
+    <% for (const s of choices.offices) { %><option<%= query.office === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <% } %>
   <select class="form-select" name="ageCategory" aria-label="Age category" data-autosubmit>
     <option value="">All age categories</option>
     <% for (const s of choices.ageCategories) { %><option<%= query.ageCategory === s ? ' selected' : '' %>><%= s %></option><% } %>
@@ -45,7 +52,7 @@
     <thead><tr>
       <th>Name</th><% if (!k) { %><th>Type</th><% } %>
       <% if (k && k.kind === 'client') { %><th>File no.</th><% } %>
-      <% if (k && k.kind === 'attendee') { %><th>Activity</th><% } %>
+      <% if (k && k.kind === 'attendee') { %><th>Office</th><th class="d-none d-md-table-cell">Village or area</th><% } %>
       <th class="d-none d-md-table-cell">NRC</th><th>Age category</th><th class="d-none d-lg-table-cell">Contact</th>
       <th class="d-none d-lg-table-cell">Project</th><th class="d-none d-md-table-cell">Registered</th>
     </tr></thead>
@@ -55,7 +62,7 @@
         <td><a class="cell-strong" href="/people/<%= slug %>/<%= p.id %>"><%= h.fullName(p) %></a><% if (p.kind !== 'defendant' && p.consentRecord !== 'yes') { %> <i class="bi bi-shield-exclamation text-warning" title="Consent not recorded"></i><span class="visually-hidden">(consent not recorded)</span><% } %></td>
         <% if (!k) { %><td><%= KIND_LABEL[p.kind] %></td><% } %>
         <% if (k && k.kind === 'client') { %><td><%= p.caseNumber %></td><% } %>
-        <% if (k && k.kind === 'attendee') { %><td><%= p.activity %></td><% } %>
+        <% if (k && k.kind === 'attendee') { %><td><%= p.office || '' %></td><td class="d-none d-md-table-cell"><%= p.location || '' %></td><% } %>
         <td class="d-none d-md-table-cell nowrap"><%= p.nrc %></td>
         <td><%= p.ageCategory %><%= p.age !== null && p.age !== undefined ? ' (' + p.age + ')' : '' %><%= p.disability === 'Disabled' ? ' · Disabled' : '' %></td>
         <td class="d-none d-lg-table-cell"><%= p.contact %></td>

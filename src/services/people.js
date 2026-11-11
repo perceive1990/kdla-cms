@@ -21,6 +21,8 @@ function peopleQuery(params = {}, kind) {
   if (choices.ageCategories.includes(params.ageCategory)) where.ageCategory = params.ageCategory;
   if (params.disability && choices.disability.includes(params.disability)) where.disability = params.disability;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
+  if (choices.offices.includes(params.office)) where.office = params.office;
+  if (params.location) where.location = String(params.location).slice(0, 200);
   if (params.consent === 'missing') where.$or = [{ consentRecord: null }, { consentRecord: { $in: ['', 'no'] } }];
   const q = { where };
   const term = str(params.q, 80);

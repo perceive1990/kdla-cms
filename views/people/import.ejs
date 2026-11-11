@@ -1,0 +1,75 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/people/attendees">Activity attendees</a></div>
+    <h1>Import activity attendees</h1>
+    <p class="sub">Register the people on a signed attendance register in one go</p>
+  </div>
+</div>
+<% if (error) { %><div class="alert alert-danger" role="alert"><%= error %></div><% } %>
+
+<% if (typeof rows === 'undefined') { %>
+<form class="panel" method="post" action="/people/attendees/import" enctype="multipart/form-data">
+  <div class="panel-body row g-3">
+    <%- f.hidden(csrfToken) %>
+    <div class="col-md-6">
+      <label class="form-label" for="office">Office</label>
+      <% if (admin) { %>
+        <select class="form-select" id="office" name="office" required>
+          <option value="">Choose the office</option>
+          <% for (const o of choices.offices) { %><option<%= values.office === o ? ' selected' : '' %>><%= o %></option><% } %>
+        </select>
+      <% } else { %>
+        <p class="form-control-plaintext fw-semibold mb-0" id="office"><%= values.office || 'No office on your account' %></p>
+      <% } %>
+      <div class="form-text">The people are registered under this office.</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="activity">Type of activity attended <span class="text-body-secondary">(optional)</span></label>
+      <select class="form-select" id="activity" name="activity">
+        <option value="">Not recorded</option>
+        <% for (const a of choices.activities) { %><option<%= values.activity === a ? ' selected' : '' %>><%= a %></option><% } %>
+      </select>
+    </div>
+    <div class="col-12">
+      <label class="form-label" for="register">Attendance register</label>
+      <input class="form-control" id="register" type="file" name="attachments" accept=".docx,.csv,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/csv" required>
+      <div class="form-text">A Word document (.docx) with the register as a table, or a CSV file. Columns are recognised by what they hold: full name, NRC (123456/78/1), sex (M or F), village or area (the Organization or Community column), present (yes or no) and phone.</div>
+    </div>
+    <div class="col-12">
+      <label class="form-check"><input class="form-check-input" type="checkbox" name="adults" value="1"<%= values.adults ? ' checked' : '' %>> Everyone on this register is an adult: record F as Woman and M as Man</label>
+      <div class="form-text">Registers usually give the sex but not the age. Untick it for registers that include children; then each person needs an age, and nobody is imported without one.</div>
+    </div>
+    <div class="col-12"><button class="btn btn-primary" type="submit"><i class="bi bi-eye" aria-hidden="true"></i> Preview the import</button></div>
+  </div>
+</form>
+<% } else { const by = (s) => rows.filter((r) => r.status === s); %>
+<div class="panel"><div class="panel-body">
+  <h2 class="panel-title">Preview: <%= values.source %> for <%= values.office %></h2>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <span class="tag tag-done"><%= by('new').length %> new</span>
+    <span class="tag"><%= by('existing').length %> already registered</span>
+    <% if (by('duplicate').length) { %><span class="tag tag-warn"><%= by('duplicate').length %> repeated</span><% } %>
+    <% if (by('absent').length) { %><span class="tag tag-muted"><%= by('absent').length %> absent</span><% } %>
+    <% if (by('problem').length) { %><span class="tag tag-danger"><%= by('problem').length %> cannot be imported</span><% } %>
+    <% const flagged = rows.filter((r) => r.notes.length && r.status !== 'duplicate').length; if (flagged) { %><span class="tag tag-warn"><%= flagged %> with a note</span><% } %>
+  </div>
+  <form method="post" action="/people/attendees/import/save" class="d-flex flex-wrap gap-2 mb-3">
+    <%- f.hidden(csrfToken) %>
+    <button class="btn btn-primary" type="submit"<%= by('new').length || by('existing').length ? '' : ' disabled' %>><i class="bi bi-check2-circle" aria-hidden="true"></i> Register <%= by('new').length %> new attendee<%= by('new').length === 1 ? '' : 's' %></button>
+    <a class="btn btn-outline-secondary" href="/people/attendees/import">Start again</a>
+  </form>
+  <div class="table-wrap"><table class="table table-sm">
+    <thead><tr><th class="text-end">Line</th><th>Name</th><th>NRC</th><th>Sex and age</th><th>Village or area</th><th>Phone</th><th>What happens</th></tr></thead>
+    <tbody>
+    <% for (const r of rows) { %>
+      <tr class="<%= r.status === 'new' ? '' : 'text-body-secondary' %>">
+        <td class="text-end"><%= r.line %></td><td><%= r.firstName %> <strong><%= r.lastName %></strong></td><td class="nowrap"><%= r.nrc %></td><td><%= r.ageCategory || r.sex %></td><td><%= r.area %></td><td class="nowrap"><%= r.phone %></td>
+        <td class="small"><%= STATUS[r.status] %><% if (r.notes.length) { %><div class="text-warning-emphasis"><%= r.notes.join('; ') %></div><% } %></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table></div>
+</div></div>
+<% } %>
+<%- include('../partials/footer') %>
