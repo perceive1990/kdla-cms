@@ -162,13 +162,15 @@ async function loadItem(req) {
 router.get('/:id/activities/:itemId/shortlist', async (req, res) => {
   const { plan, item } = await loadItem(req);
   const [people, areas, found] = await Promise.all([
-    attendance.shortlistPeople(req.db, item), attendance.areas(req.db), attendance.search(req.db, req.query.q),
+    attendance.shortlistPeople(req.db, item, plan), attendance.areas(req.db), attendance.search(req.db, req.query.q),
   ]);
+  const done = await attendance.attendedActivity(req.db, plan, item);
   let canChange = true;
   try { attendance.mustShortlist(req.user, plan); } catch { canChange = false; }
   const inList = new Set(item.shortlist || []);
   res.render('workplans/shortlist', {
-    title: `Invite list: ${item.title}`, plan, item, people, areas, found: found.filter((p) => !inList.has(p.id)), q: String(req.query.q || '').slice(0, 60), canChange,
+    title: `Invite list: ${item.title}`, plan, item, people, areas, q: String(req.query.q || '').slice(0, 60), canChange,
+    found: found.filter((p) => !inList.has(p.id)).map((p) => ({ ...p, attended: done.get(p.id) || null })),
   });
 });
 
@@ -187,7 +189,9 @@ async function shortlistAction(req, res, fn) {
 
 router.post('/:id/activities/:itemId/shortlist/import', (req, res) => shortlistAction(req, res, async (plan, item) => {
   const r = await attendance.importAreas(req, plan, item.id, req.body.areas || []);
-  return `${r.added} attendee${r.added === 1 ? '' : 's'} added to the invite list (${r.found} registered in the chosen area${[].concat(req.body.areas || []).length === 1 ? '' : 's'}; the others were already on it).`;
+  const areasN = [].concat(req.body.areas || []).length;
+  return `${r.added} attendee${r.added === 1 ? '' : 's'} added to the invite list. ${r.found} ${r.found === 1 ? 'is' : 'are'} registered in the chosen area${areasN === 1 ? '' : 's'}`
+    + `${r.already ? `; ${r.already} already attended a session of this activity and ${r.already === 1 ? 'was' : 'were'} not invited again` : ''}; the others were already on the list.`;
 }));
 router.post('/:id/activities/:itemId/shortlist/add', (req, res) => shortlistAction(req, res, async (plan, item) => {
   await attendance.addPeople(req, plan, item.id, req.body.personIds || []);
@@ -210,7 +214,8 @@ router.get('/:id/activities/:itemId/register', async (req, res) => {
   const who = it.responsibleId ? await req.db.get('users', it.responsibleId) : null;
   const num = Number.isInteger(it.number) ? `${it.number}. ` : '';
   // The invite list prints first, by village or area; blank lines follow for walk-ins.
-  const invited = await require('../services/attendance').shortlistPeople(req.db, it);
+  // People already recorded at a session of this activity are left off: they are recorded once per activity.
+  const invited = (await require('../services/attendance').shortlistPeople(req.db, it, plan)).filter((p) => !p.attended);
   const withNames = invited.length > 0 && (req.query.names === undefined || [].concat(req.query.names).includes('1'));
   res.render('register', {
     title: `Register: ${it.title}`,

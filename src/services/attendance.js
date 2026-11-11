@@ -57,25 +57,34 @@ async function changeShortlist(req, plan, itemId, fn, text) {
   return item;
 }
 
+/** People already recorded at a session (activity report) of this planned activity: person id → report. */
+const attendedActivity = (db, plan, item) => reports.onOtherRegisters(db, { workplanId: plan.id, workplanItemId: item.id || item });
+
 /** Adds every registered activity attendee of the chosen villages or areas to the shortlist. */
 async function importAreas(req, plan, itemId, chosen) {
   const want = new Set((Array.isArray(chosen) ? chosen : [chosen]).map(areaKey).filter(Boolean));
   if (!want.size) throw new HttpError(422, 'validation', 'Choose at least one village or area.', { fields: { areas: 'Choose at least one village or area.' } });
   const people = await req.db.find('people', { where: { kind: 'attendee' }, fields: ['id', 'location'] });
-  const ids = people.filter((p) => want.has(areaKey(p.location))).map((p) => p.id);
+  const done = await attendedActivity(req.db, plan, itemId);
+  const inArea = people.filter((p) => want.has(areaKey(p.location))).map((p) => p.id);
+  // People already recorded at a session of this activity are not invited again.
+  const ids = inArea.filter((id) => !done.has(id));
   let added = 0;
   const item = await changeShortlist(req, plan, itemId, (list) => {
     const have = new Set(list);
     added = ids.filter((id) => !have.has(id)).length;
     return [...list, ...ids];
   }, `shortlisted attendees from ${[...want].length} area(s)`);
-  return { item, added, found: ids.length };
+  return {
+    item, added, found: inArea.length, already: inArea.length - ids.length,
+  };
 }
 
 async function addPeople(req, plan, itemId, ids) {
   const wanted = (Array.isArray(ids) ? ids : [ids]).map((x) => str(x, 60)).filter(Boolean);
   const found = await mapByIds(req.db, 'people', wanted);
-  const ok = wanted.filter((id) => found[id] && found[id].kind === 'attendee');
+  const done = await attendedActivity(req.db, plan, itemId);
+  const ok = wanted.filter((id) => found[id] && found[id].kind === 'attendee' && !done.has(id));
   return changeShortlist(req, plan, itemId, (list) => [...list, ...ok], `shortlisted ${ok.length} attendee(s)`);
 }
 
@@ -84,9 +93,16 @@ async function removePeople(req, plan, itemId, ids) {
   return changeShortlist(req, plan, itemId, (list) => list.filter((id) => !drop.has(id)), `removed ${drop.size} from the shortlist`);
 }
 
-/** The shortlisted people, sorted by village or area and name. */
-async function shortlistPeople(db, item) {
+/**
+ * The shortlisted people, sorted by village or area and name. With a plan, each carries `attended`: the
+ * session of this planned activity they are already recorded at, if any.
+ */
+async function shortlistPeople(db, item, plan = null) {
   const people = Object.values(await mapByIds(db, 'people', item.shortlist || []));
+  if (plan) {
+    const done = await attendedActivity(db, plan, item);
+    for (const p of people) p.attended = done.get(p.id) || null;
+  }
   return people.sort((a, b) => areaKey(a.location).localeCompare(areaKey(b.location)) || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
 }
 
@@ -113,9 +129,10 @@ async function forReport(db, r) {
     .sort((a, b) => areaKey(a.location).localeCompare(areaKey(b.location)) || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
   const attended = new Set(r.attendeeIds || []);
   const inv = new Set(invited);
+  const elsewhere = await reports.onOtherRegisters(db, r, r.id);
   return {
     plan,
-    rows: people.map((p) => ({ person: p, invited: inv.has(p.id), attended: attended.has(p.id) })),
+    rows: people.map((p) => ({ person: p, invited: inv.has(p.id), attended: attended.has(p.id), elsewhere: attended.has(p.id) ? null : elsewhere.get(p.id) || null })),
     invitedCount: invited.length,
     attendedCount: attended.size,
     walkIns: [...attended].filter((id) => !inv.has(id)).length,
@@ -132,10 +149,13 @@ async function mustCorrect(req, r) {
 async function setAttended(req, r, ids, { ifMatch } = {}) {
   await mustCorrect(req, r);
   const { rows } = await forReport(req.db, r);
-  const allowed = new Set(rows.map((x) => x.person.id));
-  const chosen = [...new Set((Array.isArray(ids) ? ids : [ids]).map(String))].filter((id) => allowed.has(id));
+  // Only invited or recorded people, and nobody already on another register of the same planned activity.
+  const allowed = new Set(rows.filter((x) => !x.elsewhere).map((x) => x.person.id));
+  const asked = [...new Set((Array.isArray(ids) ? ids : [ids]).map(String))];
+  const chosen = asked.filter((id) => allowed.has(id));
   const saved = await req.db.replace('reports', { ...r, attendeeIds: chosen, updatedAt: now() }, ifMatch ? { ifMatch } : {});
   audit(req, 'update', 'reports', r.id, `Attendance corrected: ${chosen.length} attended`);
+  saved.skipped = rows.filter((x) => x.elsewhere && asked.includes(x.person.id)).length;
   return saved;
 }
 
@@ -186,6 +206,6 @@ async function decide(req, r, decision, note = '') {
 }
 
 module.exports = {
-  STATUSES, LABEL, statusOf, counts, locked, registerFiles, areas, importAreas, addPeople, removePeople, shortlistPeople, search,
+  STATUSES, LABEL, statusOf, counts, locked, registerFiles, attendedActivity, areas, importAreas, addPeople, removePeople, shortlistPeople, search,
   forReport, setAttended, addRegisterFiles, submit, decide, mustShortlist,
 };

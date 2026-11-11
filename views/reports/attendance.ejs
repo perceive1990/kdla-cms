@@ -62,9 +62,9 @@
           <tbody>
           <% for (const x of data.rows) { const p = x.person; %>
             <tr class="<%= x.attended ? 'is-on' : '' %>">
-              <td class="text-center"><input class="form-check-input" type="checkbox" name="attended" value="<%= p.id %>"<%= x.attended ? ' checked' : '' %><%= open ? '' : ' disabled' %> aria-label="<%= p.firstName %> <%= p.lastName %> attended"></td>
+              <td class="text-center"><input class="form-check-input" type="checkbox" name="attended" value="<%= p.id %>"<%= x.attended ? ' checked' : '' %><%= open && !x.elsewhere ? '' : ' disabled' %> aria-label="<%= p.firstName %> <%= p.lastName %> attended"></td>
               <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a>
-                <div class="small text-body-secondary"><%= x.invited ? 'Invited' : 'Walk-in' %><% if (open) { %> · <a href="/people/attendees/<%= p.id %>/edit">Correct details</a><% } %></div></td>
+                <div class="small text-body-secondary"><%= x.invited ? 'Invited' : 'Walk-in' %><% if (x.elsewhere) { %> · <a href="/reports/<%= x.elsewhere.id %>">already on the register of <%= h.fmtDate(x.elsewhere.date) %></a><% } else if (open) { %> · <a href="/people/attendees/<%= p.id %>/edit">Correct details</a><% } %></div></td>
               <td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.disability === 'Disabled' ? 'Yes' : '' %></td><td><%= p.contact || '' %></td>
             </tr>
           <% } %>
@@ -73,7 +73,8 @@
         <% if (open) { %><button class="btn btn-primary" type="submit"><i class="bi bi-check2-square" aria-hidden="true"></i> Save who attended</button><% } %>
       </form>
       <% } %>
-      <p class="small text-body-secondary mt-2 mb-0">Others not individually registered (head count on the report): <strong><%= r.otherParticipants || 0 %></strong><% if (open) { %> · <a href="/reports/<%= r.id %>/edit">change it on the report</a><% } %>.</p>
+      <p class="small text-body-secondary mt-2 mb-1">A person is recorded on one register per planned activity. People already on the register of another session of this activity cannot be ticked here.</p>
+      <p class="small text-body-secondary mt-0 mb-0">Others not individually registered (head count on the report): <strong><%= r.otherParticipants || 0 %></strong><% if (open) { %> · <a href="/reports/<%= r.id %>/edit">change it on the report</a><% } %>.</p>
     </div></div>
   </div>
   <div class="col-lg-4">

@@ -47,7 +47,30 @@ function readReport(body) {
   };
 }
 
-async function validateReport(db, v) {
+/**
+ * People already on another register (activity report) of the same planned activity, as person id → that
+ * report. A person is recorded once per planned activity, so an activity held several times does not count
+ * the same people twice; they can still attend different activities of the work plan.
+ */
+async function onOtherRegisters(db, { workplanId, workplanItemId } = {}, selfId = '') {
+  const out = new Map();
+  if (!workplanId || !workplanItemId) return out;
+  const others = await db.find('reports', { where: { workplanId, workplanItemId }, fields: ['id', 'heading', 'date', 'attendeeIds'] });
+  for (const o of others.sort((a, b) => String(a.date).localeCompare(String(b.date)))) {
+    if (o.id === selfId) continue;
+    for (const id of o.attendeeIds || []) if (!out.has(id)) out.set(id, o);
+  }
+  return out;
+}
+
+function alreadyText(people, ids, elsewhere) {
+  const names = ids.slice(0, 3).map((id) => (people[id] ? `${people[id].firstName} ${people[id].lastName}` : 'someone'));
+  const more = ids.length > 3 ? ` and ${ids.length - 3} more` : '';
+  const when = elsewhere.get(ids[0]);
+  return `${names.join(', ')}${more} ${ids.length === 1 ? 'is' : 'are'} already on the register of ${when ? when.date : 'another session'} for this planned activity. A person is recorded once per planned activity.`;
+}
+
+async function validateReport(db, v, selfId = '') {
   const e = {};
   if (!v.heading) e.heading = 'Enter a heading.';
   if (!choices.activities.includes(v.activityType)) e.activityType = 'Select the type of activity.';
@@ -75,6 +98,11 @@ async function validateReport(db, v) {
   }
   const att = await mapByIds(db, 'people', v.attendeeIds);
   if (v.attendeeIds.some((id) => !att[id] || att[id].kind !== 'attendee')) e.attendeeIds = 'One of the selected attendees no longer exists.';
+  else if (v.attendeeIds.length) {
+    const elsewhere = await onOtherRegisters(db, v, selfId);
+    const twice = v.attendeeIds.filter((id) => elsewhere.has(id));
+    if (twice.length) e.attendeeIds = alreadyText(att, twice, elsewhere);
+  }
   const partners = await mapByIds(db, 'stakeholders', v.partnerIds);
   if (v.partnerIds.some((id) => !partners[id])) e.partnerIds = 'One of the selected partner organisations no longer exists.';
   return e;
@@ -217,13 +245,15 @@ async function addAttendees(req, r, rawRows, consent = {}) {
   }
   if (Object.keys(rowErrors).length) return { rowErrors, rows };
 
-  let added = 0; let linked = 0;
+  let added = 0; let linked = 0; const skipped = [];
   const ids = new Set(r.attendeeIds || []);
+  const elsewhere = await onOtherRegisters(req.db, r, r.id);
   for (const { v } of prepared) {
     // Someone already registered with the same NRC is linked rather than added twice.
     const existing = v.nrc ? (await req.db.find('people', { where: { kind: 'attendee', nrc: v.nrc }, limit: 1 }))[0] : null;
     if (existing) {
-      if (!ids.has(existing.id)) { ids.add(existing.id); linked += 1; }
+      if (elsewhere.has(existing.id)) skipped.push(`${existing.firstName} ${existing.lastName} (${elsewhere.get(existing.id).date})`);
+      else if (!ids.has(existing.id)) { ids.add(existing.id); linked += 1; }
       continue;
     }
     const doc = withConsentStamp({
@@ -235,10 +265,12 @@ async function addAttendees(req, r, rawRows, consent = {}) {
   }
   const fresh = await req.db.get('reports', r.id);
   const report = await req.db.replace('reports', { ...fresh, attendeeIds: [...ids], updatedAt: now() });
-  audit(req, 'update', 'reports', r.id, `Attendance register: ${added} added, ${linked} linked`);
-  return { added, linked, report };
+  audit(req, 'update', 'reports', r.id, `Attendance register: ${added} added, ${linked} linked${skipped.length ? `, ${skipped.length} already on another register of the activity` : ''}`);
+  return {
+    added, linked, skipped, report,
+  };
 }
 
 module.exports = {
-  RICH_FIELDS, officeOf, canWriteFor, mustWriteFor, settleOffice, readReport, validateReport, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
+  RICH_FIELDS, officeOf, canWriteFor, mustWriteFor, settleOffice, readReport, validateReport, onOtherRegisters, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
 };

@@ -1447,3 +1447,69 @@ test('attendance: invite list by area before the activity, correction, signed re
   await f.post(`/files/reports/${reportId}/${reg.id}/delete`, {}, `/reports/${reportId}`);
   assert.ok((await db().get('reports', reportId)).attachments.some((x) => x.id === reg.id), 'signed registers of approved attendance stay');
 });
+
+test('a person is recorded on one register per planned activity, but can attend other activities', async () => {
+  const a = ctx.admin;
+  const mk = (firstName, location, nrc = '') => db().create('people', {
+    id: `once-${firstName}`.toLowerCase(), kind: 'attendee', firstName, lastName: 'Once', location, nrc, ageCategory: 'Woman', disability: 'Not Disabled', createdAt: '2036-01-01T00:00:00Z', updatedAt: '2036-01-01T00:00:00Z',
+  });
+  await mk('Ruth', 'Chamboli', '111111/11/1');
+  await mk('Grace', 'Chamboli');
+  await mk('Joyce', 'Chamboli');
+  let r = await a.post('/workplans', { title: 'Once plan', periodStart: '2036-01-01', periodEnd: '2036-12-31', office: 'Kitwe Main Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  for (const title of ['Chamboli land meetings', 'Chamboli paralegal clinic']) {
+    await a.post(`/workplans/${planId}/activities`, { title, status: 'Not started', targetEvents: '2' }, `/workplans/${planId}/activities/new`);
+  }
+  const [meet, clinic] = (await db().get('workplans', planId)).items;
+  const newReport = async (item, date, extra = {}) => {
+    const res = await a.post('/reports', {
+      activityType: 'Community Meeting', heading: `${item.title} ${date}`, date, introduction: 'I', objectives: 'O', implementation: 'Im',
+      compiledById: await userId('admin'), workplanItem: `${planId}:${item.id}`, ...extra,
+    }, '/reports/new');
+    return res;
+  };
+  const sl = (item) => `/workplans/${planId}/activities/${item.id}/shortlist`;
+  await a.post(`${sl(meet)}/import`, { areas: 'Chamboli' }, sl(meet));
+
+  // Session 1: Ruth and Grace attend
+  r = await newReport(meet, '2036-02-01');
+  const s1 = r.location.split('/')[2];
+  await a.post(`/reports/${s1}/attendance`, { attended: ['once-ruth', 'once-grace'] }, `/reports/${s1}/attendance`);
+  assert.strictEqual((await db().get('reports', s1)).attendeeIds.length, 2);
+
+  // Session 2 of the same activity: they cannot be ticked, printed or invited again
+  r = await newReport(meet, '2036-03-01');
+  const s2 = r.location.split('/')[2];
+  r = await a.req(`/reports/${s2}/attendance`);
+  assert.match(r.text, /already on the register of 01 Feb 2036/);
+  await a.post(`/reports/${s2}/attendance`, { attended: ['once-ruth', 'once-joyce'] }, `/reports/${s2}/attendance`);
+  assert.deepStrictEqual((await db().get('reports', s2)).attendeeIds, ['once-joyce'], 'Ruth is already on the first register');
+  r = await a.req(`/reports/${s2}/attendance`);
+  assert.match(r.text, /1 not recorded, because they are already on another register of this planned activity/);
+  r = await a.req(`/workplans/${planId}/activities/${meet.id}/register`);
+  assert.ok(!r.text.includes('<td>Ruth</td>') && !r.text.includes('<td>Grace</td>'), 'people who attended are not printed again');
+  r = await a.req(`/reports/${s2}/register`);
+  assert.ok(!r.text.includes('<td>Ruth</td>'));
+  r = await a.req(sl(meet));
+  assert.match(r.text, /Attended 01 Feb 2036/);
+
+  // The report form and the walk-in register refuse them too
+  r = await a.post(`/reports/${s2}`, {
+    activityType: 'Community Meeting', heading: 'Edited', date: '2036-03-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office',
+    compiledById: await userId('admin'), workplanItem: `${planId}:${meet.id}`, attendeeIds: ['once-joyce', 'once-grace'],
+  }, `/reports/${s2}/edit`);
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /Grace Once is already on the register of 2036-02-01 for this planned activity/);
+  await a.post(`/reports/${s2}/attendees`, { 'rows[0][firstName]': 'Ruth', 'rows[0][lastName]': 'Once', 'rows[0][ageCategory]': 'Woman', 'rows[0][nrc]': '111111/11/1' }, `/reports/${s2}/attendees`);
+  assert.ok(!(await db().get('reports', s2)).attendeeIds.includes('once-ruth'), 'the NRC match is not linked a second time');
+
+  // A different activity of the same work plan: Ruth and Grace can be invited and recorded
+  await a.post(`${sl(clinic)}/import`, { areas: 'Chamboli' }, sl(clinic));
+  const clinicItem = (await db().get('workplans', planId)).items.find((x) => x.id === clinic.id);
+  assert.ok(clinicItem.shortlist.includes('once-ruth') && clinicItem.shortlist.includes('once-grace'));
+  r = await newReport(clinic, '2036-02-15');
+  const c1 = r.location.split('/')[2];
+  await a.post(`/reports/${c1}/attendance`, { attended: ['once-ruth', 'once-grace'] }, `/reports/${c1}/attendance`);
+  assert.strictEqual((await db().get('reports', c1)).attendeeIds.length, 2, 'another activity records them again');
+});

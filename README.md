@@ -307,6 +307,8 @@ Attendance follows five steps, shown on each report's **Attendance** page:
 4. **Upload the signed registers and submit.** Scans or photos of every signed page are uploaded under **Signed registers**; **Submit attendance** needs at least one, and someone recorded as attending (or a head count).
 5. **Administrator's check.** Administrators see on the dashboard how many reports wait, and **Activity reports** filters by attendance. They compare the ticked people with the signed registers, then **Approve attendance**, or **Return for correction** with a note saying what to fix.
 
+**One register per planned activity.** A person is recorded on only one register (activity report) of a planned activity, so an activity held several times does not count the same people twice. Anyone already recorded at one session is not invited again by an area import, is not printed on new registers, and cannot be ticked, linked by NRC from the walk-in register, or chosen on the report form for another session; the attendance page shows the date of the register they are on. The same person can still be invited to and recorded at the other activities of the work plan.
+
 **Only approved attendance counts** as people reached in statistics, work plan progress and the logframe; the activity itself still counts as held once its report exists. Submitted and approved attendance is locked: nobody can tick, add people, change the head count or remove a signed register until an administrator returns it. Reports written before this workflow keep their attendance as approved.
 
 ### Attendance registers for signing
