@@ -183,3 +183,17 @@ test('printing a list puts every matching record on one page', () => {
   const all = pagination({ query: { print: '1', page: '3' } }, 120);
   assert.deepStrictEqual([all.page, all.pages, all.pageSize, all.offset], [1, 1, 120, 0]);
 });
+
+test('attendance registers fill whole pages: 10 lines on the first, 15 on the next', () => {
+  const reg = require('../src/registers');
+  assert.strictEqual(reg.lineCount('', {}), 25, 'two pages by default');
+  assert.strictEqual(reg.lineCount('5'), 10);
+  assert.strictEqual(reg.lineCount('11'), 25);
+  assert.strictEqual(reg.lineCount('', { people: 200, times: 4 }), 55, 'the people expected at one session');
+  assert.strictEqual(reg.lineCount('99999'), reg.MAX_LINES);
+  const pages = reg.pages(25, [{ firstName: 'A' }]);
+  assert.deepStrictEqual(pages.map((p) => p.length), [10, 15]);
+  assert.strictEqual(pages[0][0].firstName, 'A');
+  assert.strictEqual(pages[0][1], null);
+  assert.deepStrictEqual(reg.pages(10, Array(12).fill({})).map((p) => p.length), [10, 15], 'room for every registered name');
+});

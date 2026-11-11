@@ -4,6 +4,7 @@ const { audit } = require('../audit');
 const { isAdmin } = require('../access');
 const svc = require('../services/workplans');
 const logframes = require('../services/logframes');
+const { notFound } = require('../services/errors');
 const {
   mapByIds, toCsv, sendCsv, today, str,
 } = require('../helpers');
@@ -145,6 +146,27 @@ router.get('/:id', async (req, res) => {
     title: plan.title, plan, items, totals, users, project, lfLabels, draw, lfRequired: Boolean(lfRequired), offPlan: new Set(offPlan.map((it) => it.id)),
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
     canReport: require('../services/reports').canWriteFor(req.user, plan.office),
+  });
+});
+
+/** A blank attendance register for signing at a planned activity, printed before the meeting. */
+router.get('/:id/activities/:itemId/register', async (req, res) => {
+  const reg = require('../registers');
+  const plan = await svc.getPlan(req.db, req.params.id);
+  const it = (plan.items || []).find((x) => x.id === req.params.itemId);
+  if (!it) throw notFound('Planned activity');
+  const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
+  const who = it.responsibleId ? await req.db.get('users', it.responsibleId) : null;
+  const num = Number.isInteger(it.number) ? `${it.number}. ` : '';
+  res.render('register', {
+    title: `Register: ${it.title}`,
+    info: {
+      title: it.title, type: it.activityType || '', date: it.startDate && it.startDate === it.endDate ? it.startDate : '',
+      venue: it.venue || '', district: it.district || '', office: plan.office || '', project: project ? project.title : '', donor: project ? project.donor || '' : '',
+      plan: `${num}${plan.title}`, facilitator: who ? who.fullName || who.username : '', ref: `Work plan activity ${num.trim()} ${plan.title}`.trim(),
+    },
+    sheets: reg.pages(reg.lineCount(req.query.rows, { people: it.targetPeople, times: it.targetEvents })), canName: false, withNames: false,
+    back: { href: `/workplans/${plan.id}#act-${it.id}`, label: plan.title },
   });
 });
 

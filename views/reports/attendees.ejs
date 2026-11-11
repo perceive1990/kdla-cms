@@ -3,7 +3,7 @@
   <div>
     <div class="crumbs"><a href="/reports">Activity reports</a> / <a href="/reports/<%= r.id %>"><%= r.heading %></a></div>
     <h1>Attendance register</h1>
-    <p class="sub">Type in the people from the paper register. Blank rows are ignored. Each person is added as an activity attendee (<%= r.activityType %>) and linked to this report.</p>
+    <p class="sub">No paper register yet? <a href="/reports/<%= r.id %>/register">Print one for signing</a>. Type in the people from the paper register. Blank rows are ignored. Each person is added as an activity attendee (<%= r.activityType %>) and linked to this report.</p>
   </div>
 </div>
 <% if (Object.keys(rowErrors).length) { %><div class="alert alert-danger" role="alert">Some rows need correcting. Nothing has been saved yet.</div><% } %>

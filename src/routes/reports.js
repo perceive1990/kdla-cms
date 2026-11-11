@@ -128,6 +128,28 @@ router.post('/', async (req, res) => {
   return res.redirect(`/reports/${doc.id}`);
 });
 
+/** An attendance register for signing at this activity; it can list the people already registered. */
+router.get('/:id/register', async (req, res) => {
+  const reg = require('../registers');
+  const r = await svc.getReport(req.db, req.params.id);
+  const withNames = req.query.names === '1';
+  const people = withNames ? Object.values(await mapByIds(req.db, 'people', r.attendeeIds || [])) : [];
+  people.sort((x, y) => `${x.lastName} ${x.firstName}`.localeCompare(`${y.lastName} ${y.firstName}`));
+  const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
+  const who = r.compiledById ? await req.db.get('users', r.compiledById) : null;
+  res.render('register', {
+    title: `Register: ${r.heading}`,
+    info: {
+      title: r.heading, type: r.activityType || '', date: r.date || '', venue: r.location || '', district: r.district || '',
+      office: await svc.officeOf(req.db, r), project: project ? project.title : '', donor: project ? project.donor || '' : '', plan: '',
+      facilitator: who ? who.fullName || who.username : '', ref: `Activity report of ${r.date || ''}`,
+    },
+    sheets: reg.pages(reg.lineCount(req.query.rows, { people: (r.attendeeIds || []).length + (r.otherParticipants || 0) }), people),
+    canName: (r.attendeeIds || []).length > 0, withNames,
+    back: { href: `/reports/${r.id}`, label: r.heading },
+  });
+});
+
 router.get('/:id', async (req, res) => {
   const r = await svc.getReport(req.db, req.params.id);
   const attendees = Object.values(await mapByIds(req.db, 'people', r.attendeeIds));
