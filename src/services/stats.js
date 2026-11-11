@@ -136,11 +136,17 @@ function benPeriod(params = {}) {
   const to = isRealDate(params.to) ? params.to : '';
   const kind = Object.keys(BEN_KINDS).includes(params.kind) ? params.kind : '';
   const projectId = params.projectId ? String(params.projectId).slice(0, 60) : '';
-  return { from, to, kind, projectId };
+  const community = params.community ? String(params.community).trim().slice(0, 200) : '';
+  return {
+    from, to, kind, projectId, community,
+  };
 }
 
-async function beneficiaries(db, { from = '', to = '', kind = '', projectId = '' } = {}) {
+async function beneficiaries(db, {
+  from = '', to = '', kind = '', projectId = '', community = '', communityValues = null,
+} = {}) {
   const where = {};
+  if (community) where.location = { $in: communityValues && communityValues.length ? communityValues : ['\u0000none'] };
   if (kind) where.kind = kind;
   if (projectId) where.projectId = projectId;
   if (from || to) where.createdAt = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: `${to}T23:59:59.999Z` } : {}) };
@@ -225,6 +231,7 @@ function beneficiaryRows(p, b) {
   const rows = [
     { section: 'Filters', item: 'Registered from', value: p.from || 'the start' },
     { section: 'Filters', item: 'Registered to', value: p.to || 'today' },
+    { section: 'Filters', item: 'Community', value: p.community || 'all' },
     { section: 'Totals', item: 'Beneficiaries', value: b.total },
     { section: 'Totals', item: 'Women and girls (%)', value: b.womenPct ?? '' },
     { section: 'Totals', item: 'Children (%)', value: b.childrenPct ?? '' },

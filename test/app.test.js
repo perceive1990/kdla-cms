@@ -1577,3 +1577,30 @@ test('activity attendees import from a Word or CSV attendance register, for an o
   const tembo = (await db().find('people', { where: { nrc: '900101/65/1' } }))[0];
   assert.deepStrictEqual([tembo.office, tembo.location, tembo.ageCategory], ['Kakolo Office', 'Kafue Section', 'Woman']);
 });
+
+test('beneficiaries filter by community, whatever the spelling of capitals and spaces', async () => {
+  const a = ctx.admin;
+  const mk = (id, kind, firstName, location) => db().create('people', {
+    id, kind, firstName, lastName: 'Community', location, ageCategory: 'Woman', createdAt: '2037-01-01T00:00:00Z', updatedAt: '2037-01-01T00:00:00Z',
+  });
+  await mk('com-1', 'attendee', 'Alpha', 'Zambezi Section');
+  await mk('com-2', 'attendee', 'Beta', ' zambezi  section');
+  await mk('com-3', 'client', 'Gamma', 'Zambezi Section');
+  await mk('com-4', 'attendee', 'Delta', 'Kafue Flats');
+  let r = await a.req('/people/attendees');
+  assert.match(r.text, /<option value="Zambezi Section">Zambezi Section \(2\)<\/option>/, 'one community, counted across spellings');
+  r = await a.req('/people/attendees?community=Zambezi+Section');
+  assert.ok(r.text.includes('Alpha') && r.text.includes('Beta'), 'both spellings match');
+  assert.ok(!r.text.includes('Delta'), 'other communities are left out');
+  assert.match(r.text, /<option value="Zambezi Section" selected>/);
+  r = await a.req('/people?community=zambezi%20section');
+  assert.ok(r.text.includes('Alpha') && r.text.includes('Gamma'), 'all beneficiaries: attendees and clients');
+  assert.ok(!r.text.includes('Delta'));
+  r = await a.req('/people/attendees/export.csv?community=Zambezi+Section');
+  assert.ok(r.text.includes('Alpha') && !r.text.includes('Delta'), 'the CSV export follows the filter');
+  r = await a.req('/statistics/beneficiaries?community=Zambezi+Section');
+  assert.match(r.text, /in Zambezi Section/);
+  assert.ok(r.text.includes('<div class="value">3</div>'), 'statistics count the community only');
+  r = await a.req('/people/attendees?community=Nowhere');
+  assert.ok(!r.text.includes('Alpha'), 'an unknown community shows nobody');
+});

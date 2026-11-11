@@ -22,12 +22,38 @@ function peopleQuery(params = {}, kind) {
   if (params.disability && choices.disability.includes(params.disability)) where.disability = params.disability;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
   if (choices.offices.includes(params.office)) where.office = params.office;
-  if (params.location) where.location = String(params.location).slice(0, 200);
   if (params.consent === 'missing') where.$or = [{ consentRecord: null }, { consentRecord: { $in: ['', 'no'] } }];
   const q = { where };
   const term = str(params.q, 80);
   if (term) q.search = { term, fields: SEARCH_FIELDS };
   return q;
+}
+
+const communityKey = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * The communities (villages or areas) beneficiaries live in, with how many people in each. Spellings that
+ * differ only in capitals or spacing are one community; `values` holds every stored spelling.
+ */
+async function communities(db, kind = '') {
+  const people = await db.find('people', { where: kind ? { kind } : {}, fields: ['id', 'location'] });
+  const out = new Map();
+  for (const p of people) {
+    const key = communityKey(p.location);
+    if (!key) continue;
+    const c = out.get(key) || { key, name: String(p.location).trim().replace(/\s+/g, ' '), count: 0, values: new Set() };
+    c.count += 1;
+    c.values.add(p.location);
+    out.set(key, c);
+  }
+  return [...out.values()].map((c) => ({ ...c, values: [...c.values] })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Narrows a people query to one community, matching every stored spelling of it. */
+function inCommunity(q, list, wanted) {
+  const c = list.find((x) => x.key === communityKey(wanted));
+  if (!wanted) return q;
+  return { ...q, where: { ...q.where, location: c ? { $in: c.values } : '\u0000none' } };
 }
 
 async function getPerson(db, id, kind) {
@@ -101,6 +127,6 @@ async function personalData(req, p) {
 }
 
 module.exports = {
-  KIND_LABEL, SLUG_OF, KINDS, peopleQuery, getPerson, readPerson, validatePerson, createPerson, updatePerson, deletePerson,
+  KIND_LABEL, SLUG_OF, KINDS, peopleQuery, communities, communityKey, inCommunity, getPerson, readPerson, validatePerson, createPerson, updatePerson, deletePerson,
   personalData, today,
 };

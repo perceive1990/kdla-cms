@@ -1,5 +1,5 @@
 <%- include('partials/header') %>
-<% const qs = new URLSearchParams(Object.fromEntries(Object.entries({ from: p.from, to: p.to, kind: p.kind, projectId: p.projectId }).filter(([, v]) => v))).toString();
+<% const qs = new URLSearchParams(Object.fromEntries(Object.entries({ from: p.from, to: p.to, kind: p.kind, projectId: p.projectId, community: p.community }).filter(([, v]) => v))).toString();
    const pct = (n) => (b.total ? Math.round((n / b.total) * 100) + '%' : '');
    const n = (x) => Number(x || 0).toLocaleString('en-GB');
    const female = (c) => (c.Girl || 0) + (c.Woman || 0);
@@ -22,6 +22,12 @@
     <option value="">All beneficiaries</option>
     <% for (const [k, label] of Object.entries(BEN_KINDS)) { %><option value="<%= k %>"<%= p.kind === k ? ' selected' : '' %>><%= label %></option><% } %>
   </select>
+  <% if (comms.length) { %>
+  <select class="form-select" name="community" aria-label="Community">
+    <option value="">All communities</option>
+    <% for (const c of comms) { %><option value="<%= c.name %>"<%= p.community && p.community.toLowerCase() === c.key ? ' selected' : '' %>><%= c.name %> (<%= c.count %>)</option><% } %>
+  </select>
+  <% } %>
   <label class="small">Registered from <input class="form-control" type="date" name="from" value="<%= p.from %>"></label>
   <label class="small">to <input class="form-control" type="date" name="to" value="<%= p.to %>"></label>
   <% if (projects.length) { %>
@@ -39,7 +45,7 @@
     <img src="/static/images/logo.png" alt="" width="64" height="54">
     <div>
       <h2>Beneficiary statistics</h2>
-      <p><%= config.orgFullName %> · <%= scope %> · <%= when %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %> · as at <%= h.fmtDate(generated) %></p>
+      <p><%= config.orgFullName %> · <%= scope %><%= p.community ? ' in ' + p.community : '' %> · <%= when %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %> · as at <%= h.fmtDate(generated) %></p>
     </div>
   </header>
 
