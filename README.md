@@ -335,7 +335,7 @@ Each person chooses light, dark or automatic mode, a colour and the text size un
 
 ## Changing drop-down options
 
-**Districts and offices:** administrators change these in the app under **Administration > Drop-down lists** (one per line). The page shows how many records use each entry. Saved records keep their value when an entry is renamed or removed.
+**Districts, offices and types of activity:** administrators change these in the app under **Administration > Drop-down lists** (one per line, in the order they should appear). The page shows how many records use each entry: for types of activity, the activity reports, planned activities, activity attendees and clients' "heard about KDLA through". A new type of activity appears at once on the activity report, planned activity, attendee and client forms and in the filters and statistics. Saved records keep their value when an entry is renamed or removed.
 
 **Other lists** (case types, legal services, activities, statuses, outcomes, diary entry types and task types) are in `src/choices.js`. Edit the file on GitHub and the change deploys automatically. Existing records keep their stored value. The API returns the current lists at `GET /api/v1/choices`.
 
