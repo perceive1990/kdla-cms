@@ -512,6 +512,13 @@ const view = {
     'Not started': 'tag-muted', 'In progress': '', Completed: 'tag-done', Postponed: 'tag-warn', Cancelled: 'tag-muted tag-strike',
   }[s] ?? 'tag-muted'),
   money: (n) => (n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('en-GB', { maximumFractionDigits: 2 })),
+  /** The payment acquittal prepared for a planned activity: people and total, or null. */
+  payments: (it) => {
+    if (!it.acquittal || !(it.acquittal.rows || []).length) return null;
+    const acq = require('./acquittal'); // loaded here: the acquittal service itself uses this module
+    const t = acq.totals(acq.of(it));
+    return { people: t.people, total: t.sums.total, currency: it.acquittal.currency || 'ZMW' };
+  },
   /** "05 Oct" (or "05 Oct 2026"), read straight from YYYY-MM-DD so no time zone can shift the day. */
   day: (d, withYear = false) => {
     if (!isRealDate(d)) return d || '';

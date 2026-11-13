@@ -321,6 +321,8 @@ Attendance follows five steps, shown on each report's **Attendance** page:
 
 ### Payment acquittal
 
+Payments can be prepared on the work plan before the activity, like the invite list: **Payments** on each planned activity sets the rates and the allowances for the people on its invite list, and prints the acquittal form with their names. The work plan shows how many people are to be paid and the total. When the activity report is written, its payment acquittal starts from the one prepared on the work plan; tick there who was actually paid and save, and the report keeps its own copy while the plan keeps what was prepared.
+
 Each activity report has a **Payment acquittal** (also linked from its attendance page). Set the currency and the rates for the activity: transport, incidental and accommodation (per night). Then tick, for each person invited to or recorded at the activity, the allowances they are eligible for, with the number of nights for accommodation; **Tick all** buttons tick an allowance for everyone. The page works out each person's total and the totals per allowance. **Print acquittal form** gives a landscape A4 form under the KDLA letterhead with the activity, the rates, each person's name, NRC, phone, amounts and total, a column for their signature or thumbprint on receipt, and lines for who prepared, paid and approved it. Staff of the activity's office prepare it; once the attendance is approved, only an administrator can change it. People on another register of the same planned activity cannot be added.
 
 ### Attendance registers for signing

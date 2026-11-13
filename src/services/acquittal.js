@@ -68,11 +68,10 @@ async function canEdit(req, r) {
 }
 
 /**
- * Saves the rates and who receives which allowance. Only people on the activity's attendance (invited or
- * recorded, and not on another register of the same planned activity) can be added.
+ * Reads the rates and who receives which allowance from the form. Only the people in `allowedIds` can be
+ * added. Throws 422 with the fields to fix.
  */
-async function save(req, r, body) {
-  await mustEdit(req, r);
+function parse(req, body, allowedIds) {
   const fields = {};
   const currency = CURRENCIES.includes(body.currency) ? body.currency : 'ZMW';
   const rates = {};
@@ -81,8 +80,7 @@ async function save(req, r, body) {
     rates[a.key] = v === '' ? null : money(v);
     if (v !== '' && rates[a.key] === null) fields[`rate_${a.key}`] = `Enter the ${a.label.toLowerCase()} rate as an amount, for example 150.`;
   }
-  const { rows: people } = await attendance.forReport(req.db, r);
-  const allowed = new Set(people.filter((x) => !x.elsewhere).map((x) => x.person.id));
+  const allowed = new Set(allowedIds);
   const pick = (name) => new Set([].concat(body[name] || []).map(String).filter((id) => allowed.has(id)));
   const on = { transport: pick('transport'), incidental: pick('incidental'), accommodation: pick('accommodation') };
   const ids = [...allowed].filter((id) => on.transport.has(id) || on.incidental.has(id) || on.accommodation.has(id));
@@ -97,15 +95,55 @@ async function save(req, r, body) {
     if (rows.some((x) => x[a.key]) && !rates[a.key] && !fields[`rate_${a.key}`]) fields[`rate_${a.key}`] = `Set the ${a.label.toLowerCase()} rate, or untick ${a.label.toLowerCase()} for everyone.`;
   }
   if (Object.keys(fields).length) throw new HttpError(422, 'validation', Object.values(fields)[0], { fields });
-  const acquittal = {
+  return {
     currency, rates, rows, preparedBy: req.user.id, updatedAt: now(),
   };
-  const saved = await req.db.replace('reports', { ...r, acquittal, updatedAt: now() });
+}
+
+/**
+ * Saves the acquittal of an activity report. Only people on the activity's attendance (invited or
+ * recorded, and not on another register of the same planned activity) can be added.
+ */
+async function save(req, r, body) {
+  await mustEdit(req, r);
+  const { rows: people } = await attendance.forReport(req.db, r);
+  const acq = parse(req, body, people.filter((x) => !x.elsewhere).map((x) => x.person.id));
+  const saved = await req.db.replace('reports', { ...r, acquittal: acq, updatedAt: now() });
   const t = totals(of(saved));
-  audit(req, 'update', 'reports', r.id, `Payment acquittal: ${t.people} people, ${currency} ${t.sums.total}`);
+  audit(req, 'update', 'reports', r.id, `Payment acquittal: ${t.people} people, ${acq.currency} ${t.sums.total}`);
   return saved;
 }
 
+/** The planned activity's acquittal, prepared before the activity for the people on its invite list. */
+async function itemPeople(db, plan, item) {
+  return (await attendance.shortlistPeople(db, item, plan)).map((p) => ({ person: p, invited: true, attended: false, elsewhere: p.attended || null }));
+}
+
+async function saveForItem(req, plan, itemId, body) {
+  attendance.mustShortlist(req.user, plan);
+  const workplans = require('./workplans');
+  const item = workplans.getItem(plan, itemId);
+  const people = await itemPeople(req.db, plan, item);
+  const acq = parse(req, body, people.filter((x) => !x.elsewhere).map((x) => x.person.id));
+  await workplans.savePlan(req.db, plan, (cur) => ({
+    ...cur, items: cur.items.map((x) => (x.id === itemId ? { ...x, acquittal: acq, updatedAt: now() } : x)),
+  }));
+  const t = totals(of({ acquittal: acq }));
+  audit(req, 'update', 'workplans', plan.id, `Work plan "${plan.title}": payment acquittal for activity ${item.number ?? ''} ${item.title}: ${t.people} people, ${acq.currency} ${t.sums.total}`.replace(/\s+/g, ' '));
+  return { acq, t };
+}
+
+/** The acquittal a report starts from: its own, else the one prepared on its planned activity. */
+async function forReport(db, r) {
+  if (r.acquittal) return { acq: of(r), fromPlan: false };
+  if (r.workplanId && r.workplanItemId) {
+    const plan = await db.get('workplans', r.workplanId);
+    const item = plan && (plan.items || []).find((x) => x.id === r.workplanItemId);
+    if (item && item.acquittal) return { acq: of(item), fromPlan: true };
+  }
+  return { acq: of(r), fromPlan: false };
+}
+
 module.exports = {
-  ALLOWANCES, CURRENCIES, of, totals, save, canEdit, mustEdit,
+  ALLOWANCES, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
 };
