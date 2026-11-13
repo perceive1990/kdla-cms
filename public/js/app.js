@@ -136,6 +136,30 @@
   });
 
   // Drawing activities from the logframe: changing a row's fields ticks the row, and ticked rows stand out
+  // "Tick all" buttons: tick every enabled box of the given name in the same form; click again to untick.
+  document.querySelectorAll('[data-tick-all]').forEach(function (btn) {
+    var form = btn.closest('form');
+    if (!form) return;
+    var name = btn.getAttribute('data-tick-all');
+    var boxes = function () {
+      return Array.prototype.filter.call(form.querySelectorAll('input[type="checkbox"]'), function (b) { return b.name === name && !b.disabled; });
+    };
+    var label = function () {
+      var list = boxes();
+      var all = list.length > 0 && list.every(function (b) { return b.checked; });
+      btn.textContent = all ? 'Untick all' : 'Tick all';
+    };
+    btn.hidden = false;
+    btn.addEventListener('click', function () {
+      var list = boxes();
+      var tick = !list.every(function (b) { return b.checked; });
+      list.forEach(function (b) { b.checked = tick; b.dispatchEvent(new Event('change', { bubbles: true })); });
+      label();
+    });
+    form.addEventListener('change', function (e) { if (e.target && e.target.name === name) label(); });
+    label();
+  });
+
   document.querySelectorAll('[data-autotick]').forEach(function (list) {
     var mark = function (row) {
       var box = row.querySelector('input[type="checkbox"]');

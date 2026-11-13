@@ -309,7 +309,7 @@ Clients, other parties, activity attendees and **All beneficiaries** filter by *
 
 Attendance follows five steps, shown on each report's **Attendance** page:
 
-1. **Invite list before the activity.** On a work plan, **Invite list** on each planned activity shortlists who to invite. **Import a village or area** adds every registered activity attendee whose village or area matches (spelling and spacing are matched loosely); **Add people one by one** searches by name, NRC, phone or area. Only staff of the plan's office change it.
+1. **Invite list before the activity.** On a work plan, **Invite list** on each planned activity shortlists who to invite. **Import a village or area** adds every registered activity attendee whose village or area matches (spelling and spacing are matched loosely); **Add people one by one** searches by name, NRC, phone or area. **Tick all** ticks every area, every person found or every invited person at once (click again to untick). Only staff of the plan's office change it.
 2. **Print the register.** The register for signing prints the invited people first, by village or area, then blank lines for walk-ins.
 3. **Correct after the activity.** On the activity report's **Attendance** page, tick who came, add walk-ins and new people (**Add walk-ins and new people**), and correct people's details.
 4. **Upload the signed registers and submit.** Scans or photos of every signed page are uploaded under **Signed registers**; **Submit attendance** needs at least one, and someone recorded as attending (or a head count).
