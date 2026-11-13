@@ -52,7 +52,9 @@
         <td class="reg-n"><%= n %></td>
         <td><%= person ? person.firstName : '' %></td><td><%= person ? person.lastName : '' %></td>
         <td><div class="reg-boxes"><% for (const a of ['Girl', 'Boy', 'Woman', 'Man']) { %><span class="<%= person && person.ageCategory === a ? 'on' : '' %>"></span><% } %></div></td>
-        <td><%= person && person.age ? person.age : '' %></td><td></td><td></td><td></td><td><%= person && person.location ? person.location : '' %></td><td><span class="reg-box"></span></td><td></td>
+        <td><%= person && person.age ? person.age : '' %></td>
+        <td class="reg-id"><%= person && person.nrc ? person.nrc : '' %></td><td class="reg-id"><%= person && person.contact ? person.contact : '' %></td>
+        <td class="text-center"><%= person ? ({ Disabled: 'Y', 'Not Disabled': 'N' }[person.disability] || '') : '' %></td><td><%= person && person.location ? person.location : '' %></td><td><span class="reg-box"></span></td><td></td>
       </tr>
     <% } %>
     </tbody>

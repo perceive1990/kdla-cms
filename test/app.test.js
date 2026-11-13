@@ -1394,6 +1394,10 @@ test('attendance: invite list by area before the activity, correction, signed re
   // 2. The register prints the invited names
   r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
   for (const n of ['Chileshe', 'Bwalya', 'Natasha']) assert.ok(r.text.includes(`<td>${n}</td>`), `register prints ${n}`);
+  await db().replace('people', { ...(await db().get('people', 'att-chileshe')), nrc: '123456/65/1', contact: '0977123456', disability: 'Disabled' });
+  r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
+  assert.ok(r.text.includes('<td class="reg-id">123456/65/1</td><td class="reg-id">0977123456</td>'), 'the register prints the NRC and phone');
+  assert.match(r.text, /<td class="text-center">Y<\/td>/, 'and disability');
   r = await f.req(`/workplans/${planId}/activities/${itemId}/register?names=0`);
   assert.ok(!r.text.includes('<td>Chileshe</td>'), 'a blank register on request');
 
