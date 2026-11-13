@@ -174,6 +174,54 @@ router.post('/:id/attendance/decide', (req, res) => attendanceAction(req, res, a
   return `${req.body.decision === 'verify' ? 'Verification saved' : 'Attendance approved'}: ${n} ${n === 1 ? 'person' : 'people'} verified${saved.dropped ? `, ${saved.dropped} ticked by the office not confirmed and left off the register` : ''}. Only verified people count.`;
 }));
 
+// ---------- Payment acquittal: transport, incidental and accommodation for eligible attendees ----------
+const acquittal = require('../services/acquittal');
+
+async function acquittalData(req, r) {
+  const acq = acquittal.of(r);
+  const { rows } = await attendance.forReport(req.db, r);
+  const byId = Object.fromEntries(rows.map((x) => [x.person.id, x]));
+  const t = acquittal.totals(acq);
+  return { acq, rows, byId, t };
+}
+
+router.get('/:id/payments', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  const { acq, rows, t } = await acquittalData(req, r);
+  const inList = Object.fromEntries(acq.rows.map((x) => [x.personId, x]));
+  res.render('reports/payments', {
+    title: `Payment acquittal: ${r.heading}`, r, acq, rows, inList, t, ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES,
+    canEdit: await acquittal.canEdit(req, r), errors: {}, wp: require('../services/workplans').view,
+  });
+});
+
+router.post('/:id/payments', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  try {
+    const saved = await acquittal.save(req, r, req.body);
+    const t = acquittal.totals(acquittal.of(saved));
+    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acquittal.of(saved).currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}.`);
+  } catch (e) {
+    if (![403, 422].includes(e.status)) throw e;
+    req.flash('danger', e.message);
+  }
+  res.redirect(`/reports/${r.id}/payments`);
+});
+
+router.get('/:id/payments/print', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  const { acq, byId, t } = await acquittalData(req, r);
+  const lines = t.lines.filter((l) => l.total > 0 && byId[l.personId])
+    .map((l) => ({ ...l, person: byId[l.personId].person }))
+    .sort((x, y) => `${x.person.lastName} ${x.person.firstName}`.localeCompare(`${y.person.lastName} ${y.person.firstName}`));
+  const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
+  const users = await mapByIds(req.db, 'users', [acq.preparedBy, r.compiledById].filter(Boolean));
+  res.render('reports/acquittal-print', {
+    title: `Payment acquittal: ${r.heading}`, r, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r), ALLOWANCES: acquittal.ALLOWANCES,
+    wp: require('../services/workplans').view,
+  });
+});
+
 /** An attendance register for signing at this activity; it can list the people already registered. */
 router.get('/:id/register', async (req, res) => {
   const reg = require('../registers');

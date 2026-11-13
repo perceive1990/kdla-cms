@@ -1,0 +1,67 @@
+<%- include('../partials/header') %>
+<% const m = (n) => (n ? Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''); %>
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="/reports">Activity reports</a> / <a href="/reports/<%= r.id %>"><%= r.heading %></a></div>
+    <h1>Payment acquittal</h1>
+    <p class="sub">Transport, incidental and accommodation allowances for eligible attendees · <%= h.fmtDate(r.date) %><%= r.location ? ' · ' + r.location : '' %></p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <% if (t.people) { %><a class="btn btn-primary" href="/reports/<%= r.id %>/payments/print"><i class="bi bi-printer" aria-hidden="true"></i> Print acquittal form</a><% } %>
+    <a class="btn btn-outline-secondary" href="/reports/<%= r.id %>/attendance"><i class="bi bi-person-check" aria-hidden="true"></i> Attendance</a>
+  </div>
+</div>
+<% if (!canEdit) { %><div class="alert alert-secondary small py-2"><i class="bi bi-lock" aria-hidden="true"></i> You can view this acquittal. Staff of the activity's office prepare it; once the attendance is approved, only an administrator can change it.</div><% } %>
+
+<form method="post" action="/reports/<%= r.id %>/payments">
+  <%- f.hidden(csrfToken) %>
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Rates for this activity</h2>
+    <div class="row g-3 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label" for="currency">Currency</label>
+        <select class="form-select" id="currency" name="currency"<%= canEdit ? '' : ' disabled' %>><% for (const c of CURRENCIES) { %><option<%= acq.currency === c ? ' selected' : '' %>><%= c %></option><% } %></select>
+      </div>
+      <% for (const a of ALLOWANCES) { %>
+      <div class="col-6 col-md-3">
+        <label class="form-label" for="rate_<%= a.key %>"><%= a.label %><%= a.perNight ? ' (per night)' : '' %></label>
+        <input class="form-control" type="number" min="0" step="0.01" id="rate_<%= a.key %>" name="rate_<%= a.key %>" value="<%= acq.rates[a.key] ?? '' %>" placeholder="0.00"<%= canEdit ? '' : ' disabled' %>>
+      </div>
+      <% } %>
+    </div>
+  </div></div>
+
+  <div class="panel"><div class="panel-body">
+    <div class="panel-head"><h2 class="panel-title">Eligible attendees</h2><span class="small text-body-secondary"><%= t.people %> on the acquittal · total <%= acq.currency %> <%= m(t.sums.total) || '0.00' %></span></div>
+    <p class="small text-body-secondary">Tick the allowances each person is eligible for. A person is on the acquittal once at least one allowance is ticked. The list holds the people invited to or recorded at this activity; add walk-ins on the attendance page first.</p>
+    <% if (!rows.length) { %>
+      <p class="text-body-secondary mb-0">Nobody is invited or recorded for this activity yet. <a href="/reports/<%= r.id %>/attendance">Go to the attendance</a>.</p>
+    <% } else { %>
+    <% if (canEdit) { %>
+    <div class="d-flex flex-wrap gap-2 mb-2 small align-items-center">
+      <span class="text-body-secondary">For everyone:</span>
+      <% for (const a of ALLOWANCES) { %><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="<%= a.key %>" data-tick-label="<%= a.label.toLowerCase() %>" hidden>Tick all <%= a.label.toLowerCase() %></button><% } %>
+    </div>
+    <% } %>
+    <div class="table-wrap"><table class="table table-sm pay-table">
+      <thead><tr><th>Name</th><th>NRC</th><th>Phone</th><% for (const a of ALLOWANCES) { %><th class="text-center"><%= a.label %></th><% } %><th class="text-center">Nights</th><th class="text-end">Total</th></tr></thead>
+      <tbody>
+      <% for (const x of rows) { const p = x.person; const row = inList[p.id] || {}; const line = t.lines.find((l) => l.personId === p.id); %>
+        <tr class="<%= line && line.total ? 'is-on' : '' %>">
+          <td><%= p.firstName %> <%= p.lastName %><div class="small text-body-secondary"><%= x.attended ? 'Attended' : (x.invited ? 'Invited' : '') %><%= x.elsewhere ? ' · on another register of this activity' : '' %><%= p.location ? ' · ' + p.location : '' %></div></td>
+          <td class="nowrap"><%= p.nrc || '' %></td><td class="nowrap"><%= p.contact || '' %></td>
+          <% for (const a of ALLOWANCES) { %><td class="text-center"><input class="form-check-input" type="checkbox" name="<%= a.key %>" value="<%= p.id %>"<%= row[a.key] ? ' checked' : '' %><%= canEdit && !x.elsewhere ? '' : ' disabled' %> aria-label="<%= a.label %> for <%= p.firstName %> <%= p.lastName %>"></td><% } %>
+          <td class="text-center"><input class="form-control form-control-sm pay-nights" type="number" min="1" max="30" name="nights_<%= p.id %>" value="<%= row.nights || 1 %>" aria-label="Nights for <%= p.firstName %> <%= p.lastName %>"<%= canEdit && !x.elsewhere ? '' : ' disabled' %>></td>
+          <td class="text-end nowrap"><%= line && line.total ? m(line.total) : '' %></td>
+        </tr>
+      <% } %>
+      </tbody>
+      <% if (t.people) { %>
+      <tfoot><tr><th colspan="3" class="text-end">Total (<%= acq.currency %>)</th><% for (const a of ALLOWANCES) { %><td class="text-center fw-semibold"><%= m(t.sums[a.key]) %></td><% } %><td></td><td class="text-end fw-semibold"><%= m(t.sums.total) %></td></tr></tfoot>
+      <% } %>
+    </table></div>
+    <% } %>
+    <% if (canEdit && rows.length) { %><button class="btn btn-primary mt-2" type="submit"><i class="bi bi-check2-square" aria-hidden="true"></i> Save the acquittal</button><% } %>
+  </div></div>
+</form>
+<%- include('../partials/footer') %>

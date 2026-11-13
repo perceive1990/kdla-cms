@@ -1631,3 +1631,51 @@ test('administrators add types of activity, which every form and filter then off
   await a.post('/admin/lists/activities', { values: before.join('\n') }, '/admin/lists');
   assert.deepStrictEqual(choices.activities, before);
 });
+
+test('payment acquittal: eligible attendees get transport, incidental and accommodation, printed for signing', async () => {
+  const a = ctx.admin;
+  const mk = (id, firstName, nrc) => db().create('people', {
+    id, kind: 'attendee', firstName, lastName: 'Payee', nrc, contact: '0970001111', location: 'Ndeke', ageCategory: 'Woman', createdAt: '2038-01-01T00:00:00Z', updatedAt: '2038-01-01T00:00:00Z',
+  });
+  await mk('pay-1', 'Agnes', '800001/65/1');
+  await mk('pay-2', 'Bupe', '800002/65/1');
+  await mk('pay-3', 'Chola', '800003/65/1');
+  let r = await a.post('/reports', {
+    activityType: 'Training Program', heading: 'Paralegal training Ndeke', date: '2038-02-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office',
+    compiledById: await userId('admin'), attendeeIds: ['pay-1', 'pay-2', 'pay-3'],
+  }, '/reports/new');
+  const id = r.location.split('/')[2];
+  const page = `/reports/${id}/payments`;
+  r = await a.req(`/reports/${id}`);
+  assert.ok(r.text.includes(`href="${page}"`), 'the report links to its payment acquittal');
+  r = await a.req(page);
+  assert.match(r.text, /data-tick-all="transport"/);
+  // A ticked allowance needs its rate
+  await a.post(page, { currency: 'ZMW', transport: ['pay-1'] }, page);
+  r = await a.req(page);
+  assert.match(r.text, /Set the transport rate/);
+  assert.strictEqual((await db().get('reports', id)).acquittal, undefined, 'nothing saved');
+  await a.post(page, {
+    currency: 'ZMW', rate_transport: '150', rate_incidental: '100', rate_accommodation: '400',
+    transport: ['pay-1', 'pay-2'], incidental: ['pay-1', 'pay-2', 'pay-3'], accommodation: ['pay-2'], 'nights_pay-2': '2', 'nights_pay-1': '3',
+  }, page);
+  const acq = (await db().get('reports', id)).acquittal;
+  assert.strictEqual(acq.rows.length, 3);
+  const { totals, of } = require('../src/services/acquittal');
+  const t = totals(of({ acquittal: acq }));
+  assert.deepStrictEqual(t.sums, { transport: 300, incidental: 300, accommodation: 800, total: 1400 });
+  assert.strictEqual(t.lines.find((l) => l.personId === 'pay-2').total, 1050, '150 + 100 + 2 nights at 400');
+  r = await a.req(`${page}/print`);
+  assert.match(r.text, /<body class="print-landscape">/);
+  for (const part of ['Payment acquittal form', 'Paralegal training Ndeke', 'Agnes Payee', '800002/65/1', '1,050.00', 'ZMW 1,400.00', 'Signature or thumbprint', 'Paid by', 'By signing, I confirm that I received']) {
+    assert.ok(r.text.includes(part), `the form shows ${part}`);
+  }
+  // Another office reads it but cannot change it; after approval only an administrator can
+  await createUser(db(), { username: 'payk', password: 'payk-password-1', fullName: 'Pay Kakolo', office: 'Kakolo Office' });
+  const k = new Client();
+  await k.login('payk', 'payk-password-1');
+  r = await k.req(page);
+  assert.match(r.text, /You can view this acquittal/);
+  await k.post(page, { currency: 'ZMW', rate_transport: '999', transport: ['pay-3'] }, `/reports/${id}`);
+  assert.strictEqual((await db().get('reports', id)).acquittal.rates.transport, 150, 'not changed by another office');
+});

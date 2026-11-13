@@ -1,0 +1,50 @@
+<%- include('../partials/header', { printLandscape: true }) %>
+<% const m = (n) => (n ? Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-');
+   const who = (id) => (users[id] ? users[id].fullName || users[id].username : ''); %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="/reports/<%= r.id %>/payments">Payment acquittal</a></div>
+    <h1>Payment acquittal form</h1>
+    <p class="sub"><%= lines.length %> <%= lines.length === 1 ? 'person' : 'people' %> · <%= acq.currency %> <%= m(sums.total) %></p>
+  </div>
+  <button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button>
+</div>
+<article class="acq-doc">
+  <header class="ig-head">
+    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <div>
+      <h2>Payment acquittal form</h2>
+      <p><%= config.orgFullName %><%= office ? ' · ' + office : '' %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %></p>
+    </div>
+  </header>
+  <div class="reg-info acq-info">
+    <div><span>Activity</span><strong><%= r.heading %></strong></div>
+    <div><span>Type of activity</span><%= r.activityType || '' %></div>
+    <div><span>Date</span><%= h.fmtDate(r.date) %></div>
+    <div><span>Venue</span><%= r.location || '' %><%= r.district ? ', ' + r.district : '' %></div>
+    <div><span>Rates (<%= acq.currency %>)</span><%= ALLOWANCES.map((a) => a.label + ' ' + m(acq.rates[a.key]) + (a.perNight ? ' per night' : '')).join(' · ') %></div>
+  </div>
+  <p class="reg-consent">By signing, I confirm that I received the amount shown against my name for attending this activity.</p>
+  <table class="reg-table acq-table">
+    <thead><tr>
+      <th>No.</th><th>Name</th><th>NRC</th><th>Phone</th><% for (const a of ALLOWANCES) { %><th class="text-end"><%= a.label %><%= a.perNight ? ' (nights)' : '' %></th><% } %><th class="text-end">Total (<%= acq.currency %>)</th><th>Signature or thumbprint</th>
+    </tr></thead>
+    <tbody>
+    <% lines.forEach((l, i) => { %>
+      <tr>
+        <td class="reg-n"><%= i + 1 %></td><td><%= l.person.firstName %> <%= l.person.lastName %></td><td class="nowrap"><%= l.person.nrc || '' %></td><td class="nowrap"><%= l.person.contact || '' %></td>
+        <% for (const a of ALLOWANCES) { %><td class="text-end nowrap"><%= m(l.amounts[a.key]) %><%= a.perNight && l.amounts[a.key] ? ' (' + l.nights + ')' : '' %></td><% } %>
+        <td class="text-end fw-semibold nowrap"><%= m(l.total) %></td><td></td>
+      </tr>
+    <% }) %>
+    </tbody>
+    <tfoot><tr><th colspan="4" class="text-end">Total</th><% for (const a of ALLOWANCES) { %><th class="text-end nowrap"><%= m(sums[a.key]) %></th><% } %><th class="text-end nowrap"><%= acq.currency %> <%= m(sums.total) %></th><th></th></tr></tfoot>
+  </table>
+  <section class="acq-sign">
+    <div><div class="wp-sign-line"></div>Prepared by: <%= who(acq.preparedBy) %><div class="wp-p-sub">Signature and date</div></div>
+    <div><div class="wp-sign-line"></div>Paid by<div class="wp-p-sub">Name, signature and date</div></div>
+    <div><div class="wp-sign-line"></div>Approved by<div class="wp-p-sub">Name, signature and date</div></div>
+  </section>
+  <footer class="ig-foot"><%= config.appName %> · Activity report of <%= h.fmtDate(r.date) %> · printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %></footer>
+</article>
+<%- include('../partials/footer') %>
