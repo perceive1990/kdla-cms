@@ -232,7 +232,7 @@ router.get('/:id/activities/:itemId/payments', async (req, res) => {
   const base = `/workplans/${plan.id}/activities/${item.id}`;
   res.render('reports/payments', {
     title: `Payment acquittal: ${item.title}`, acq, rows, t, inList: Object.fromEntries(acq.rows.map((x) => [x.personId, x])),
-    ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES, canEdit: canChange, info,
+    CURRENCIES: acquittal.CURRENCIES, canEdit: canChange, info,
     urls: {
       crumbs: [{ href: '/workplans', label: 'Work plans' }, { href: `/workplans/${plan.id}#act-${item.id}`, label: plan.title }],
       action: `${base}/payments`, print: `${base}/payments/print`, people: { href: `${base}/shortlist`, label: 'Invite list' },
@@ -264,7 +264,7 @@ router.get('/:id/activities/:itemId/payments/print', async (req, res) => {
     .sort((x, y) => `${x.person.lastName} ${x.person.firstName}`.localeCompare(`${y.person.lastName} ${y.person.firstName}`));
   res.render('reports/acquittal-print', {
     title: `Payment acquittal: ${item.title}`, acq, lines, sums: t.sums, project, users: await mapByIds(req.db, 'users', [acq.preparedBy].filter(Boolean)),
-    office: plan.office || '', ALLOWANCES: acquittal.ALLOWANCES, info, urls: { back: `/workplans/${plan.id}/activities/${item.id}/payments` },
+    office: plan.office || '', info, urls: { back: `/workplans/${plan.id}/activities/${item.id}/payments` },
   });
 });
 

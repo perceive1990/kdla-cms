@@ -22,23 +22,23 @@
     <div><span>Type of activity</span><%= info.type || '' %></div>
     <div><span>Date</span><% if (info.date) { %><%= h.fmtDate(info.date) %><% } else { %><span class="reg-line" style="min-width: 8rem"></span><% } %></div>
     <div><span>Venue</span><%= info.venue || '' %><%= info.district ? ', ' + info.district : '' %></div>
-    <div><span>Rates (<%= acq.currency %>)</span><%= ALLOWANCES.map((a) => a.label + ' ' + m(acq.rates[a.key]) + (a.perNight ? ' per night' : '')).join(' · ') %></div>
+    <div class="acq-rates"><span>Rates (<%= acq.currency %>)</span><%= acq.active.map((c) => c.label + ' ' + m(c.rate) + (c.perNight ? ' per night' : '')).join(' · ') %></div>
   </div>
   <p class="reg-consent">By signing, I confirm that I received the amount shown against my name for attending this activity.</p>
   <table class="reg-table acq-table">
     <thead><tr>
-      <th>No.</th><th>Name</th><th>NRC</th><th>Phone</th><% for (const a of ALLOWANCES) { %><th class="text-end"><%= a.label %><%= a.perNight ? ' (nights)' : '' %></th><% } %><th class="text-end">Total (<%= acq.currency %>)</th><th>Signature or thumbprint</th>
+      <th>No.</th><th>Name</th><th>NRC</th><th>Phone</th><% for (const c of acq.active) { %><th class="text-end"><%= c.label %><%= c.perNight ? ' (nights)' : '' %></th><% } %><th class="text-end">Total (<%= acq.currency %>)</th><th>Signature or thumbprint</th>
     </tr></thead>
     <tbody>
     <% lines.forEach((l, i) => { %>
       <tr>
         <td class="reg-n"><%= i + 1 %></td><td><%= l.person.firstName %> <%= l.person.lastName %></td><td class="nowrap"><%= l.person.nrc || '' %></td><td class="nowrap"><%= l.person.contact || '' %></td>
-        <% for (const a of ALLOWANCES) { %><td class="text-end nowrap"><%= m(l.amounts[a.key]) %><%= a.perNight && l.amounts[a.key] ? ' (' + l.nights + ')' : '' %></td><% } %>
+        <% for (const c of acq.active) { %><td class="text-end nowrap"><%= m(l.amounts[c.key]) %><%= c.perNight && l.amounts[c.key] ? ' (' + l.nights + ')' : '' %></td><% } %>
         <td class="text-end fw-semibold nowrap"><%= m(l.total) %></td><td></td>
       </tr>
     <% }) %>
     </tbody>
-    <tfoot><tr><th colspan="4" class="text-end">Total</th><% for (const a of ALLOWANCES) { %><th class="text-end nowrap"><%= m(sums[a.key]) %></th><% } %><th class="text-end nowrap"><%= acq.currency %> <%= m(sums.total) %></th><th></th></tr></tfoot>
+    <tfoot><tr><th colspan="4" class="text-end">Total</th><% for (const c of acq.active) { %><th class="text-end nowrap"><%= m(sums[c.key]) %></th><% } %><th class="text-end nowrap"><%= m(sums.total) %></th><th></th></tr></tfoot>
   </table>
   <section class="acq-sign">
     <div><div class="wp-sign-line"></div>Prepared by: <%= who(acq.preparedBy) %><div class="wp-p-sub">Signature and date</div></div>

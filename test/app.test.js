@@ -1651,23 +1651,33 @@ test('payment acquittal: eligible attendees get transport, incidental and accomm
   r = await a.req(page);
   assert.match(r.text, /data-tick-all="transport"/);
   // A ticked allowance needs its rate
-  await a.post(page, { currency: 'ZMW', transport: ['pay-1'] }, page);
+  await a.post(page, { currency: 'ZMW', cost_transport: '1', transport: ['pay-1'] }, page);
   r = await a.req(page);
   assert.match(r.text, /Set the transport rate/);
+  await a.post(page, { currency: 'ZMW', cost_other1: '1', rate_other1: '50' }, page);
+  r = await a.req(page);
+  assert.match(r.text, /Name the other cost 1/);
   assert.strictEqual((await db().get('reports', id)).acquittal, undefined, 'nothing saved');
   await a.post(page, {
-    currency: 'ZMW', rate_transport: '150', rate_incidental: '100', rate_accommodation: '400',
+    currency: 'ZMW', cost_transport: '1', rate_transport: '150', cost_incidental: '1', rate_incidental: '100', cost_accommodation: '1', rate_accommodation: '400',
+    cost_lunch: '1', rate_lunch: '60', cost_airtime: '1', rate_airtime: '20', cost_other1: '1', label_other1: 'Stationery', rate_other1: '15',
+    rate_dinner: '80', dinner: ['pay-1'],
     transport: ['pay-1', 'pay-2'], incidental: ['pay-1', 'pay-2', 'pay-3'], accommodation: ['pay-2'], 'nights_pay-2': '2', 'nights_pay-1': '3',
+    lunch: ['pay-3'], airtime: ['pay-1'], other1: ['pay-1', 'pay-3'],
   }, page);
   const acq = (await db().get('reports', id)).acquittal;
   assert.strictEqual(acq.rows.length, 3);
+  assert.deepStrictEqual(acq.costs.map((c) => c.key), ['transport', 'lunch', 'incidental', 'accommodation', 'airtime', 'other1'], 'only the ticked costs apply; dinner was not ticked');
   const { totals, of } = require('../src/services/acquittal');
   const t = totals(of({ acquittal: acq }));
-  assert.deepStrictEqual(t.sums, { transport: 300, incidental: 300, accommodation: 800, total: 1400 });
+  assert.deepStrictEqual(t.sums, {
+    transport: 300, lunch: 60, incidental: 300, accommodation: 800, airtime: 20, other1: 30, total: 1510,
+  });
   assert.strictEqual(t.lines.find((l) => l.personId === 'pay-2').total, 1050, '150 + 100 + 2 nights at 400');
   r = await a.req(`${page}/print`);
   assert.match(r.text, /<body class="print-landscape">/);
-  for (const part of ['Payment acquittal form', 'Paralegal training Ndeke', 'Agnes Payee', '800002/65/1', '1,050.00', 'ZMW 1,400.00', 'Signature or thumbprint', 'Paid by', 'By signing, I confirm that I received']) {
+  assert.ok(!r.text.includes('>Dinner<'), 'costs that do not apply are not on the form');
+  for (const part of ['Payment acquittal form', 'Paralegal training Ndeke', 'Agnes Payee', '800002/65/1', '1,050.00', 'ZMW 1,510.00', '>Stationery<', '>Lunch<', '>Airtime<', 'Signature or thumbprint', 'Paid by', 'By signing, I confirm that I received']) {
     assert.ok(r.text.includes(part), `the form shows ${part}`);
   }
   // Another office reads it but cannot change it; after approval only an administrator can
@@ -1676,8 +1686,8 @@ test('payment acquittal: eligible attendees get transport, incidental and accomm
   await k.login('payk', 'payk-password-1');
   r = await k.req(page);
   assert.match(r.text, /You can view this acquittal/);
-  await k.post(page, { currency: 'ZMW', rate_transport: '999', transport: ['pay-3'] }, `/reports/${id}`);
-  assert.strictEqual((await db().get('reports', id)).acquittal.rates.transport, 150, 'not changed by another office');
+  await k.post(page, { currency: 'ZMW', cost_transport: '1', rate_transport: '999', transport: ['pay-3'] }, `/reports/${id}`);
+  assert.strictEqual((await db().get('reports', id)).acquittal.costs[0].rate, 150, 'not changed by another office');
 });
 
 test('payments are prepared on the work plan for the invite list, then carried to the activity report', async () => {
@@ -1698,7 +1708,7 @@ test('payments are prepared on the work plan for the invite list, then carried t
   r = await a.req(`${base}/payments`);
   assert.match(r.text, /Ireen Planpay/);
   await a.post(`${base}/payments`, {
-    currency: 'ZMW', rate_transport: '120', rate_incidental: '80', transport: ['wpay-1', 'wpay-2'], incidental: ['wpay-1'],
+    currency: 'ZMW', cost_transport: '1', rate_transport: '120', cost_incidental: '1', rate_incidental: '80', transport: ['wpay-1', 'wpay-2'], incidental: ['wpay-1'],
   }, `${base}/payments`);
   const item = (await db().get('workplans', planId)).items[0];
   assert.strictEqual(item.acquittal.rows.length, 2);
@@ -1720,7 +1730,9 @@ test('payments are prepared on the work plan for the invite list, then carried t
   assert.match(r.text, /prepared on the work plan before the activity/);
   assert.match(r.text, /name="rate_transport" value="120"/);
   assert.match(r.text, /name="transport" value="wpay-1" checked/);
-  await a.post(`/reports/${reportId}/payments`, { currency: 'ZMW', rate_transport: '120', rate_incidental: '80', transport: ['wpay-1'] }, `/reports/${reportId}/payments`);
+  await a.post(`/reports/${reportId}/payments`, {
+    currency: 'ZMW', cost_transport: '1', rate_transport: '120', cost_incidental: '1', rate_incidental: '80', transport: ['wpay-1'],
+  }, `/reports/${reportId}/payments`);
   assert.strictEqual((await db().get('reports', reportId)).acquittal.rows.length, 1, 'the report keeps who was actually paid');
   assert.strictEqual((await db().get('workplans', planId)).items[0].acquittal.rows.length, 2, 'the plan keeps what was prepared');
 });
