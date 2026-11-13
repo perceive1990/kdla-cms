@@ -14,7 +14,7 @@
 <div class="callout mb-3 d-print-none"><i class="bi bi-<%= sb ? 'exclamation-triangle' : 'shield-check' %>" aria-hidden="true"></i> <%= sb ? 'This version shows the budget. It is for internal use: for external people, choose "Without the budget".' : 'This version leaves out all budget amounts, so you can share it with external people.' %></div>
 <article class="wp-doc">
   <header class="ig-head">
-    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <img src="/static/images/logo-mark.png?v=<%= assetVersion %>" alt="" width="64" height="56">
     <div>
       <h2><%= plan.title %><% if (sb) { %> <span class="wp-internal">Internal: includes budget</span><% } %></h2>
       <p><%= config.orgFullName %><%= plan.office ? ' · ' + plan.office : '' %><% if (project) { %> · <%= project.title %><%= project.donor ? ' (' + project.donor + ')' : '' %><% } %> · <%= h.fmtDate(plan.periodStart) %> to <%= h.fmtDate(plan.periodEnd) %> · <%= plan.status %> · as at <%= h.fmtDate(t0) %></p>

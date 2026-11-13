@@ -26,7 +26,7 @@ const ROOT = path.join(__dirname, '..');
 /** Short hash of our own CSS/JS so browsers fetch new versions after each deployment. */
 function assetVersion() {
   const h = crypto.createHash('sha1');
-  for (const f of ['public/css/app.css', 'public/js/app.js', 'public/js/theme.js', 'src/pwa/sw.js', 'public/manifest.webmanifest']) {
+  for (const f of ['public/css/app.css', 'public/js/app.js', 'public/js/theme.js', 'src/pwa/sw.js', 'public/manifest.webmanifest', 'public/images/logo.png', 'public/images/logo-mark.png', 'public/images/app-192.png']) {
     try { h.update(fs.readFileSync(path.join(ROOT, f))); } catch (e) { /* optional file */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -87,7 +87,7 @@ function createApp() {
   app.get('/favicon.ico', (req, res) => res.sendFile(path.join(ROOT, 'public', 'images', 'icon-192.png'), { maxAge: '7d' }));
   // Installable phone app: the service worker must be served from the site root to cover every page.
   // It is never cached by the browser so a new version takes over right after each deployment.
-  const swSource = fs.readFileSync(path.join(__dirname, 'pwa', 'sw.js'), 'utf8').replace('__ASSET_VERSION__', version);
+  const swSource = fs.readFileSync(path.join(__dirname, 'pwa', 'sw.js'), 'utf8').replaceAll('__ASSET_VERSION__', version);
   app.get('/sw.js', (req, res) => {
     res.set({ 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' }).send(swSource);
   });

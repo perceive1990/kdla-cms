@@ -9,8 +9,8 @@ const VERSION = 'kdla-__ASSET_VERSION__';
 const OFFLINE = '/offline';
 const CORE = [
   OFFLINE,
-  '/static/images/app-192.png',
-  '/static/images/logo.png',
+  '/static/images/app-192.png?v=__ASSET_VERSION__',
+  '/static/images/logo.png?v=__ASSET_VERSION__',
 ];
 
 self.addEventListener('install', (event) => {

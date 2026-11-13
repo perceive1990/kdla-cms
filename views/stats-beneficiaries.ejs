@@ -42,7 +42,7 @@
 
 <article class="ben-doc">
   <header class="ig-head">
-    <img src="/static/images/logo.png" alt="" width="64" height="54">
+    <img src="/static/images/logo-mark.png?v=<%= assetVersion %>" alt="" width="64" height="56">
     <div>
       <h2>Beneficiary statistics</h2>
       <p><%= config.orgFullName %> · <%= scope %><%= p.community ? ' in ' + p.community : '' %> · <%= when %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %> · as at <%= h.fmtDate(generated) %></p>
