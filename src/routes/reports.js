@@ -178,20 +178,35 @@ router.post('/:id/attendance/decide', (req, res) => attendanceAction(req, res, a
 const acquittal = require('../services/acquittal');
 
 async function acquittalData(req, r) {
-  const acq = acquittal.of(r);
+  const { acq, fromPlan } = await acquittal.forReport(req.db, r);
   const { rows } = await attendance.forReport(req.db, r);
   const byId = Object.fromEntries(rows.map((x) => [x.person.id, x]));
-  const t = acquittal.totals(acq);
-  return { acq, rows, byId, t };
+  // Only people still on this report's attendance count; the plan's acquittal may name people who did not come.
+  const t = acquittal.totals({ ...acq, rows: acq.rows.filter((x) => byId[x.personId] && !byId[x.personId].elsewhere) });
+  return {
+    acq, rows, byId, t, fromPlan,
+  };
 }
+const reportInfo = (r) => ({
+  title: r.heading, type: r.activityType, date: r.date, venue: r.location, district: r.district, ref: `Activity report of ${r.date || ''}`,
+});
 
 router.get('/:id/payments', async (req, res) => {
   const r = await svc.getReport(req.db, req.params.id);
-  const { acq, rows, t } = await acquittalData(req, r);
+  const {
+    acq, rows, t, fromPlan,
+  } = await acquittalData(req, r);
   const inList = Object.fromEntries(acq.rows.map((x) => [x.personId, x]));
   res.render('reports/payments', {
-    title: `Payment acquittal: ${r.heading}`, r, acq, rows, inList, t, ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES,
-    canEdit: await acquittal.canEdit(req, r), errors: {}, wp: require('../services/workplans').view,
+    title: `Payment acquittal: ${r.heading}`, acq, rows, inList, t, fromPlan, ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES,
+    canEdit: await acquittal.canEdit(req, r), info: reportInfo(r),
+    urls: {
+      crumbs: [{ href: '/reports', label: 'Activity reports' }, { href: `/reports/${r.id}`, label: r.heading }],
+      action: `/reports/${r.id}/payments`, print: `/reports/${r.id}/payments/print`, people: { href: `/reports/${r.id}/attendance`, label: 'Attendance' },
+    },
+    lockedText: 'You can view this acquittal. Staff of the activity\'s office prepare it; once the attendance is approved, only an administrator can change it.',
+    peopleNote: 'The list holds the people invited to or recorded at this activity; add walk-ins on the attendance page first.',
+    emptyText: 'Nobody is invited or recorded for this activity yet.',
   });
 });
 
@@ -217,8 +232,8 @@ router.get('/:id/payments/print', async (req, res) => {
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
   const users = await mapByIds(req.db, 'users', [acq.preparedBy, r.compiledById].filter(Boolean));
   res.render('reports/acquittal-print', {
-    title: `Payment acquittal: ${r.heading}`, r, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r), ALLOWANCES: acquittal.ALLOWANCES,
-    wp: require('../services/workplans').view,
+    title: `Payment acquittal: ${r.heading}`, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r), ALLOWANCES: acquittal.ALLOWANCES,
+    info: reportInfo(r), urls: { back: `/reports/${r.id}/payments` },
   });
 });
 

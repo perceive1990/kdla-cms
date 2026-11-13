@@ -1679,3 +1679,48 @@ test('payment acquittal: eligible attendees get transport, incidental and accomm
   await k.post(page, { currency: 'ZMW', rate_transport: '999', transport: ['pay-3'] }, `/reports/${id}`);
   assert.strictEqual((await db().get('reports', id)).acquittal.rates.transport, 150, 'not changed by another office');
 });
+
+test('payments are prepared on the work plan for the invite list, then carried to the activity report', async () => {
+  const a = ctx.admin;
+  for (const [id, firstName] of [['wpay-1', 'Ireen'], ['wpay-2', 'Joseph']]) {
+    await db().create('people', {
+      id, kind: 'attendee', firstName, lastName: 'Planpay', nrc: '', contact: '0970002222', location: 'Wusakile', ageCategory: 'Woman', createdAt: '2039-01-01T00:00:00Z', updatedAt: '2039-01-01T00:00:00Z',
+    });
+  }
+  let r = await a.post('/workplans', { title: 'Payments plan', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, { title: 'Wusakile land forum', status: 'Not started', venue: 'Wusakile hall' }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  const base = `/workplans/${planId}/activities/${itemId}`;
+  await a.post(`${base}/shortlist/import`, { areas: 'Wusakile' }, `${base}/shortlist`);
+  r = await a.req(`/workplans/${planId}`);
+  assert.ok(r.text.includes(`${base}/payments`), 'each planned activity has Payments');
+  r = await a.req(`${base}/payments`);
+  assert.match(r.text, /Ireen Planpay/);
+  await a.post(`${base}/payments`, {
+    currency: 'ZMW', rate_transport: '120', rate_incidental: '80', transport: ['wpay-1', 'wpay-2'], incidental: ['wpay-1'],
+  }, `${base}/payments`);
+  const item = (await db().get('workplans', planId)).items[0];
+  assert.strictEqual(item.acquittal.rows.length, 2);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /2 to be paid, ZMW 320/);
+  assert.match(r.text, /Payments \(2\)/);
+  r = await a.req(`${base}/payments/print`);
+  for (const part of ['Payment acquittal form', 'Wusakile land forum', 'Ireen Planpay', 'Joseph Planpay', 'ZMW 320.00', 'Work plan activity']) {
+    assert.ok(r.text.includes(part), `the form shows ${part}`);
+  }
+
+  // The activity report starts from the plan's acquittal
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Wusakile land forum held', date: '2039-03-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office',
+    compiledById: await userId('admin'), workplanItem: `${planId}:${itemId}`,
+  }, '/reports/new');
+  const reportId = r.location.split('/')[2];
+  r = await a.req(`/reports/${reportId}/payments`);
+  assert.match(r.text, /prepared on the work plan before the activity/);
+  assert.match(r.text, /name="rate_transport" value="120"/);
+  assert.match(r.text, /name="transport" value="wpay-1" checked/);
+  await a.post(`/reports/${reportId}/payments`, { currency: 'ZMW', rate_transport: '120', rate_incidental: '80', transport: ['wpay-1'] }, `/reports/${reportId}/payments`);
+  assert.strictEqual((await db().get('reports', reportId)).acquittal.rows.length, 1, 'the report keeps who was actually paid');
+  assert.strictEqual((await db().get('workplans', planId)).items[0].acquittal.rows.length, 2, 'the plan keeps what was prepared');
+});

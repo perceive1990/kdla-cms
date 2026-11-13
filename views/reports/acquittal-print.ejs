@@ -3,7 +3,7 @@
    const who = (id) => (users[id] ? users[id].fullName || users[id].username : ''); %>
 <div class="page-head d-print-none">
   <div>
-    <div class="crumbs"><a href="/reports/<%= r.id %>/payments">Payment acquittal</a></div>
+    <div class="crumbs"><a href="<%= urls.back %>">Payment acquittal</a></div>
     <h1>Payment acquittal form</h1>
     <p class="sub"><%= lines.length %> <%= lines.length === 1 ? 'person' : 'people' %> · <%= acq.currency %> <%= m(sums.total) %></p>
   </div>
@@ -18,10 +18,10 @@
     </div>
   </header>
   <div class="reg-info acq-info">
-    <div><span>Activity</span><strong><%= r.heading %></strong></div>
-    <div><span>Type of activity</span><%= r.activityType || '' %></div>
-    <div><span>Date</span><%= h.fmtDate(r.date) %></div>
-    <div><span>Venue</span><%= r.location || '' %><%= r.district ? ', ' + r.district : '' %></div>
+    <div><span>Activity</span><strong><%= info.title %></strong></div>
+    <div><span>Type of activity</span><%= info.type || '' %></div>
+    <div><span>Date</span><% if (info.date) { %><%= h.fmtDate(info.date) %><% } else { %><span class="reg-line" style="min-width: 8rem"></span><% } %></div>
+    <div><span>Venue</span><%= info.venue || '' %><%= info.district ? ', ' + info.district : '' %></div>
     <div><span>Rates (<%= acq.currency %>)</span><%= ALLOWANCES.map((a) => a.label + ' ' + m(acq.rates[a.key]) + (a.perNight ? ' per night' : '')).join(' · ') %></div>
   </div>
   <p class="reg-consent">By signing, I confirm that I received the amount shown against my name for attending this activity.</p>
@@ -45,6 +45,6 @@
     <div><div class="wp-sign-line"></div>Paid by<div class="wp-p-sub">Name, signature and date</div></div>
     <div><div class="wp-sign-line"></div>Approved by<div class="wp-p-sub">Name, signature and date</div></div>
   </section>
-  <footer class="ig-foot"><%= config.appName %> · Activity report of <%= h.fmtDate(r.date) %> · printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %></footer>
+  <footer class="ig-foot"><%= config.appName %> · <%= info.ref %> · printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %></footer>
 </article>
 <%- include('../partials/footer') %>

@@ -204,6 +204,70 @@ router.post('/:id/activities/:itemId/shortlist/remove', (req, res) => shortlistA
   return `${n} removed from the invite list.`;
 }));
 
+// ---------- Payment acquittal prepared before the activity, for the people on the invite list ----------
+const acquittal = require('../services/acquittal');
+
+async function itemPayments(req) {
+  const { plan, item } = await loadItem(req);
+  const rows = await acquittal.itemPeople(req.db, plan, item);
+  const acq = acquittal.of(item);
+  const ok = new Set(rows.filter((x) => !x.elsewhere).map((x) => x.person.id));
+  const t = acquittal.totals({ ...acq, rows: acq.rows.filter((x) => ok.has(x.personId)) });
+  const project = plan.projectId ? await req.db.get('projects', plan.projectId) : null;
+  const info = {
+    title: item.title, type: item.activityType, date: item.startDate && item.startDate === item.endDate ? item.startDate : '', venue: item.venue, district: item.district,
+    ref: `Work plan activity ${Number.isInteger(item.number) ? `${item.number} ` : ''}${plan.title}`,
+  };
+  return {
+    plan, item, rows, acq, t, project, info,
+  };
+}
+
+router.get('/:id/activities/:itemId/payments', async (req, res) => {
+  const {
+    plan, item, rows, acq, t, info,
+  } = await itemPayments(req);
+  let canChange = true;
+  try { attendance.mustShortlist(req.user, plan); } catch { canChange = false; }
+  const base = `/workplans/${plan.id}/activities/${item.id}`;
+  res.render('reports/payments', {
+    title: `Payment acquittal: ${item.title}`, acq, rows, t, inList: Object.fromEntries(acq.rows.map((x) => [x.personId, x])),
+    ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES, canEdit: canChange, info,
+    urls: {
+      crumbs: [{ href: '/workplans', label: 'Work plans' }, { href: `/workplans/${plan.id}#act-${item.id}`, label: plan.title }],
+      action: `${base}/payments`, print: `${base}/payments/print`, people: { href: `${base}/shortlist`, label: 'Invite list' },
+    },
+    lockedText: `You can view this acquittal. Staff of ${plan.office || 'the plan\'s office'} prepare it while the plan is open.`,
+    peopleNote: 'Prepared before the activity for the people on the invite list. When the activity report is written, its payment acquittal starts from this one; tick there who was actually paid.',
+    emptyText: 'Nobody is on the invite list yet.',
+  });
+});
+
+router.post('/:id/activities/:itemId/payments', async (req, res) => {
+  const { plan, item } = await loadItem(req);
+  try {
+    const { acq, t } = await acquittal.saveForItem(req, plan, item.id, req.body);
+    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acq.currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}.`);
+  } catch (e) {
+    if (![403, 409, 422].includes(e.status)) throw e;
+    req.flash('danger', e.message);
+  }
+  res.redirect(`/workplans/${plan.id}/activities/${item.id}/payments`);
+});
+
+router.get('/:id/activities/:itemId/payments/print', async (req, res) => {
+  const {
+    plan, item, rows, acq, t, project, info,
+  } = await itemPayments(req);
+  const byId = Object.fromEntries(rows.map((x) => [x.person.id, x]));
+  const lines = t.lines.filter((l) => l.total > 0 && byId[l.personId]).map((l) => ({ ...l, person: byId[l.personId].person }))
+    .sort((x, y) => `${x.person.lastName} ${x.person.firstName}`.localeCompare(`${y.person.lastName} ${y.person.firstName}`));
+  res.render('reports/acquittal-print', {
+    title: `Payment acquittal: ${item.title}`, acq, lines, sums: t.sums, project, users: await mapByIds(req.db, 'users', [acq.preparedBy].filter(Boolean)),
+    office: plan.office || '', ALLOWANCES: acquittal.ALLOWANCES, info, urls: { back: `/workplans/${plan.id}/activities/${item.id}/payments` },
+  });
+});
+
 /** A blank attendance register for signing at a planned activity, printed before the meeting. */
 router.get('/:id/activities/:itemId/register', async (req, res) => {
   const reg = require('../registers');
