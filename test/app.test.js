@@ -1398,6 +1398,11 @@ test('attendance: invite list by area before the activity, correction, signed re
   r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
   assert.ok(r.text.includes('<td class="reg-id">123456/65/1</td><td class="reg-id">0977123456</td>'), 'the register prints the NRC and phone');
   assert.match(r.text, /<td class="text-center">Y<\/td>/, 'and disability');
+  await db().replace('people', { ...(await db().get('people', 'att-chileshe')), consentShare: 'yes' });
+  await db().replace('people', { ...(await db().get('people', 'att-bwalya')), consentShare: 'no' });
+  r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
+  assert.match(r.text, /<span class="reg-box yes" aria-label="Agrees to share">✓<\/span>/, 'agreed to share is ticked');
+  assert.match(r.text, /<span class="reg-box no" aria-label="Does not agree to share">✗<\/span>/, 'declined is crossed');
   r = await f.req(`/workplans/${planId}/activities/${itemId}/register?names=0`);
   assert.ok(!r.text.includes('<td>Chileshe</td>'), 'a blank register on request');
 
