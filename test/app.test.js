@@ -1604,3 +1604,27 @@ test('beneficiaries filter by community, whatever the spelling of capitals and s
   r = await a.req('/people/attendees?community=Nowhere');
   assert.ok(!r.text.includes('Alpha'), 'an unknown community shows nobody');
 });
+
+test('administrators add types of activity, which every form and filter then offers', async () => {
+  const a = ctx.admin;
+  const choices = require('../src/choices');
+  const before = [...choices.activities];
+  let r = await a.req('/admin/lists');
+  assert.match(r.text, /Types of activity/);
+  assert.match(r.text, /planned activities/);
+  await a.post('/admin/lists/activities', { values: [...before, 'Mobile legal aid clinic'].join('\n') }, '/admin/lists');
+  assert.ok(choices.activities.includes('Mobile legal aid clinic'));
+  for (const page of ['/reports/new', '/people/attendees/new', '/reports']) {
+    r = await a.req(page);
+    assert.ok(r.text.includes('Mobile legal aid clinic'), `${page} offers the new type`);
+  }
+  r = await a.post('/reports', {
+    activityType: 'Mobile legal aid clinic', heading: 'Clinic at Ndeke', date: '2037-02-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office', compiledById: await userId('admin'),
+  }, '/reports/new');
+  assert.strictEqual(r.status, 302, 'reports accept the new type');
+  r = await a.req('/admin/lists');
+  assert.match(r.text, /Mobile legal aid clinic: 1/);
+  // Put the list back as it was for the other tests
+  await a.post('/admin/lists/activities', { values: before.join('\n') }, '/admin/lists');
+  assert.deepStrictEqual(choices.activities, before);
+});

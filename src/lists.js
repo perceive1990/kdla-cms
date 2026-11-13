@@ -9,6 +9,15 @@ const { now } = require('./helpers');
 const EDITABLE = {
   districts: { label: 'Districts', used: [['reports', 'district', 'activity reports']] },
   offices: { label: 'Offices', used: [['cases', 'office', 'cases'], ['users', 'office', 'staff accounts']] },
+  activities: {
+    label: 'Types of activity',
+    used: [
+      ['reports', 'activityType', 'activity reports'],
+      ['workplans', 'items.activityType', 'planned activities'],
+      ['people', 'activity', 'activity attendees'],
+      ['people', 'referralSource', 'clients (heard about KDLA through)'],
+    ],
+  },
 };
 const DOC_ID = 'lists';
 
@@ -42,8 +51,13 @@ function parseList(text) {
 async function usage(db, key) {
   const counts = {};
   for (const [container, field] of EDITABLE[key].used) {
-    const rows = await db.find(container, { fields: [field] });
-    for (const r of rows) if (r[field]) counts[r[field]] = (counts[r[field]] || 0) + 1;
+    // "items.activityType" counts a field inside each element of a list, such as a work plan's activities.
+    const [top, inner] = field.split('.');
+    const rows = await db.find(container, { fields: [top] });
+    for (const r of rows) {
+      const vals = inner ? (Array.isArray(r[top]) ? r[top] : []).map((x) => x && x[inner]) : [r[top]];
+      for (const v of vals) if (v) counts[v] = (counts[v] || 0) + 1;
+    }
   }
   return counts;
 }
