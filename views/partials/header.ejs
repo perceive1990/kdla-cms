@@ -8,8 +8,8 @@
   <meta name="theme-color" content="#1f6b3a">
   <title><%= title ? title + ' · ' : '' %><%= config.appName %></title>
   <script src="/static/js/theme.js?v=<%= assetVersion %>"></script>
-  <link rel="icon" type="image/png" href="/static/images/app-192.png">
-  <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/static/images/app-192.png?v=<%= assetVersion %>">
+  <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png?v=<%= assetVersion %>">
   <link rel="manifest" href="/static/manifest.webmanifest?v=<%= assetVersion %>">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -28,7 +28,7 @@
     <i class="bi bi-list fs-3"></i>
   </button>
   <a class="brand" href="/">
-    <img src="/static/images/logo-mark.png" alt="" width="32" height="28">
+    <img src="/static/images/logo-mark.png?v=<%= assetVersion %>" alt="" width="32" height="28">
     <% const brandRest = config.appName.startsWith(config.orgName + ' ') ? config.appName.slice(config.orgName.length + 1) : ''; %>
     <span><%= brandRest ? config.orgName : config.appName %><% if (brandRest) { %> <span class="d-none d-sm-inline fw-normal opacity-75"><%= brandRest %></span><% } %></span>
   </a>
@@ -126,7 +126,7 @@
 <% } %>
 <% if (typeof user !== 'undefined' && user) { %>
     <div class="print-head" aria-hidden="true">
-      <img src="/static/images/logo.png" alt="" width="48" height="40">
+      <img src="/static/images/logo-mark.png?v=<%= assetVersion %>" alt="" width="48" height="42">
       <div><strong><%= config.orgFullName %></strong><span><%= config.appName %></span></div>
       <div class="print-head-meta">Printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %> by <%= user.fullName || user.username %></div>
     </div>

@@ -578,7 +578,9 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 /* Login */
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
 .login-card { width: 100%; max-width: 400px; }
-.login-card .logo { width: 72px; height: auto; border-radius: 6px; background: #fff; }
+.login-card .logo { width: 150px; height: auto; }
+/* The tagline is dark; on the dark theme the logo sits on a white card */
+[data-bs-theme="dark"] .login-card .logo { background: #fff; border-radius: 12px; padding: 8px; width: 166px; }
 
 .empty { text-align: center; color: var(--muted); padding: 2.5rem 1rem; }
 .empty i { font-size: 2rem; display: block; margin-bottom: .5rem; opacity: .6; }
@@ -589,7 +591,7 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 /* Letter (printable documents) */
 .letter { background: #fff; color: #111; max-width: 800px; padding: 2.5rem 3rem; border: 1px solid var(--line); border-radius: 6px; margin: 0 auto; }
 .letter-head { display: flex; gap: 1rem; align-items: center; border-bottom: 2px solid var(--accent); padding-bottom: .75rem; margin-bottom: 1.5rem; }
-.letter-head img { width: 64px; height: auto; }
+.letter-head img { width: 72px; height: auto; }
 .letter p { margin-bottom: .8rem; }
 
 /* Formatted report text (editor classes) */

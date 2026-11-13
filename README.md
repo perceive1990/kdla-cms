@@ -339,6 +339,10 @@ Every report and record prints, or saves as PDF, from its **Print** button: acti
 
 Each person chooses light, dark or automatic mode, a colour and the text size under **Appearance** in their account menu. The moon or sun button in the top bar switches between light and dark. Printouts are always light.
 
+## Logo
+
+The logo is KDLA's own: Zambia in lime green with K, D, L and A stepping across it, and "Land is Life" underneath. The map is drawn from Natural Earth's public-domain outline of Zambia, so it stays sharp at every size. `public/images/logo.svg` is the full logo (login page), `logo-mark.svg` the map and letters (header, printed documents, letters), and the PNGs (`logo.png`, `logo-mark.png`, `app-*`, `icon-*`, `maskable-*`, `apple-touch-icon.png`) are rendered from them for the app and the phone app icons. Their addresses carry the asset version, so browsers fetch a new logo after each deployment.
+
 ## Changing drop-down options
 
 **Districts, offices and types of activity:** administrators change these in the app under **Administration > Drop-down lists** (one per line, in the order they should appear). The page shows how many records use each entry: for types of activity, the activity reports, planned activities, activity attendees and clients' "heard about KDLA through". A new type of activity appears at once on the activity report, planned activity, attendee and client forms and in the filters and statistics. Saved records keep their value when an entry is renamed or removed.
@@ -397,7 +401,7 @@ src/totp.js             two-step verification codes
 src/theme.js            appearance options
 src/choices.js          drop-down options
 views/                  EJS page templates
-public/                 CSS, JavaScript, logo, app icons
+public/                 CSS, JavaScript, logo (logo.svg, logo-mark.svg and PNGs), app icons
 scripts/                create-admin, init-db, seed-demo, package (builds the deployment zip)
 infra/provision.sh      Azure setup script
 infra/github-setup.sh   connects a GitHub repository to the Azure web app (deploy on every push to main)
