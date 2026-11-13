@@ -1376,6 +1376,7 @@ test('attendance: invite list by area before the activity, correction, signed re
   // 1. The invite list: a whole area, then one more person; another office cannot change it
   r = await f.req(sl);
   assert.match(r.text, /Kantanshi <span class="text-body-secondary small">\(3\)<\/span>/, 'areas group spelling and spacing');
+  assert.match(r.text, /data-tick-all="areas"/, 'a Tick all button for the areas');
   await f.post(`${sl}/import`, { areas: 'Kantanshi' }, sl);
   assert.strictEqual((await itemOf()).shortlist.length, 3);
   await k.post(`${sl}/import`, { areas: 'Mindolo' }, '/workplans');
@@ -1385,6 +1386,8 @@ test('attendance: invite list by area before the activity, correction, signed re
   await f.post(`${sl}/add`, { personIds: 'att-natasha' }, sl);
   await f.post(`${sl}/remove`, { personIds: 'att-mutale' }, sl);
   assert.deepStrictEqual((await itemOf()).shortlist.sort(), ['att-bwalya', 'att-chileshe', 'att-natasha']);
+  r = await f.req(sl);
+  assert.strictEqual((r.text.match(/data-tick-all="personIds"/g) || []).length, 1, 'a Tick all button for the invited people');
   r = await f.req(`/workplans/${planId}`);
   assert.match(r.text, /Invite list \(3\)/);
 

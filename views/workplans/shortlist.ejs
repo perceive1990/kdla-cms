@@ -30,7 +30,7 @@
           <% } %>
           </tbody>
         </table></div>
-        <% if (canChange) { %><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Remove the ticked people</button><% } %>
+        <% if (canChange) { %><div class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="personIds" hidden>Tick all</button><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Remove the ticked people</button></div><% } %>
       </form>
       <% } %>
     </div></div>
@@ -44,6 +44,7 @@
       <% } else { %>
       <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/import">
         <%- f.hidden(csrfToken) %>
+        <div class="mb-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="areas" hidden>Tick all</button></div>
         <div class="sl-areas">
           <% for (const a of areas) { %>
             <label class="form-check"><input class="form-check-input" type="checkbox" name="areas" value="<%= a.name %>"<%= item.venue && a.name.toLowerCase() === String(item.venue).toLowerCase() ? ' checked' : '' %>> <%= a.name %> <span class="text-body-secondary small">(<%= a.count %>)</span></label>
@@ -66,7 +67,7 @@
           <% for (const p of found) { %>
             <label class="form-check small"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>"<%= p.attended ? ' disabled' : '' %>> <%= p.firstName %> <%= p.lastName %> <span class="text-body-secondary"><%= p.location ? '· ' + p.location : '' %><%= p.attended ? ' · already attended this activity on ' + h.fmtDate(p.attended.date) : '' %></span></label>
           <% } %>
-          <button class="btn btn-sm btn-primary mt-2" type="submit">Add the ticked people</button>
+          <div class="d-flex flex-wrap gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="personIds" hidden>Tick all</button><button class="btn btn-sm btn-primary" type="submit">Add the ticked people</button></div>
         </form>
         <% } %>
       <% } %>
