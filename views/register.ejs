@@ -37,7 +37,7 @@
     <% if (info.plan) { %><div><span>Work plan activity</span><%= info.plan %></div><% } %>
     <div><span>Facilitator</span><%- blank(info.facilitator) %></div>
   </div>
-  <p class="reg-consent">By signing, I confirm I attended this activity and agree that <%= config.orgName %> records my details for its reports to donors and partners. Tick "Agrees to share" only if you also agree to <%= config.orgName %> sharing your details with partner organisations that can help you.</p>
+  <p class="reg-consent">By signing, I confirm I attended this activity and agree that <%= config.orgName %> records my details for its reports to donors and partners. For people listed in advance, ✓ or ✗ shows the answer already recorded; correct it if it has changed. Tick "Agrees to share" only if you also agree to <%= config.orgName %> sharing your details with partner organisations that can help you.</p>
   <% } else { %>
   <p class="reg-cont"><strong><%= info.title %></strong><%= info.date ? ' · ' + h.fmtDate(info.date) : '' %><%= info.venue ? ' · ' + info.venue : '' %></p>
   <% } %>
@@ -54,7 +54,7 @@
         <td><div class="reg-boxes"><% for (const a of ['Girl', 'Boy', 'Woman', 'Man']) { %><span class="<%= person && person.ageCategory === a ? 'on' : '' %>"></span><% } %></div></td>
         <td><%= person && person.age ? person.age : '' %></td>
         <td class="reg-id"><%= person && person.nrc ? person.nrc : '' %></td><td class="reg-id"><%= person && person.contact ? person.contact : '' %></td>
-        <td class="text-center"><%= person ? ({ Disabled: 'Y', 'Not Disabled': 'N' }[person.disability] || '') : '' %></td><td><%= person && person.location ? person.location : '' %></td><td><span class="reg-box"></span></td><td></td>
+        <td class="text-center"><%= person ? ({ Disabled: 'Y', 'Not Disabled': 'N' }[person.disability] || '') : '' %></td><td><%= person && person.location ? person.location : '' %></td><td><% const share = person ? person.consentShare : ''; %><span class="reg-box<%= share === 'yes' ? ' yes' : share === 'no' ? ' no' : '' %>" aria-label="<%= share === 'yes' ? 'Agrees to share' : share === 'no' ? 'Does not agree to share' : 'Not recorded' %>"><%= share === 'yes' ? '✓' : share === 'no' ? '✗' : '' %></span></td><td></td>
       </tr>
     <% } %>
     </tbody>

@@ -411,6 +411,8 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .reg-boxes { display: grid; grid-template-columns: repeat(4, 1fr); justify-items: center; }
 .reg-boxes span, .reg-box { display: inline-block; width: .9rem; height: .9rem; border: 1px solid #333; }
 .reg-boxes span.on { background: #111; }
+.reg-box { display: inline-grid; place-items: center; font-size: .8rem; line-height: 1; font-weight: 700; }
+.reg-box.yes { color: #111; } .reg-box.no { color: #8a1c1c; }
 .reg-table td:nth-child(10) { text-align: center; }
 .reg-foot { display: flex; flex-wrap: wrap; gap: .5rem 2rem; align-items: flex-end; font-size: .8rem; margin-top: .6rem; }
 .reg-ref { margin-left: auto; font-size: .7rem; color: #555; }
