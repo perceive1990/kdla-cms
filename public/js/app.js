@@ -147,7 +147,8 @@
     var label = function () {
       var list = boxes();
       var all = list.length > 0 && list.every(function (b) { return b.checked; });
-      btn.textContent = all ? 'Untick all' : 'Tick all';
+      var what = btn.getAttribute('data-tick-label');
+      btn.textContent = (all ? 'Untick all' : 'Tick all') + (what ? ' ' + what : '');
     };
     btn.hidden = false;
     btn.addEventListener('click', function () {
