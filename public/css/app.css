@@ -406,6 +406,7 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .reg-table .r-no { width: 2.2rem; } .reg-table .r-name { width: 12%; } .reg-table .r-sex { width: 8.5rem; } .reg-table .r-age { width: 3rem; }
 .reg-table .r-nrc { width: 9%; } .reg-table .r-phone { width: 9%; } .reg-table .r-yn { width: 4.2rem; } .reg-table .r-place { width: 11%; } .reg-table .r-sign { width: auto; }
 .reg-n { text-align: right; color: #555; }
+.reg-id { white-space: nowrap; font-size: .92em; letter-spacing: -.01em; }
 .reg-sexkey { display: grid; grid-template-columns: repeat(4, 1fr); font-weight: 400; font-size: .62rem; margin-top: .1rem; text-align: center; }
 .reg-boxes { display: grid; grid-template-columns: repeat(4, 1fr); justify-items: center; }
 .reg-boxes span, .reg-box { display: inline-block; width: .9rem; height: .9rem; border: 1px solid #333; }
