@@ -371,9 +371,12 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .acq-info { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .acq-table { min-width: 56rem; }
 .acq-table tbody tr { height: 2.6rem; }
-.acq-table th:nth-child(1) { width: 3%; } .acq-table th:nth-child(2) { width: 18%; } .acq-table th:nth-child(3), .acq-table th:nth-child(4) { width: 10%; }
-.acq-table th:nth-child(5), .acq-table th:nth-child(6), .acq-table th:nth-child(7), .acq-table th:nth-child(8) { width: 9%; }
-.acq-table th:last-child { width: auto; }
+.acq-table th:nth-child(1) { width: 2.2rem; } .acq-table th:nth-child(2) { width: 16%; } .acq-table th:nth-child(3), .acq-table th:nth-child(4) { width: 9%; }
+.acq-table th:last-child { width: 16%; }
+.acq-info .acq-rates { grid-column: 1 / -1; }
+.acq-table th { overflow-wrap: anywhere; hyphens: auto; }
+.pay-table td:first-child { min-width: 12rem; }
+.pay-costs { max-width: 40rem; } .pay-costs td { vertical-align: middle; } .pay-rate { max-width: 9rem; }
 .acq-sign { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem; margin-top: 1.5rem; break-inside: avoid; font-size: .85rem; }
 @media print {
   .acq-table { min-width: 0; font-size: 8.5pt; }

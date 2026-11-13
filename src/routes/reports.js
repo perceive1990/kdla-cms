@@ -188,7 +188,7 @@ async function acquittalData(req, r) {
   };
 }
 const reportInfo = (r) => ({
-  title: r.heading, type: r.activityType, date: r.date, venue: r.location, district: r.district, ref: `Activity report of ${r.date || ''}`,
+  title: r.heading, type: r.activityType, date: r.date, venue: r.location, district: r.district, ref: `Activity report of ${r.date ? require('../helpers').fmtDate(r.date) : ''}`,
 });
 
 router.get('/:id/payments', async (req, res) => {
@@ -198,7 +198,7 @@ router.get('/:id/payments', async (req, res) => {
   } = await acquittalData(req, r);
   const inList = Object.fromEntries(acq.rows.map((x) => [x.personId, x]));
   res.render('reports/payments', {
-    title: `Payment acquittal: ${r.heading}`, acq, rows, inList, t, fromPlan, ALLOWANCES: acquittal.ALLOWANCES, CURRENCIES: acquittal.CURRENCIES,
+    title: `Payment acquittal: ${r.heading}`, acq, rows, inList, t, fromPlan, CURRENCIES: acquittal.CURRENCIES,
     canEdit: await acquittal.canEdit(req, r), info: reportInfo(r),
     urls: {
       crumbs: [{ href: '/reports', label: 'Activity reports' }, { href: `/reports/${r.id}`, label: r.heading }],
@@ -232,7 +232,7 @@ router.get('/:id/payments/print', async (req, res) => {
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
   const users = await mapByIds(req.db, 'users', [acq.preparedBy, r.compiledById].filter(Boolean));
   res.render('reports/acquittal-print', {
-    title: `Payment acquittal: ${r.heading}`, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r), ALLOWANCES: acquittal.ALLOWANCES,
+    title: `Payment acquittal: ${r.heading}`, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r),
     info: reportInfo(r), urls: { back: `/reports/${r.id}/payments` },
   });
 });

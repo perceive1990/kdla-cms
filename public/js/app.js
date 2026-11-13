@@ -136,6 +136,24 @@
   });
 
   // Drawing activities from the logframe: changing a row's fields ticks the row, and ticked rows stand out
+  // Payment acquittal: ticking a cost shows its column; naming an other cost renames its column.
+  document.querySelectorAll('[data-cost-toggle]').forEach(function (box) {
+    var key = box.getAttribute('data-cost-toggle');
+    box.addEventListener('change', function () {
+      document.querySelectorAll('[data-cost-col="' + key + '"]').forEach(function (el) { el.hidden = !box.checked; });
+    });
+  });
+  document.querySelectorAll('[data-cost-label]').forEach(function (input) {
+    var key = input.getAttribute('data-cost-label');
+    input.addEventListener('input', function () {
+      var name = input.value.trim() || ('Other ' + key.slice(-1));
+      document.querySelectorAll('[data-cost-name="' + key + '"]').forEach(function (el) { el.textContent = name; });
+      document.querySelectorAll('[data-tick-all="' + key + '"]').forEach(function (b) { b.setAttribute('data-tick-label', name.toLowerCase()); b.textContent = 'Tick all ' + name.toLowerCase(); });
+      var box = document.getElementById('cost_' + key);
+      if (box && input.value.trim() && !box.checked) { box.checked = true; box.dispatchEvent(new Event('change')); }
+    });
+  });
+
   // "Tick all" buttons: tick every enabled box of the given name in the same form; click again to untick.
   document.querySelectorAll('[data-tick-all]').forEach(function (btn) {
     var form = btn.closest('form');

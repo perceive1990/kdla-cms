@@ -211,3 +211,10 @@ test('attendance registers are read by what each cell holds', () => {
   assert.deepStrictEqual(csvRows('a;b\n"c;d";e\n'), [['a', 'b'], ['c;d', 'e']]);
   assert.deepStrictEqual(splitName('Christopher Mungai Sula'), { firstName: 'Christopher', lastName: 'Mungai Sula' });
 });
+
+test('acquittals saved before costs could be chosen are still read', () => {
+  const { of, totals } = require('../src/services/acquittal');
+  const acq = of({ acquittal: { currency: 'ZMW', rates: { transport: 100, incidental: null, accommodation: 200 }, rows: [{ personId: 'p', transport: true, accommodation: true, nights: 2 }] } });
+  assert.deepStrictEqual(acq.active.map((c) => c.key), ['transport', 'accommodation']);
+  assert.strictEqual(totals(acq).sums.total, 500);
+});

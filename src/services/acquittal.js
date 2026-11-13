@@ -1,6 +1,7 @@
 'use strict';
-// Payment acquittal for an activity: the attendees eligible for transport, incidental and accommodation
-// allowances, at rates set for the activity, printed for each person to sign on receipt. It is kept on the
+// Payment acquittal for an activity: the costs its attendees are eligible for (transport, lunch, dinner,
+// incidental, accommodation, airtime or anything else), at rates set for the activity, printed for each
+// person to sign on receipt. It is kept on the
 // activity report. Staff of the report's office prepare it; once the attendance is approved it is locked to
 // administrators, like the register.
 const { audit } = require('../audit');
@@ -10,11 +11,17 @@ const reports = require('./reports');
 const attendance = require('./attendance');
 const { statusOf } = require('../attendance-status');
 
-const ALLOWANCES = [
+// The costs an activity can pay. Each activity ticks the ones its attendees are eligible for and sets their
+// rates; up to three "other" costs take any name. Only the ticked costs appear on the page and the form.
+const CATALOGUE = [
   { key: 'transport', label: 'Transport' },
+  { key: 'lunch', label: 'Lunch' },
+  { key: 'dinner', label: 'Dinner' },
   { key: 'incidental', label: 'Incidental' },
   { key: 'accommodation', label: 'Accommodation', perNight: true },
+  { key: 'airtime', label: 'Airtime' },
 ];
+const OTHERS = ['other1', 'other2', 'other3'];
 const { CURRENCIES } = require('./directory');
 const isAdmin = (u) => Boolean(u && u.role === 'admin');
 
@@ -23,29 +30,45 @@ const money = (raw) => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 };
 
-/** The acquittal kept on a report, with defaults. */
-function of(r) {
-  const a = r.acquittal || {};
+/**
+ * The acquittal kept on a report or planned activity: `costs` lists every possible cost with whether it
+ * applies (`on`), its label and rate; `active` the ones that apply; each row says which costs a person gets.
+ * Acquittals saved before costs could be chosen (fixed transport, incidental and accommodation) are read too.
+ */
+function of(holder) {
+  const a = holder.acquittal || {};
+  const saved = Array.isArray(a.costs) ? Object.fromEntries(a.costs.map((c) => [c.key, c])) : null;
+  const legacyRows = Array.isArray(a.rows) ? a.rows : [];
+  const costs = [...CATALOGUE, ...OTHERS.map((key, i) => ({ key, label: '', other: true, n: i + 1 }))].map((c) => {
+    if (saved) {
+      const s = saved[c.key];
+      return { ...c, on: Boolean(s), rate: s ? s.rate : null, label: c.other ? (s ? s.label : '') : c.label };
+    }
+    const rate = a.rates ? a.rates[c.key] ?? null : null;
+    const used = legacyRows.some((r) => r[c.key]);
+    return { ...c, on: !c.other && (rate !== null || used), rate };
+  });
+  const rows = legacyRows.map((r) => ({
+    personId: r.personId,
+    items: r.items || Object.fromEntries(costs.filter((c) => r[c.key]).map((c) => [c.key, true])),
+    nights: r.nights || 0,
+  }));
   return {
-    currency: a.currency || 'ZMW',
-    rates: { transport: null, incidental: null, accommodation: null, ...(a.rates || {}) },
-    rows: Array.isArray(a.rows) ? a.rows : [],
-    preparedBy: a.preparedBy || '',
-    updatedAt: a.updatedAt || '',
+    currency: a.currency || 'ZMW', costs, active: costs.filter((c) => c.on), rows, preparedBy: a.preparedBy || '', updatedAt: a.updatedAt || '',
   };
 }
 
-/** What each person on the acquittal receives, with totals per allowance and overall. */
+/** What each person on the acquittal receives, with totals per cost and overall. */
 function totals(acq) {
-  const sums = { transport: 0, incidental: 0, accommodation: 0, total: 0 };
+  const sums = Object.fromEntries(acq.active.map((c) => [c.key, 0]));
+  sums.total = 0;
   const lines = acq.rows.map((row) => {
     const line = { ...row, amounts: {}, total: 0 };
-    for (const a of ALLOWANCES) {
-      const rate = acq.rates[a.key] || 0;
-      const amount = row[a.key] ? Math.round(rate * (a.perNight ? Math.max(1, row.nights || 1) : 1) * 100) / 100 : 0;
-      line.amounts[a.key] = amount;
+    for (const c of acq.active) {
+      const amount = row.items[c.key] ? Math.round((c.rate || 0) * (c.perNight ? Math.max(1, row.nights || 1) : 1) * 100) / 100 : 0;
+      line.amounts[c.key] = amount;
       line.total += amount;
-      sums[a.key] += amount;
+      sums[c.key] += amount;
     }
     line.total = Math.round(line.total * 100) / 100;
     sums.total += line.total;
@@ -74,29 +97,27 @@ async function canEdit(req, r) {
 function parse(req, body, allowedIds) {
   const fields = {};
   const currency = CURRENCIES.includes(body.currency) ? body.currency : 'ZMW';
-  const rates = {};
-  for (const a of ALLOWANCES) {
-    const v = str(body[`rate_${a.key}`], 20);
-    rates[a.key] = v === '' ? null : money(v);
-    if (v !== '' && rates[a.key] === null) fields[`rate_${a.key}`] = `Enter the ${a.label.toLowerCase()} rate as an amount, for example 150.`;
+  const costs = [];
+  for (const c of [...CATALOGUE, ...OTHERS.map((key, i) => ({ key, other: true, label: `Other ${i + 1}` }))]) {
+    if (body[`cost_${c.key}`] !== '1') continue;
+    const label = c.other ? str(body[`label_${c.key}`], 40) : c.label;
+    const raw = str(body[`rate_${c.key}`], 20);
+    const rate = money(raw);
+    const name = c.other ? (label || `other cost ${c.key.slice(-1)}`) : c.label.toLowerCase();
+    if (c.other && !label) fields[`label_${c.key}`] = `Name the other cost ${c.key.slice(-1)}, for example "Stationery", or untick it.`;
+    if (raw === '' || rate === null || rate === 0) fields[`rate_${c.key}`] = `Set the ${name} rate, or untick ${name} for this activity.`;
+    costs.push({ key: c.key, label, rate, ...(c.perNight ? { perNight: true } : {}) });
   }
   const allowed = new Set(allowedIds);
-  const pick = (name) => new Set([].concat(body[name] || []).map(String).filter((id) => allowed.has(id)));
-  const on = { transport: pick('transport'), incidental: pick('incidental'), accommodation: pick('accommodation') };
-  const ids = [...allowed].filter((id) => on.transport.has(id) || on.incidental.has(id) || on.accommodation.has(id));
-  const rows = ids.map((personId) => {
+  const ticked = Object.fromEntries(costs.map((c) => [c.key, new Set([].concat(body[c.key] || []).map(String).filter((id) => allowed.has(id)))]));
+  const rows = [...allowed].map((personId) => {
+    const items = Object.fromEntries(costs.filter((c) => ticked[c.key].has(personId)).map((c) => [c.key, true]));
     const nights = Number.parseInt(body[`nights_${personId}`], 10);
-    return {
-      personId, transport: on.transport.has(personId), incidental: on.incidental.has(personId), accommodation: on.accommodation.has(personId),
-      nights: on.accommodation.has(personId) ? Math.min(30, Math.max(1, Number.isInteger(nights) ? nights : 1)) : 0,
-    };
-  });
-  for (const a of ALLOWANCES) {
-    if (rows.some((x) => x[a.key]) && !rates[a.key] && !fields[`rate_${a.key}`]) fields[`rate_${a.key}`] = `Set the ${a.label.toLowerCase()} rate, or untick ${a.label.toLowerCase()} for everyone.`;
-  }
+    return { personId, items, nights: items.accommodation ? Math.min(30, Math.max(1, Number.isInteger(nights) ? nights : 1)) : 0 };
+  }).filter((r) => Object.keys(r.items).length);
   if (Object.keys(fields).length) throw new HttpError(422, 'validation', Object.values(fields)[0], { fields });
   return {
-    currency, rates, rows, preparedBy: req.user.id, updatedAt: now(),
+    currency, costs, rows, preparedBy: req.user.id, updatedAt: now(),
   };
 }
 
@@ -145,5 +166,5 @@ async function forReport(db, r) {
 }
 
 module.exports = {
-  ALLOWANCES, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
+  CATALOGUE, OTHERS, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
 };
