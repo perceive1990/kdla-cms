@@ -142,6 +142,7 @@ router.get('/:id', async (req, res) => {
   const draw = svc.canEdit(req.user, plan) && await canDraw(req.db, plan);
   const lfRequired = await svc.requiredFramework(req.db, plan);
   const offPlan = svc.notFromLogframe(plan, lfRequired);
+  await require('../services/comments').attach(req, res, 'workplans', plan.id);
   res.render('workplans/show', {
     title: plan.title, plan, items, totals, users, project, lfLabels, draw, lfRequired: Boolean(lfRequired), offPlan: new Set(offPlan.map((it) => it.id)),
     canEdit: svc.canEdit(req.user, plan), canProgress: svc.canUpdateProgress(req.user, plan), admin: isAdmin(req.user), t0: today(), wp: svc.view,
