@@ -9,7 +9,7 @@
 // Who may do what: administrators set up and change the logframe; everyone records indicator values.
 // One logframe per project; its id is the project id.
 const { audit } = require('../audit');
-const { counts: attendanceCounts } = require('../attendance-status');
+const { counts: attendanceCounts, locked: attendanceLocked } = require('../attendance-status');
 const { isAdmin } = require('../access');
 const { compute } = require('./stats');
 const {
@@ -34,6 +34,9 @@ const DONE = ['Completed', 'Cancelled'];
  */
 const SOURCES = {
   manual: { short: 'Recorded by staff', label: 'Recorded by staff', unit: null, group: 'Recorded' },
+  reported: {
+    short: 'Reported on activity reports', label: 'Reported on activity reports (added up from the figures written on each submitted report)', unit: 'number', scope: 'result', group: 'From linked activity reports',
+  },
   reports: { short: 'Activities held', label: 'Activities held (linked activity reports)', unit: 'number', scope: 'result', group: 'From linked activity reports' },
   reach: { short: 'People reached', label: 'People reached (different registered attendees plus head counts)', unit: 'number', scope: 'result', group: 'From linked activity reports' },
   attendees: { short: 'Registered attendees', label: 'Registered attendees (different people)', unit: 'number', scope: 'result', group: 'From linked activity reports' },
@@ -436,6 +439,30 @@ function rollup(links, reportsOf, people, t0) {
   return out;
 }
 
+/** A report's indicator figures count once the report is submitted (its attendance is submitted or approved). */
+const submitted = (r) => attendanceLocked(r);
+
+/**
+ * The indicators an activity report gives figures for: those "reported on activity reports" of the logframe
+ * result its planned activity is linked to, and of the results above it.
+ */
+async function reportIndicators(db, r) {
+  if (!r.workplanId || !r.workplanItemId) return { fw: null, list: [] };
+  const plan = await db.get('workplans', r.workplanId);
+  const item = plan && (plan.items || []).find((x) => x.id === r.workplanItemId);
+  if (!item || !item.logframeId || !item.logframeResultId) return { fw: null, list: [] };
+  const fw = await db.get('logframes', item.logframeId);
+  if (!fw) return { fw: null, list: [] };
+  const byId = Object.fromEntries((fw.results || []).map((x) => [x.id, x]));
+  const chain = [];
+  for (let id = item.logframeResultId; id && byId[id] && !chain.includes(id); id = byId[id].parentId) chain.push(id);
+  const codeMap = codes(fw);
+  const list = (fw.indicators || []).filter((i) => i.source === 'reported' && chain.includes(i.resultId))
+    .sort((a, b) => chain.indexOf(a.resultId) - chain.indexOf(b.resultId))
+    .map((ind) => ({ ind, result: labelOf(fw, byId[ind.resultId], codeMap), value: (r.indicatorValues || {})[ind.id] ?? null }));
+  return { fw, list };
+}
+
 const SEVERITY = ['Behind', 'Below target', 'On track', 'Achieved'];
 
 /**
@@ -513,7 +540,7 @@ async function progress(db, fw, project, t0 = today()) {
   for (let i = 0; i < planIds.length; i += 100) {
     reports.push(...await db.find('reports', {
       where: { workplanId: { $in: planIds.slice(i, i + 100) } },
-      fields: ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants', 'attendanceStatus'],
+      fields: ['id', 'heading', 'date', 'workplanId', 'workplanItemId', 'attendeeIds', 'otherParticipants', 'attendanceStatus', 'indicatorValues'],
     }));
   }
   const reportsOf = (plan, item) => reports.filter((r) => r.workplanId === plan.id && r.workplanItemId === item.id);
@@ -542,9 +569,16 @@ async function progress(db, fw, project, t0 = today()) {
     const inds = indicators.filter((i) => i.resultId === r.id).map((ind) => {
       const manual = ind.source === 'manual' || !SOURCES[ind.source];
       const last = manual && (ind.values || []).length ? [...ind.values].sort(byDate).pop() : null;
-      const value = manual ? (last ? last.value : null) : autoValue(ind.source, agg, projectTotals);
+      let value = manual ? (last ? last.value : null) : autoValue(ind.source, agg, projectTotals);
+      let fromReports = null;
+      if (ind.source === 'reported') {
+        // The figures written on the submitted activity reports of the activities under this result.
+        const sent = mine.flatMap(({ plan, item }) => reportsOf(plan, item)).filter((rep) => submitted(rep) && Number.isFinite((rep.indicatorValues || {})[ind.id]));
+        fromReports = sent.length;
+        value = sent.length ? Math.round(sent.reduce((n, rep) => n + rep.indicatorValues[ind.id], 0) * 1000) / 1000 : null;
+      }
       return {
-        ...ind, actual: value, asAt: manual ? (last ? last.date : null) : t0, automatic: !manual, expected: expectedNow(ind, elapsed), ...judge(ind, value, elapsed),
+        ...ind, fromReports, actual: value, asAt: manual ? (last ? last.date : null) : t0, automatic: !manual, expected: expectedNow(ind, elapsed), ...judge(ind, value, elapsed),
       };
     });
     return {
@@ -826,6 +860,7 @@ const view = {
 };
 
 module.exports = {
+  reportIndicators, submitted,
   LEVELS, PARENT_LEVEL, CHILD_LEVEL, DEFAULT_NAMES, SOURCES, UNITS, IMPORT_COLUMNS,
   names, getFramework, mustFramework, canChange, createFramework, readSettings, updateSettings, deleteFramework,
   ordered, codes, labelOf, getResult, readResult, validateResult, addResult, updateResult, deleteResult,

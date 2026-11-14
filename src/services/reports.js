@@ -126,6 +126,8 @@ function reportQuery(params = {}) {
 
 // ---------- Offices: staff write activity reports only for their own office ----------
 const isAdmin = (user) => Boolean(user && user.role === 'admin');
+/** Administrators and programme staff (accounts marked "all offices") work for every office. */
+const allOffices = (user) => isAdmin(user) || Boolean(user && user.allOffices && user.role === 'officer');
 
 /** The office a report belongs to: its own, else its work plan's, else the office of the colleague who compiled it. */
 async function officeOf(db, r) {
@@ -146,7 +148,7 @@ async function officeOf(db, r) {
  * for their own. Reports and work plans that belong to no office are open to everyone with an office.
  */
 function canWriteFor(user, office) {
-  if (isAdmin(user)) return true;
+  if (allOffices(user)) return true;
   return Boolean(user && user.office) && (!office || office === user.office);
 }
 
@@ -165,7 +167,7 @@ async function settleOffice(req, v, existing = null) {
   const user = req.user;
   if (existing) mustWriteFor(user, await officeOf(req.db, existing));
   const plan = v.workplanId && /^[\w-]{1,60}$/.test(v.workplanId) ? await req.db.get('workplans', v.workplanId) : null;
-  if (isAdmin(user)) {
+  if (allOffices(user)) {
     v.office = v.office || (existing && existing.office) || (plan && plan.office) || (existing ? await officeOf(req.db, existing) : '') || user.office || '';
   } else {
     mustWriteFor(user, '');
@@ -271,6 +273,35 @@ async function addAttendees(req, r, rawRows, consent = {}) {
   };
 }
 
+// ---------- Indicator results written on the report ----------
+/**
+ * Saves the figures a report gives for the logframe indicators "reported on activity reports". Staff of the
+ * report's office write them until the report is submitted; after that only an administrator can change them.
+ * Blank removes a figure. They count in the logframe once the report is submitted.
+ */
+async function saveIndicatorValues(req, r, body) {
+  mustWriteFor(req.user, await officeOf(req.db, r));
+  if (attendanceStatus.locked(r) && !isAdmin(req.user)) {
+    throw forbidden('This report is submitted, so its indicator results are in the logframe. An administrator can return it for correction.');
+  }
+  const { list } = await require('./logframes').reportIndicators(req.db, r);
+  if (!list.length) throw new HttpError(422, 'validation', 'No logframe indicator is reported on this activity.');
+  const values = { ...(r.indicatorValues || {}) };
+  const fields = {};
+  for (const { ind } of list) {
+    const raw = String(body[`ind_${ind.id}`] ?? '').replace(/[, ]/g, '').trim();
+    if (raw === '') { delete values[ind.id]; continue; }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) fields[`ind_${ind.id}`] = `Enter "${ind.name.slice(0, 60)}" as a number of 0 or more.`;
+    else values[ind.id] = Math.round(n * 1000) / 1000;
+  }
+  if (Object.keys(fields).length) throw new HttpError(422, 'validation', Object.values(fields)[0], { fields });
+  const saved = await req.db.replace('reports', { ...r, indicatorValues: values, updatedAt: now() });
+  audit(req, 'update', 'reports', r.id, `Indicator results: ${list.map(({ ind }) => `${ind.name.slice(0, 40)} ${values[ind.id] ?? 'blank'}`).join('; ')}`);
+  return saved;
+}
+
 module.exports = {
+  saveIndicatorValues, allOffices,
   RICH_FIELDS, officeOf, canWriteFor, mustWriteFor, settleOffice, readReport, validateReport, onOtherRegisters, reportQuery, getReport, createReport, updateReport, deleteReport, addAttendees, BULK_FIELDS,
 };

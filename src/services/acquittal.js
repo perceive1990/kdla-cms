@@ -22,6 +22,14 @@ const CATALOGUE = [
   { key: 'airtime', label: 'Airtime' },
 ];
 const OTHERS = ['other1', 'other2', 'other3'];
+// Costs of running the activity, given to the person responsible to carry out their duties. They are not paid
+// to attendees, so they are kept apart from the acquittal form that attendees sign.
+const ACTIVITY_COSTS = [
+  { key: 'venue', label: 'Venue' },
+  { key: 'conference', label: 'Conference package' },
+  { key: 'organising', label: 'Other organising expenses' },
+  { key: 'stationery', label: 'Stationery' },
+];
 const { CURRENCIES } = require('./directory');
 const isAdmin = (u) => Boolean(u && u.role === 'admin');
 
@@ -57,8 +65,16 @@ function of(holder) {
     items: r.items || Object.fromEntries(costs.filter((c) => r[c.key]).map((c) => [c.key, true])),
     nights: r.nights || 0,
   }));
+  const act = a.activityCosts || {};
+  const actItems = ACTIVITY_COSTS.map((c) => {
+    const s = (act.items || []).find((x) => x.key === c.key) || {};
+    return { ...c, amount: s.amount ?? null, note: s.note || '' };
+  });
   return {
     currency: a.currency || 'ZMW', costs, active: costs.filter((c) => c.on), rows, preparedBy: a.preparedBy || '', updatedAt: a.updatedAt || '',
+    activityCosts: {
+      responsibleId: act.responsibleId || '', items: actItems, total: Math.round(actItems.reduce((n, c) => n + (c.amount || 0), 0) * 100) / 100,
+    },
   };
 }
 
@@ -124,9 +140,20 @@ function parse(req, body, allowedIds) {
     const nights = Number.parseInt(body[`nights_${personId}`], 10);
     return { personId, items, nights: items.accommodation ? Math.min(30, Math.max(1, Number.isInteger(nights) ? nights : 1)) : 0 };
   }).filter((r) => Object.keys(r.items).length);
+  const items = [];
+  for (const c of ACTIVITY_COSTS) {
+    const raw = str(body[`act_${c.key}`], 20);
+    const note = str(body[`act_note_${c.key}`], 120);
+    if (raw === '' && !note) continue;
+    const amount = money(raw);
+    if (raw === '' || amount === null) { fields[`act_${c.key}`] = `Enter the ${c.label.toLowerCase()} amount as a number, or clear it.`; continue; }
+    items.push({ key: c.key, amount, note });
+  }
+  const activityCosts = { responsibleId: str(body.act_responsible, 60), items };
+  if (items.length && !activityCosts.responsibleId) fields.act_responsible = 'Choose the person responsible for the activity costs.';
   if (Object.keys(fields).length) throw new HttpError(422, 'validation', Object.values(fields)[0], { fields });
   return {
-    currency, costs, rows, preparedBy: req.user.id, updatedAt: now(),
+    currency, costs, rows, activityCosts, preparedBy: req.user.id, updatedAt: now(),
   };
 }
 
@@ -174,6 +201,10 @@ async function forReport(db, r) {
   return { acq: of(r), fromPlan: false };
 }
 
+/** " and activity costs ZMW 1,850.00" for messages, or nothing. */
+const activityNote = (a) => (a.activityCosts.total ? `, and activity costs ${a.currency} ${a.activityCosts.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '');
+
 module.exports = {
-  CATALOGUE, OTHERS, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
+  activityNote,
+  CATALOGUE, OTHERS, ACTIVITY_COSTS, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
 };

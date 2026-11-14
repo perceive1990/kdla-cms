@@ -86,6 +86,7 @@
           { href: '/logframes', icon: 'bullseye', label: 'M&E (logframes)' },
           { href: '/workplans', icon: 'clipboard-check', label: 'Work plans' },
           { href: '/reports', icon: 'journal-text', label: 'Activity reports' },
+          { href: fundingUrl, icon: 'cash-coin', label: 'Request funding', external: true },
           { href: '/statistics', icon: 'bar-chart', label: 'Statistics' },
           { href: '/stakeholders', icon: 'building', label: 'Stakeholders' },
           { href: '/rooms', icon: 'chat-square-text', label: 'Consultation rooms' },
@@ -104,11 +105,11 @@
           <% if (item.section) { %>
             <li class="nav-section"><%= item.section %></li>
           <% } else {
-               const active = item.exact ? path === item.href : (path === item.href || path.startsWith(item.href + '/'));
+               const active = !item.external && (item.exact ? path === item.href : (path === item.href || path.startsWith(item.href + '/')));
           %>
             <li class="nav-item">
-              <a class="nav-link<%= active ? ' active' : '' %>" href="<%= item.href %>"<%- active ? ' aria-current="page"' : '' %>>
-                <i class="bi bi-<%= item.icon %>" aria-hidden="true"></i> <%= item.label %>
+              <a class="nav-link<%= active ? ' active' : '' %>" href="<%= item.href %>"<%- active ? ' aria-current="page"' : '' %><%- item.external ? ' target="_blank" rel="noopener"' : '' %>>
+                <i class="bi bi-<%= item.icon %>" aria-hidden="true"></i> <%= item.label %><% if (item.external) { %> <i class="bi bi-box-arrow-up-right small" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span><% } %>
                 <% if (item.badge) { %><span class="badge rounded-pill text-bg-danger count" title="Overdue"><%= item.badge %><span class="visually-hidden"> overdue</span></span><% } %>
               </a>
             </li>

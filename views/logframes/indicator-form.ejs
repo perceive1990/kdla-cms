@@ -22,7 +22,7 @@
         <% } %>
       </select>
       <% if (errors.source) { %><div class="invalid-feedback d-block"><%= errors.source %></div><% } %>
-      <div class="form-text" id="source-help">"Recorded by staff" means colleagues enter the value from time to time. The other choices are worked out by the system: from the activity reports of the planned activities linked to this result and everything under it, or from the case records of the project period.</div>
+      <div class="form-text" id="source-help">"Recorded by staff" means colleagues enter the value from time to time. "Reported on activity reports" asks each activity report linked to this result, or to a result under it, for its figure, and adds up the figures of the submitted reports. The other choices are worked out by the system: from the activity reports of the planned activities linked to this result and everything under it, or from the case records of the project period.</div>
     </div>
     <%- f.select('unit', 'Unit', [{ value: 'number', label: 'Number' }, { value: 'percent', label: 'Percent' }], values, errors, { col: 'col-md-3', blank: false, help: 'Automatic sources set this themselves' }) %>
     <%- f.text('baseline', 'Baseline', values, errors, { col: 'col-md-3', inputmode: 'decimal' }) %>

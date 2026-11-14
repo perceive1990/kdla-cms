@@ -514,10 +514,14 @@ const view = {
   money: (n) => (n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('en-GB', { maximumFractionDigits: 2 })),
   /** The payment acquittal prepared for a planned activity: people and total, or null. */
   payments: (it) => {
-    if (!it.acquittal || !(it.acquittal.rows || []).length) return null;
+    if (!it.acquittal) return null;
     const acq = require('./acquittal'); // loaded here: the acquittal service itself uses this module
-    const t = acq.totals(acq.of(it));
-    return { people: t.people, total: t.sums.total, currency: it.acquittal.currency || 'ZMW' };
+    const a = acq.of(it);
+    const t = acq.totals(a);
+    if (!t.people && !a.activityCosts.total) return null;
+    return {
+      people: t.people, total: t.sums.total, activity: a.activityCosts.total, currency: it.acquittal.currency || 'ZMW',
+    };
   },
   /** "05 Oct" (or "05 Oct 2026"), read straight from YYYY-MM-DD so no time zone can shift the day. */
   day: (d, withYear = false) => {

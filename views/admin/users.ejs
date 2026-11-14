@@ -11,7 +11,7 @@
       <tr>
         <td><a class="cell-strong" href="/admin/users/<%= u.id %>/edit"><%= u.fullName || '—' %></a></td>
         <td><%= u.username %></td>
-        <td><%= { admin: 'Administrator', viewer: 'Read only' }[u.role] || 'Officer' %></td>
+        <td><%= { admin: 'Administrator', viewer: 'Read only' }[u.role] || 'Officer' %><%= u.allOffices && u.role === 'officer' ? ' · all offices' : '' %></td>
         <td class="d-none d-md-table-cell"><%= u.category %><%= u.qualification ? ' · ' + u.qualification : '' %></td>
         <td class="d-none d-md-table-cell"><%= u.office %></td>
         <td>

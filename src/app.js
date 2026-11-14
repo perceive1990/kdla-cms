@@ -53,7 +53,7 @@ function createApp() {
   app.use((req, res, next) => {
     Object.assign(res.locals, {
       config, choices, h: helpers, f: form, rich, path: req.path, query: req.query, title: '',
-      user: null, flashes: [], csrfToken: '', assetVersion: version, theme: themeOf(null),
+      user: null, flashes: [], csrfToken: '', assetVersion: version, theme: themeOf(null), fundingUrl: config.fundingRequestUrl,
     });
     req.db = db;
     res.setHeader('X-Robots-Tag', 'noindex, nofollow'); // private system: keep out of search engines

@@ -6,6 +6,7 @@ const { audit } = require('../audit');
 const svc = require('../services/reports');
 const workplans = require('../services/workplans');
 const logframes = require('../services/logframes');
+const { HttpError } = require('../services/errors');
 const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
@@ -22,7 +23,7 @@ async function formLists(db, values = {}, user = null) {
     db.find('stakeholders', { fields: ['id', 'name'], orderBy: ['name', 'ASC'] }),
     workplans.activityOptions(db, values),
   ]);
-  const admin = Boolean(user && user.role === 'admin');
+  const admin = svc.allOffices(user);
   // Staff only see the work plan activities of their own office (and of plans with no office).
   const mine = admin ? workplanOptions : workplanOptions.filter((o) => !o.plan.office || (user && o.plan.office === user.office)
     || (values.workplanId === o.plan.id && values.workplanItemId === o.item.id));
@@ -154,6 +155,18 @@ async function attendanceAction(req, res, fn) {
   res.redirect(`/reports/${r.id}/attendance`);
 }
 
+router.post('/:id/indicators', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  try {
+    await svc.saveIndicatorValues(req, r, req.body);
+    req.flash('success', 'Indicator results saved. They count in the logframe once the report is submitted.');
+  } catch (e) {
+    if (!(e instanceof HttpError) || ![403, 422].includes(e.status)) throw e;
+    req.flash('danger', e.message);
+  }
+  return res.redirect(`/reports/${r.id}#indicators`);
+});
+
 router.post('/:id/attendance', (req, res) => attendanceAction(req, res, async (r) => {
   const saved = await attendance.setAttended(req, r, req.body.attended || []);
   return `Attendance saved: ${saved.attendeeIds.length} attended.${saved.skipped ? ` ${saved.skipped} not recorded, because they are already on another register of this planned activity.` : ''}`;
@@ -197,8 +210,9 @@ router.get('/:id/payments', async (req, res) => {
     acq, rows, t, fromPlan,
   } = await acquittalData(req, r);
   const inList = Object.fromEntries(acq.rows.map((x) => [x.personId, x]));
+  const staff = (await req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] })).filter((u) => u.role !== 'viewer');
   res.render('reports/payments', {
-    title: `Payment acquittal: ${r.heading}`, acq, rows, inList, t, fromPlan, CURRENCIES: acquittal.CURRENCIES,
+    title: `Payment acquittal: ${r.heading}`, acq, rows, inList, t, fromPlan, CURRENCIES: acquittal.CURRENCIES, staff, defaultResponsible: r.compiledById,
     canEdit: await acquittal.canEdit(req, r), info: reportInfo(r),
     urls: {
       crumbs: [{ href: '/reports', label: 'Activity reports' }, { href: `/reports/${r.id}`, label: r.heading }],
@@ -215,7 +229,7 @@ router.post('/:id/payments', async (req, res) => {
   try {
     const saved = await acquittal.save(req, r, req.body);
     const t = acquittal.totals(acquittal.of(saved));
-    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acquittal.of(saved).currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}.`);
+    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acquittal.of(saved).currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}${acquittal.activityNote(acquittal.of(saved))}.`);
   } catch (e) {
     if (![403, 422].includes(e.status)) throw e;
     req.flash('danger', e.message);
@@ -274,8 +288,9 @@ router.get('/:id', async (req, res) => {
     : null;
   const office = await svc.officeOf(req.db, r);
   await require('../services/comments').attach(req, res, 'reports', r.id);
+  const indicators = await logframes.reportIndicators(req.db, r);
   return res.render('reports/show', {
-    title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned, lfLink, office, canWrite: svc.canWriteFor(req.user, office),
+    title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned, lfLink, office, canWrite: svc.canWriteFor(req.user, office), indicators: indicators.list,
     attStatus: require('../attendance-status').statusOf(r), attLabel: require('../attendance-status').LABEL[require('../attendance-status').statusOf(r)],
     byCategory: tally(attendees, 'ageCategory', choices.ageCategories),
     disabledCount: attendees.filter((a) => a.disability === 'Disabled').length,
