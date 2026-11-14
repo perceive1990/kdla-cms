@@ -46,13 +46,13 @@ const ALLOWED_TYPES = /^(application\/pdf|image\/(png|jpe?g|gif|webp)|text\/plai
 const uploader = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: config.storage.maxFileMb * 1024 * 1024, files: 5, fields: 300, fieldSize: 200 * 1024,
+    fileSize: config.storage.maxFileMb * 1024 * 1024, files: 6, fields: 300, fieldSize: 200 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (ALLOWED_TYPES.test(file.mimetype)) return cb(null, true);
     return cb(Object.assign(new Error(`File type not allowed: ${file.originalname}`), { status: 400 }));
   },
-}).array('attachments', 5);
+}).fields([{ name: 'attachments', maxCount: 5 }, { name: 'registerFile', maxCount: 1 }]);
 
 /**
  * Parse multipart forms (file uploads) before the CSRF check so the token in the form body can be read.
@@ -61,7 +61,13 @@ const uploader = multer({
 function multipart(req, res, next) {
   if (!req.is('multipart/form-data') || !req.user) return next();
   return uploader(req, res, (err) => {
-    if (!err) return next();
+    if (!err) {
+      // Attachments stay a plain list in req.files; an attendance register to import (Word or CSV) is apart.
+      const got = req.files || {};
+      req.registerFile = (got.registerFile || [])[0] || null;
+      req.files = got.attachments || [];
+      return next();
+    }
     req.flash('danger', err.code === 'LIMIT_FILE_SIZE'
       ? `Each file must be under ${config.storage.maxFileMb} MB.`
       : err.message || 'Upload failed.');

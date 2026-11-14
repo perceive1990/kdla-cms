@@ -10,7 +10,7 @@ const { HttpError } = require('../services/errors');
 const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
-  mapByIds, pagination, toCsv, sendCsv, fullName, tally, today,
+  mapByIds, pagination, toCsv, sendCsv, fullName, tally, today, str,
 } = require('../helpers');
 
 const router = express.Router();
@@ -27,8 +27,25 @@ async function formLists(db, values = {}, user = null) {
   // Staff only see the work plan activities of their own office (and of plans with no office).
   const mine = admin ? workplanOptions : workplanOptions.filter((o) => !o.plan.office || (user && o.plan.office === user.office)
     || (values.workplanId === o.plan.id && values.workplanItemId === o.item.id));
+  // "Tick the invite list" leaves out people already recorded at another session of the same planned activity.
+  const withList = mine.filter((o) => (o.item.shortlist || []).length);
+  const planIds = [...new Set(withList.map((o) => o.plan.id))];
+  const done = new Map();
+  for (let i = 0; i < planIds.length; i += 100) {
+    const reps = await db.find('reports', { where: { workplanId: { $in: planIds.slice(i, i + 100) } }, fields: ['id', 'workplanId', 'workplanItemId', 'attendeeIds'] });
+    for (const r of reps) {
+      if (r.id === values.id) continue;
+      const k = `${r.workplanId}:${r.workplanItemId}`;
+      if (!done.has(k)) done.set(k, new Set());
+      for (const id of r.attendeeIds || []) done.get(k).add(id);
+    }
+  }
+  const options = mine.map((o) => {
+    const seen = done.get(`${o.plan.id}:${o.item.id}`);
+    return { ...o, invited: (o.item.shortlist || []).filter((id) => !seen || !seen.has(id)) };
+  });
   return {
-    attendees, users, projects, partners, workplanOptions: mine, richEditor: true, officeLocked: !admin,
+    attendees, users, projects, partners, workplanOptions: options, richEditor: true, officeLocked: !admin,
   };
 }
 
@@ -112,6 +129,37 @@ router.get('/new', async (req, res) => {
   });
 });
 
+/**
+ * Imports an attendance register (Word or CSV) chosen on the report form: new people are registered as
+ * attendees of the report's office, those already registered (same NRC) are matched, and all of them are
+ * added to the report's attendees, except anyone already on another register of the same planned activity.
+ * Returns a sentence for the message, or throws 422 when the file cannot be read.
+ */
+async function importRegister(req, v, selfId = null) {
+  const file = req.registerFile;
+  if (!file) return '';
+  const importer = require('../services/attendee-import');
+  let people;
+  try { people = require('../register-import').readRegister(file); } catch { people = null; }
+  if (!people || !people.length) throw new HttpError(422, 'validation', 'The register file could not be read, or has no table of names. Save it as a Word document (.docx) or CSV and try again.', { fields: { registerFile: 'Choose a Word (.docx) or CSV register with a table of names.' } });
+  const rows = await importer.preview(req.db, people, { adults: req.body.registerAdults !== '0' });
+  if (!rows.some((x) => ['new', 'existing'].includes(x.status))) {
+    const msg = `No one on this register could be imported (${rows.length} line${rows.length === 1 ? '' : 's'} read). Each line needs a first and last name and the sex, or an NRC already registered.`;
+    throw new HttpError(422, 'validation', msg, { fields: { registerFile: msg } });
+  }
+  req.body.source = str(file.originalname, 200);
+  const { added, ids } = await importer.save(req, rows, { office: v.office, activity: v.activityType || '', location: v.location || '' });
+  const elsewhere = await svc.onOtherRegisters(req.db, v, selfId);
+  const keep = ids.filter((id) => !elsewhere.has(id));
+  const before = new Set(v.attendeeIds);
+  v.attendeeIds = [...new Set([...v.attendeeIds, ...keep])];
+  const linked = v.attendeeIds.length - before.size;
+  const skipped = rows.filter((x) => x.status === 'problem').length;
+  return ` Register imported: ${linked} attendee${linked === 1 ? '' : 's'} added to this report (${added} newly registered)`
+    + `${ids.length - keep.length ? `, ${ids.length - keep.length} left off because they are on another register of this activity` : ''}`
+    + `${skipped ? `, ${skipped} line${skipped === 1 ? '' : 's'} could not be imported (missing a name or sex); add ${skipped === 1 ? 'it' : 'them'} on the attendance page` : ''}.`;
+}
+
 router.post('/', async (req, res) => {
   const v = svc.readReport(req.body);
   try {
@@ -125,8 +173,15 @@ router.post('/', async (req, res) => {
       title: 'New activity report', values: withLink(v), errors, isNew: true, ...(await formLists(req.db, v, req.user)),
     });
   }
+  let imported;
+  try { imported = await importRegister(req, v); } catch (e) {
+    if (e.status !== 422) throw e;
+    return res.status(400).render('reports/form', {
+      title: 'New activity report', values: withLink(v), errors: e.fields || {}, isNew: true, ...(await formLists(req.db, v, req.user)),
+    });
+  }
   const doc = await svc.createReport(req, v, await saveUploads(req.files, req.user));
-  req.flash('success', 'Report created. You can now add the attendance register.');
+  req.flash('success', `Report created.${imported || ' You can now add the attendance register.'}`);
   return res.redirect(`/reports/${doc.id}`);
 });
 
@@ -359,8 +414,20 @@ router.post('/:id', async (req, res) => {
       title: 'Edit report', values: withLink(values), errors, isNew: false, ...(await formLists(req.db, values, req.user)),
     });
   }
+  let imported = '';
+  if (req.registerFile && attStatus.locked(r)) {
+    req.flash('warning', 'The attendance of this report is submitted, so the register was not imported. An administrator can return it for correction.');
+  } else {
+    try { imported = await importRegister(req, v, r.id); } catch (e) {
+      if (e.status !== 422) throw e;
+      const values = { ...r, ...v };
+      return res.status(400).render('reports/form', {
+        title: 'Edit report', values: withLink(values), errors: e.fields || {}, isNew: false, ...(await formLists(req.db, values, req.user)),
+      });
+    }
+  }
   await svc.updateReport(req, r, v, { ifMatch: req.body._etag, attachments: await saveUploads(req.files, req.user) });
-  req.flash('success', 'Report updated.');
+  req.flash('success', `Report updated.${imported}`);
   return res.redirect(`/reports/${r.id}`);
 });
 

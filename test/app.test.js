@@ -61,7 +61,7 @@ class Client {
     const fd = new FormData();
     fd.append('_csrf', token);
     for (const [k, v] of Object.entries(fields)) for (const item of (Array.isArray(v) ? v : [v])) fd.append(k, item);
-    for (const f of files) fd.append('attachments', new Blob([f.content], { type: f.type }), f.name);
+    for (const f of files) fd.append(f.field || 'attachments', new Blob([f.content], { type: f.type }), f.name);
     return this.req(path, { method: 'POST', body: fd });
   }
 
@@ -2011,4 +2011,37 @@ test('work plan activities explain their contribution to the logframe before app
   r = await a.req('/logframes/proj-ind');
   assert.match(r.text, /Contributions \(2\)/);
   assert.match(r.text, /<span class="tag tag-muted">Planned<\/span>/);
+});
+
+test('a register file imported while writing a report adds its people to the report', async () => {
+  const a = ctx.admin;
+  let r = await a.req('/reports/new');
+  assert.match(r.text, /Import from a register/);
+  assert.match(r.text, /name="registerFile"/);
+  assert.match(r.text, /data-invited="/);
+  const csv = 'S/N,Full name,NRC,Sex,Community,Present,Phone\n'
+    + '1,Csv Tembo,900101/65/1,F,Kafue Section,yes,0970000101\n'
+    + '2,Report Newperson,900202/65/1,M,Kafue Section,yes,0970000202\n'
+    + '3,Onename,,F,Kafue Section,yes,\n';
+  const fields = {
+    activityType: 'Community Meeting', heading: 'Kafue meeting with imported register', date: '2039-05-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kakolo Office',
+    compiledById: await userId('admin'), registerAdults: '1',
+  };
+  r = await a.postMultipart('/reports', fields, [{ field: 'registerFile', name: 'kafue.csv', type: 'text/csv', content: csv }], '/reports/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const rep = await db().get('reports', r.location.split('/')[2]);
+  const tembo = (await db().find('people', { where: { nrc: '900101/65/1' } }))[0];
+  const fresh = (await db().find('people', { where: { nrc: '900202/65/1' } }))[0];
+  assert.ok(fresh, 'the new person is registered');
+  assert.deepStrictEqual([fresh.office, fresh.ageCategory, fresh.location], ['Kakolo Office', 'Man', 'Kafue Section']);
+  assert.deepStrictEqual(rep.attendeeIds.sort(), [tembo.id, fresh.id].sort());
+  assert.strictEqual((rep.attachments || []).length, 0, 'the register file is not kept as an attachment');
+  r = await a.req(`/reports/${rep.id}`);
+  assert.match(r.text, /Register imported: 2 attendees added to this report \(1 newly registered\), 1 line could not be imported/);
+  // A file that is not a register is refused and nothing is saved
+  const count = await db().count('reports');
+  r = await a.postMultipart('/reports', { ...fields, heading: 'Bad file' }, [{ field: 'registerFile', name: 'x.csv', type: 'text/csv', content: 'hello' }], '/reports/new');
+  assert.strictEqual(r.status, 400);
+  assert.match(r.text, /No one on this register could be imported \(1 line read\)/);
+  assert.strictEqual(await db().count('reports'), count);
 });

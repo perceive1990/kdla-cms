@@ -52,8 +52,10 @@ async function preview(db, people, { adults = true } = {}) {
 async function save(req, rows, { office, activity = '', location = '' }) {
   mustWriteFor(req.user, office);
   let added = 0; let updated = 0;
+  const ids = [];
   for (const r of rows) {
     if (r.status === 'existing') {
+      ids.push(r.personId);
       const p = await req.db.get('people', r.personId);
       if (p && (!p.office || !p.location)) {
         await req.db.replace('people', { ...p, office: p.office || office, location: p.location || r.area || location, updatedAt: now() });
@@ -63,14 +65,16 @@ async function save(req, rows, { office, activity = '', location = '' }) {
       const v = readPerson({
         firstName: r.firstName, lastName: r.lastName, nrc: r.nrc, contact: r.phone, ageCategory: r.ageCategory, location: r.area || location, office, activity,
       }, 'attendee');
+      const id = newId();
+      ids.push(id);
       await req.db.create('people', withConsentStamp({
-        id: newId(), kind: 'attendee', ...v, importedFrom: str(req.body.source, 200), addedBy: req.user.id, createdAt: now(), updatedAt: now(),
+        id, kind: 'attendee', ...v, importedFrom: str(req.body.source, 200), addedBy: req.user.id, createdAt: now(), updatedAt: now(),
       }, null, req.user));
       added += 1;
     }
   }
   audit(req, 'create', 'people', null, `Imported an attendance register for ${office}: ${added} attendees added, ${updated} already registered updated`);
-  return { added, updated };
+  return { added, updated, ids };
 }
 
 const validOffice = (o) => choices.offices.includes(o);

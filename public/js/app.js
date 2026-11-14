@@ -137,6 +137,28 @@
 
   // Drawing activities from the logframe: changing a row's fields ticks the row, and ticked rows stand out
   // Payment acquittal: ticking a cost shows its column; naming an other cost renames its column.
+  // Report form: tick everyone on the invite list of the chosen work plan activity.
+  document.querySelectorAll('[data-tick-invited]').forEach(function (btn) {
+    var list = document.getElementById(btn.getAttribute('data-tick-invited') + '-list');
+    var pick = document.querySelector('select[name="workplanItem"]');
+    var note = document.querySelector('[data-tick-invited-note]');
+    if (!list || !pick) return;
+    function invited() {
+      var o = pick.options[pick.selectedIndex];
+      return o ? (o.getAttribute('data-invited') || '').split(' ').filter(Boolean) : [];
+    }
+    function refresh() { btn.hidden = invited().length === 0; if (note) note.textContent = ''; }
+    pick.addEventListener('change', refresh);
+    refresh();
+    btn.addEventListener('click', function () {
+      var ids = invited(); var n = 0; var missing = 0;
+      ids.forEach(function (id) {
+        var box = list.querySelector('input[type="checkbox"][value="' + id.replace(/[^\w-]/g, '') + '"]');
+        if (box) { if (!box.checked) { box.checked = true; n += 1; } } else missing += 1;
+      });
+      if (note) note.textContent = n + ' ticked from the invite list' + (missing ? ', ' + missing + ' not found' : '') + '.';
+    });
+  });
   document.querySelectorAll('[data-cost-toggle]').forEach(function (box) {
     var key = box.getAttribute('data-cost-toggle');
     box.addEventListener('change', function () {
