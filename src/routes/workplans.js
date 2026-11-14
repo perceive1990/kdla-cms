@@ -237,8 +237,9 @@ router.get('/:id/activities/:itemId/payments', async (req, res) => {
   let canChange = true;
   try { attendance.mustShortlist(req.user, plan); } catch { canChange = false; }
   const base = `/workplans/${plan.id}/activities/${item.id}`;
+  const staff = (await req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] })).filter((u) => u.role !== 'viewer');
   res.render('reports/payments', {
-    title: `Payment acquittal: ${item.title}`, acq, rows, t, inList: Object.fromEntries(acq.rows.map((x) => [x.personId, x])),
+    title: `Payment acquittal: ${item.title}`, acq, rows, t, inList: Object.fromEntries(acq.rows.map((x) => [x.personId, x])), staff, defaultResponsible: item.responsibleId,
     CURRENCIES: acquittal.CURRENCIES, canEdit: canChange, info,
     urls: {
       crumbs: [{ href: '/workplans', label: 'Work plans' }, { href: `/workplans/${plan.id}#act-${item.id}`, label: plan.title }],
@@ -254,7 +255,7 @@ router.post('/:id/activities/:itemId/payments', async (req, res) => {
   const { plan, item } = await loadItem(req);
   try {
     const { acq, t } = await acquittal.saveForItem(req, plan, item.id, req.body);
-    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acq.currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}.`);
+    req.flash('success', `Payment acquittal saved: ${t.people} ${t.people === 1 ? 'person' : 'people'}, ${acq.currency} ${t.sums.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}${acquittal.activityNote(acquittal.of({ acquittal: acq }))}.`);
   } catch (e) {
     if (![403, 409, 422].includes(e.status)) throw e;
     req.flash('danger', e.message);

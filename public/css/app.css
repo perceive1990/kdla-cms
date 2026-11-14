@@ -744,3 +744,6 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 .comment { border-top: 1px solid var(--bs-border-color); padding: .6rem 0; }
 .comment-head { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
 .comment-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: .2rem; }
+
+.ind-input { width: 7rem; margin-left: auto; }
+.act-costs { width: 100%; } .act-costs th:first-child { width: 14rem; } .act-costs th:nth-child(2) { width: 10rem; }

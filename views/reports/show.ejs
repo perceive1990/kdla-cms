@@ -40,6 +40,29 @@
       </div>
     </div></div>
     <% } %>
+    <% if (indicators.length) { const sent = ['Submitted', 'Approved'].includes(attStatus); const editInd = canWrite && (!sent || user.role === 'admin'); %>
+    <div class="panel" id="indicators"><div class="panel-body">
+      <div class="panel-head"><h2 class="panel-title">Indicator results</h2><span class="tag <%= sent ? 'tag-done' : 'tag-muted' %>"><%= sent ? 'In the logframe' : 'Counts once submitted' %></span></div>
+      <p class="small text-body-secondary">Write what this activity achieved for each logframe indicator below. The logframe adds up the figures of every submitted report. Leave a figure blank if the activity did not contribute to it.</p>
+      <form method="post" action="/reports/<%= r.id %>/indicators">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="table-wrap"><table class="table table-sm align-middle mb-2">
+          <thead><tr><th>Indicator</th><th>Result</th><th class="text-end">Target</th><th class="text-end">This activity</th></tr></thead>
+          <tbody>
+          <% for (const x of indicators) { %>
+            <tr>
+              <td><label for="ind_<%= x.ind.id %>"><%= x.ind.name %></label></td>
+              <td class="small text-body-secondary"><%= x.result %></td>
+              <td class="text-end nowrap"><%= x.ind.target ?? '' %></td>
+              <td class="text-end"><% if (editInd) { %><input class="form-control form-control-sm text-end ind-input" type="number" min="0" step="any" id="ind_<%= x.ind.id %>" name="ind_<%= x.ind.id %>" value="<%= x.value ?? '' %>"><% } else { %><strong><%= x.value ?? '—' %></strong><% } %></td>
+            </tr>
+          <% } %>
+          </tbody>
+        </table></div>
+        <% if (editInd) { %><button class="btn btn-sm btn-primary d-print-none" type="submit">Save indicator results</button><% } else if (sent) { %><p class="small text-body-secondary mb-0">Submitted, so these figures are in the logframe. An administrator can change them.</p><% } %>
+      </form>
+    </div></div>
+    <% } %>
     <div class="panel d-print-none"><div class="panel-body">
       <h2 class="panel-title">Files</h2>
       <%- include('../partials/attachments', { list: r.attachments, entity: 'reports', docId: r.id, users }) %>

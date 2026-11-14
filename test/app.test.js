@@ -1866,3 +1866,101 @@ test('everyone can comment on reports, work plans and logframes, including read-
     assert.match(r.text, /Targets look ambitious\./);
   }
 });
+
+test('programme staff, indicator results from reports, funding link and activity costs', async () => {
+  const a = ctx.admin;
+  // Programme staff work for every office
+  await createUser(db(), { username: 'prog1', password: 'prog1-password-1', fullName: 'Programme Officer', office: 'Kitwe Main Office' });
+  const pu = (await db().find('users', { where: { username: 'prog1' } }))[0];
+  let r = await a.post(`/admin/users/${pu.id}`, { fullName: 'Programme Officer', role: 'officer', office: 'Kitwe Main Office', allOffices: 'on', active: 'on' }, `/admin/users/${pu.id}/edit`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().get('users', pu.id)).allOffices, true);
+  r = await a.req('/admin/users');
+  assert.match(r.text, /Officer · all offices/);
+  const p = new Client();
+  await p.login('prog1', 'prog1-password-1');
+  r = await p.req('/reports/new');
+  assert.match(r.text, /<select[^>]*name="office"/, 'programme staff choose the office');
+  r = await p.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Kakolo meeting by programme staff', date: '2039-02-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kakolo Office',
+    compiledById: pu.id,
+  }, '/reports/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  const kakolo = await db().get('reports', r.location.split('/')[2]);
+  assert.strictEqual(kakolo.office, 'Kakolo Office');
+
+  // A logframe indicator reported on activity reports
+  const pid = 'proj-ind';
+  await db().create('projects', { id: pid, title: 'Indicator project', startDate: '2039-01-01', endDate: '2039-12-31', currency: 'ZMW' });
+  await db().create('logframes', {
+    id: pid, projectId: pid, names: {}, notes: '',
+    results: [
+      { id: 'ro', level: 'objective', parentId: '', text: 'Objective' },
+      { id: 'rc', level: 'outcome', parentId: 'ro', text: 'Outcome' },
+      { id: 'rp', level: 'output', parentId: 'rc', text: 'Land disputes resolved' },
+      { id: 'ra', level: 'activity', parentId: 'rp', text: 'Mediation sessions' },
+    ],
+    indicators: [
+      { id: 'ind-res', resultId: 'rp', name: 'Land disputes resolved', unit: 'number', baseline: 0, target: 40, source: 'reported', means: '', frequency: '' },
+      { id: 'ind-man', resultId: 'rp', name: 'Manual one', unit: 'number', baseline: 0, target: 5, source: 'manual', means: '', frequency: '' },
+    ],
+  });
+  await db().create('workplans', {
+    id: 'plan-ind', title: 'Indicator plan', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW', status: 'Approved', projectId: pid,
+    items: [{ id: 'item-ind', number: 1, title: 'Mediation in Chamboli', status: 'In progress', logframeId: pid, logframeResultId: 'ra', responsibleId: pu.id }],
+  });
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Mediation held', date: '2039-03-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office',
+    compiledById: await userId('admin'), workplanItem: 'plan-ind:item-ind',
+  }, '/reports/new');
+  const repId = r.location.split('/')[2];
+  r = await a.req(`/reports/${repId}`);
+  assert.match(r.text, /Indicator results/);
+  assert.match(r.text, /name="ind_ind-res"/);
+  assert.ok(!r.text.includes('name="ind_ind-man"'), 'only indicators reported on activity reports are asked for');
+  await a.post(`/reports/${repId}/indicators`, { 'ind_ind-res': 'x' }, `/reports/${repId}`);
+  assert.strictEqual((await db().get('reports', repId)).indicatorValues, undefined, 'a non-number is refused');
+  await a.post(`/reports/${repId}/indicators`, { 'ind_ind-res': '7' }, `/reports/${repId}`);
+  assert.deepStrictEqual((await db().get('reports', repId)).indicatorValues, { 'ind-res': 7 });
+  const lf = require('../src/services/logframes');
+  const valueNow = async () => {
+    const fw = await db().get('logframes', pid);
+    const prog = await lf.progress(db(), fw, await db().get('projects', pid));
+    return prog.results.find((x) => x.id === 'rp').indicators.find((i) => i.id === 'ind-res');
+  };
+  assert.strictEqual((await valueNow()).actual, null, 'not counted before the report is submitted');
+  await db().replace('reports', { ...(await db().get('reports', repId)), attendanceStatus: 'Submitted' });
+  const ind = await valueNow();
+  assert.strictEqual(ind.actual, 7, 'pulled into the logframe once submitted');
+  assert.strictEqual(ind.fromReports, 1);
+  r = await a.req(`/logframes/${pid}`);
+  assert.match(r.text, /Reported on activity reports · 1 submitted report/);
+  // After submission, office staff cannot change the figure
+  await createUser(db(), { username: 'kitwe9', password: 'kitwe9-password-1', fullName: 'Kitwe Nine', office: 'Kitwe Main Office' });
+  const k = new Client();
+  await k.login('kitwe9', 'kitwe9-password-1');
+  await k.post(`/reports/${repId}/indicators`, { 'ind_ind-res': '70' }, `/reports/${repId}`);
+  assert.strictEqual((await db().get('reports', repId)).indicatorValues['ind-res'], 7);
+
+  // Request funding link
+  r = await a.req('/workplans/plan-ind');
+  assert.ok(r.text.includes('href="https://black-mushroom-0286a020f.6.azurestaticapps.net/" target="_blank" rel="noopener"'));
+
+  // Activity costs for the person responsible, kept off the acquittal form
+  const base = '/workplans/plan-ind/activities/item-ind';
+  r = await a.req(`${base}/payments`);
+  assert.match(r.text, new RegExp(`<option value="${pu.id}" selected>Programme Officer</option>`), 'the activity\'s responsible person is suggested');
+  await a.post(`${base}/payments`, { currency: 'ZMW', act_venue: '1500', act_note_venue: 'Hall, 2 days', act_stationery: '300' }, `${base}/payments`);
+  assert.strictEqual((await db().get('workplans', 'plan-ind')).items[0].acquittal, undefined, 'a person responsible is required');
+  await a.post(`${base}/payments`, {
+    currency: 'ZMW', act_responsible: pu.id, act_venue: '1500', act_note_venue: 'Hall, 2 days', act_stationery: '300', act_conference: '',
+  }, `${base}/payments`);
+  const acqSvc = require('../src/services/acquittal');
+  const a2 = acqSvc.of((await db().get('workplans', 'plan-ind')).items[0]);
+  assert.strictEqual(a2.activityCosts.total, 1800);
+  assert.strictEqual(a2.activityCosts.responsibleId, pu.id);
+  r = await a.req('/workplans/plan-ind');
+  assert.match(r.text, /activity costs ZMW 1,800/);
+  r = await a.req(`${base}/payments/print`);
+  assert.ok(!r.text.includes('Hall, 2 days') && !r.text.includes('1,800') && !r.text.includes('Stationery'), 'activity costs are not on the form attendees sign');
+});

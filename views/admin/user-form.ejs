@@ -16,6 +16,7 @@
     <%- f.select('qualification', 'Qualification level', choices.qualificationLevels, values, errors, { col: 'col-md-4' }) %>
     <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-4', help: 'Staff write activity reports for this office only. Without an office they cannot write reports.' }) %>
     <%- f.text('password', isNew ? 'Temporary password' : 'Reset password', {}, errors, { type: 'password', required: isNew, col: 'col-md-6', autocomplete: 'new-password', help: isNew ? 'At least 10 characters. They should change it after logging in.' : 'Leave blank to keep the current password.' }) %>
+    <%- f.checkbox('allOffices', 'Programme staff: works for all offices (writes reports, invite lists and payments for any office)', Boolean(values.allOffices), { col: 'col-md-6 align-self-end' }) %>
     <%- f.checkbox('active', 'Account is active (can log in)', values.active !== false, { col: 'col-md-6 align-self-end' }) %>
     <% if (!isNew) { %>
       <% if (values.lockedUntil && new Date(values.lockedUntil) > new Date()) { %>

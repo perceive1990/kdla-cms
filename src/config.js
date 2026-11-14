@@ -60,6 +60,8 @@ const config = {
   pageSize: num(env.PAGE_SIZE, 25),
 
   // JSON REST API at /api/v1 for other systems, scripts, Power BI and mobile apps.
+  // Where staff request funding for an activity (KDLA's funding request app). FUNDING_REQUEST_URL overrides it.
+  fundingRequestUrl: /^https:\/\//.test(process.env.FUNDING_REQUEST_URL || '') ? process.env.FUNDING_REQUEST_URL : 'https://black-mushroom-0286a020f.6.azurestaticapps.net/',
   api: {
     enabled: env.API_ENABLED !== 'false',
     // Tokens from POST /api/v1/auth/login expire after this many hours.

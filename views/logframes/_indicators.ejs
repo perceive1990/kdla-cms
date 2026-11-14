@@ -7,7 +7,7 @@
       <tr>
         <td class="lf-ind-name">
           <div class="fw-semibold"><%= i.name %></div>
-          <div class="small text-body-secondary"><%= i.automatic ? SOURCES[i.source].label : (i.asAt ? 'Recorded, as at ' + h.fmtDate(i.asAt) : 'Recorded by staff, no value yet') %><%= i.means ? ' · ' + i.means : '' %></div>
+          <div class="small text-body-secondary"><%= i.source === 'reported' ? 'Reported on activity reports · ' + (i.fromReports ? i.fromReports + ' submitted report' + (i.fromReports === 1 ? '' : 's') : 'no submitted report yet') : i.automatic ? SOURCES[i.source].label : (i.asAt ? 'Recorded, as at ' + h.fmtDate(i.asAt) : 'Recorded by staff, no value yet') %><%= i.means ? ' · ' + i.means : '' %></div>
         </td>
         <td class="text-end" data-label="Baseline"><%= lf.num(i.baseline, i.unit) %></td>
         <td class="text-end" data-label="Target"><%= lf.num(i.target, i.unit) %></td>

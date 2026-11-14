@@ -13,7 +13,7 @@ router.use(requireAdmin);
 
 // ---------- Staff accounts ----------
 // A checkbox that is not ticked is not sent at all, so "active" is read directly from the form.
-const readUserForm = (body) => ({ ...dir.readUser(body), active: body.active === 'on' });
+const readUserForm = (body) => ({ ...dir.readUser(body), active: body.active === 'on', allOffices: body.allOffices === 'on' });
 
 router.get('/users', async (req, res) => {
   const users = await req.db.find('users', { orderBy: ['username', 'ASC'] });

@@ -145,6 +145,7 @@ function readUser(body) {
     qualification: str(body.qualification),
     office: str(body.office),
     active: body.active === undefined ? true : bool(body.active),
+    allOffices: bool(body.allOffices),
   };
 }
 
@@ -201,6 +202,7 @@ async function updateStaff(req, u, v, { password = '', unlock = false, reset2fa 
     changes.push('password reset');
   }
   if (data.role !== u.role) changes.push(`role ${data.role}`);
+  if (Boolean(data.allOffices) !== Boolean(u.allOffices)) changes.push(data.allOffices ? 'all offices' : 'own office only');
   if (data.active !== (u.active !== false)) changes.push(data.active ? 'enabled' : 'disabled');
   if (unlock && u.lockedUntil) { patch.lockedUntil = null; patch.failedLogins = 0; changes.push('unlocked'); }
   if (reset2fa && u.totpEnabled) {
