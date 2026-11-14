@@ -16,7 +16,7 @@ async function formLists(db) {
   const [clients, defendants, officers] = await Promise.all([
     db.find('people', { where: { kind: 'client' }, fields: ['id', 'firstName', 'lastName', 'caseNumber'], orderBy: ['lastName', 'ASC'] }),
     db.find('people', { where: { kind: 'defendant' }, fields: ['id', 'firstName', 'lastName'], orderBy: ['lastName', 'ASC'] }),
-    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer')),
   ]);
   return { clients, defendants, officers };
 }
@@ -95,7 +95,7 @@ router.get('/:id', async (req, res) => {
     mapByIds(req.db, 'users', userIds),
     mapByIds(req.db, 'stakeholders', referrals.map((r) => r.organizationId)),
     checkCase(req.db, c, people),
-    req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+    req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer')),
   ]);
   const minutes = notes.reduce((sum, n) => sum + (n.minutes || 0), 0);
   const caseRooms = await req.db.find('rooms', { where: { caseId: c.id }, orderBy: ['lastMessageAt', 'DESC'] });

@@ -13,7 +13,7 @@ const router = express.Router();
 
 async function lists(db) {
   const [users, projects] = await Promise.all([
-    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer')),
     db.find('projects', { fields: ['id', 'title', 'currency'], orderBy: ['title', 'ASC'] }),
   ]);
   return { users, projects };

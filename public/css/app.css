@@ -733,3 +733,8 @@ pre.code { background: var(--surface-2); border: 1px solid var(--line); border-r
 /* Filter tabs (consultation rooms) follow the chosen accent colour */
 .nav-pills { --bs-nav-pills-link-active-bg: var(--accent); --bs-nav-link-color: var(--accent-text); --bs-nav-link-hover-color: var(--accent-text); }
 .nav-pills .badge { font-weight: 600; }
+
+/* Read-only users: write controls are hidden (the server refuses changes anyway). */
+.read-only-note { background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .45rem .75rem; margin-bottom: 1rem; font-size: .875rem; }
+body.read-only main form[method="post"], body.read-only main a[href$="/new"], body.read-only main a[href*="/new?"], body.read-only main a[href$="/edit"],
+body.read-only main a[href$="/import"], body.read-only main [data-write] { display: none !important; }

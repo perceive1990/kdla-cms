@@ -1793,3 +1793,34 @@ test('invited people confirm whether they are coming, and acquittal costs are pa
   assert.ok(r.text.includes('Lunch 100.00 a day × 3 days = 300.00'), 'the rates show the days');
   assert.ok(r.text.includes('Lunch (3 days)'));
 });
+
+test('read-only users can view and print records but cannot change anything', async () => {
+  const a = ctx.admin;
+  let r = await a.req('/admin/users/new');
+  assert.match(r.text, /<option value="viewer"[^>]*>Read only<\/option>/);
+  await createUser(db(), { username: 'viewer1', password: 'viewer-password-1', fullName: 'Board Member', role: 'viewer' });
+  const v = new Client();
+  await v.login('viewer1', 'viewer-password-1');
+  for (const page of ['/', '/cases', '/people', '/workplans', '/reports', '/logframes', '/statistics', '/stakeholders']) {
+    r = await v.req(page);
+    assert.strictEqual(r.status, 200, `${page} opens`);
+  }
+  assert.match(r.text, /<body class="[^"]*read-only/);
+  assert.match(r.text, /Read-only access: you can view and print records/);
+  const before = await db().count('people');
+  r = await v.post('/people', { kind: 'client', firstName: 'Not', lastName: 'Saved' }, '/people/new');
+  assert.strictEqual(r.status, 403);
+  assert.match(r.text, /Read-only access/);
+  assert.strictEqual(await db().count('people'), before, 'nothing was added');
+  r = await v.post('/workplans', { title: 'No plan', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW' }, '/workplans/new');
+  assert.strictEqual(r.status, 403);
+  r = await v.req('/admin/users');
+  assert.strictEqual(r.status, 403, 'no administration');
+  // Their own account still works
+  r = await v.req('/account/password');
+  assert.strictEqual(r.status, 200);
+  assert.doesNotMatch(r.text, /<body class="[^"]*read-only/);
+  // Not offered as a responsible officer or report compiler
+  r = await a.req('/reports/new');
+  assert.ok(!r.text.includes('Board Member'), 'read-only users are not in staff pick lists');
+});

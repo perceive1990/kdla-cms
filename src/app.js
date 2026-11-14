@@ -166,6 +166,18 @@ function createApp() {
     return res.redirect(target[0]);
   });
 
+  // Read-only users see everything an officer sees but cannot add, change or delete anything. They can
+  // still manage their own account (password, two-step verification, appearance) and sign out.
+  app.use((req, res, next) => {
+    const u = req.user;
+    if (!u || u.role !== 'viewer') return next();
+    const own = req.path.startsWith('/account/') || req.path === '/account' || req.path === '/logout';
+    res.locals.readOnly = !own;
+    if (own || ['GET', 'HEAD'].includes(req.method)) return next();
+    if (wantsJson(req)) return res.status(403).json({ error: 'Read-only access' });
+    return res.status(403).render('error', { title: 'Read-only access', message: 'Your account can view records but not add, change or delete them. Ask an administrator if you need to edit.' });
+  });
+
   // Overdue task count for the navigation badge (one small count query per page).
   app.use(async (req, res, next) => {
     if (req.user && req.method === 'GET' && !wantsJson(req) && !req.path.startsWith('/files/')) {

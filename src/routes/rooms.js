@@ -47,7 +47,7 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const room = await svc.getRoom(req, req.params.id);
   const messages = await svc.listMessages(req.db, room);
-  const users = await req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] });
+  const users = await req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer'));
   const byId = Object.fromEntries(users.map((u) => [u.id, u]));
   Object.assign(byId, await mapByIds(req.db, 'users', messages.map((m) => m.senderId).filter((id) => !byId[id])));
   const c = room.caseId ? visibleCase(req.user, await req.db.get('cases', room.caseId)) : null;

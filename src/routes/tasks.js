@@ -10,7 +10,7 @@ const router = express.Router();
 
 async function formLists(req) {
   const [users, cases] = await Promise.all([
-    req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+    req.db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer')),
     req.db.find('cases', {
       where: visibleWhere(req.user, { status: { $in: choices.caseStatuses.filter((s) => s.startsWith('Open')) } }),
       fields: ['id', 'caseNumber', 'heading'], orderBy: ['updatedAt', 'DESC'],

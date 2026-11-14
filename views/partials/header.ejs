@@ -20,7 +20,7 @@
   <% if (locals.richEditor) { %><link rel="stylesheet" href="/vendor/quill/quill.snow.css"><% } %>
   <link rel="stylesheet" href="/static/css/app.css?v=<%= assetVersion %>">
 </head>
-<body<%- (typeof printLandscape !== 'undefined' && printLandscape) ? ' class="print-landscape"' : '' %>>
+<% const bodyClass = [(typeof printLandscape !== 'undefined' && printLandscape) ? 'print-landscape' : '', (typeof readOnly !== 'undefined' && readOnly) ? 'read-only' : ''].filter(Boolean).join(' '); %><body<%- bodyClass ? ' class="' + bodyClass + '"' : '' %>>
 <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-light" href="#main">Skip to content</a>
 <% if (user) { %>
 <header class="topbar d-print-none">
@@ -45,7 +45,7 @@
         <i class="bi bi-person-circle" aria-hidden="true"></i> <span class="d-none d-sm-inline"><%= user.fullName || user.username %></span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
-        <li><span class="dropdown-item-text small text-body-secondary"><%= user.username %> · <%= user.role === 'admin' ? 'Administrator' : 'Officer' %></span></li>
+        <li><span class="dropdown-item-text small text-body-secondary"><%= user.username %> · <%= { admin: 'Administrator', viewer: 'Read only' }[user.role] || 'Officer' %></span></li>
         <li><a class="dropdown-item" href="/account/appearance"><i class="bi bi-palette"></i> Appearance</a></li>
         <li><a class="dropdown-item" href="/account/security"><i class="bi bi-shield-lock"></i> Password and security</a></li>
         <li><a class="dropdown-item" href="/account/app"><i class="bi bi-phone"></i> Install the phone app</a></li>
@@ -121,6 +121,7 @@
     </div>
   </nav>
   <main class="content" id="main">
+    <% if (typeof readOnly !== 'undefined' && readOnly) { %><div class="read-only-note d-print-none"><i class="bi bi-eye" aria-hidden="true"></i> Read-only access: you can view and print records but not change them.</div><% } %>
 <% } else { %>
 <main class="content content-guest" id="main">
 <% } %>

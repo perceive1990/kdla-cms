@@ -192,7 +192,7 @@ const userFields = {
   username: S('Sign-in name: 3 or more lower-case letters, numbers, dots, dashes or underscores'),
   fullName: S('Full name'),
   email: S('Email'),
-  role: E(choices.roles, 'officer or admin'),
+  role: E(choices.roles, 'officer, admin or viewer (read only: can read but not write)'),
   category: E(['', ...choices.userCategories]),
   qualification: E(['', ...choices.qualificationLevels]),
   office: E(['', ...choices.offices]),
@@ -736,7 +736,7 @@ op('get', '/projects/{id}', 'Projects', 'Get a project', { ok: ref('Project'), e
 op('patch', '/projects/{id}', 'Projects', 'Change a project', { body: ref('ProjectInput'), ok: ref('Project'), admin: true, ifMatch: true, errors: { ...NF, ...PRE, ...V } });
 op('delete', '/projects/{id}', 'Projects', 'Delete a project not used by people or reports', { status: 204, admin: true, errors: { ...NF, 409: 'In use (in_use)' } });
 
-op('get', '/users', 'Staff accounts', 'List staff', { query: [q('active', 'true or false'), q('role', 'officer or admin')], ok: plainList('User') });
+op('get', '/users', 'Staff accounts', 'List staff', { query: [q('active', 'true or false'), q('role', 'officer, admin or viewer')], ok: plainList('User') });
 op('post', '/users', 'Staff accounts', 'Create a staff account', { body: ref('NewUserInput'), status: 201, ok: ref('User'), admin: true, errors: V });
 op('get', '/users/{id}', 'Staff accounts', 'Get a staff account', { ok: ref('User'), errors: NF });
 op('patch', '/users/{id}', 'Staff accounts', 'Change a staff account', {
