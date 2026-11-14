@@ -15,6 +15,7 @@ module.exports = {
   stakeholders: { pk: 'id' },
   referrals: { pk: 'id' }, // follow-ups are embedded in each referral
   rooms: { pk: 'id' },
+  comments: { pk: 'targetId' }, // comments on reports, work plans and logframes, read per record
   messages: { pk: 'roomId' },
   audit: { pk: 'id', ttl: true }, // audit trail; entries expire after AUDIT_RETENTION_DAYS
   meta: { pk: 'id' }, // counters (case numbers)

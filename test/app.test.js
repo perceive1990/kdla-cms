@@ -1824,3 +1824,45 @@ test('read-only users can view and print records but cannot change anything', as
   r = await a.req('/reports/new');
   assert.ok(!r.text.includes('Board Member'), 'read-only users are not in staff pick lists');
 });
+
+test('everyone can comment on reports, work plans and logframes, including read-only users', async () => {
+  const a = ctx.admin;
+  let r = await a.post('/workplans', { title: 'Comment plan', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  const v = new Client();
+  await v.login('viewer1', 'viewer-password-1');
+  r = await v.req(`/workplans/${planId}`);
+  assert.match(r.text, /<form method="post" action="\/comments\/workplans\/[^"]+" data-comment>/);
+  r = await v.post(`/comments/workplans/${planId}`, { text: 'Please add the venue for activity 2.\nThanks <b>' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual(r.location, `/workplans/${planId}#comments`);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /Comments \(1\)/);
+  assert.ok(r.text.includes('Please add the venue for activity 2.\nThanks &lt;b&gt;'), 'text is escaped');
+  assert.ok(r.text.includes('Board Member'));
+  const [c] = await db().find('comments', { where: { targetId: planId } });
+  // Others cannot delete it; the author and administrators can
+  const o = new Client();
+  await o.login('officer1', 'officer-password-1');
+  r = await o.post(`/comments/workplans/${planId}/${c.id}/delete`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 403);
+  r = await v.post(`/comments/workplans/${planId}/${c.id}/delete`, {}, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await db().find('comments', { where: { targetId: planId } })).length, 0);
+  // Empty comments are refused; unknown records are not found
+  await o.post(`/comments/workplans/${planId}`, { text: '   ' }, `/workplans/${planId}`);
+  assert.strictEqual((await db().find('comments', { where: { targetId: planId } })).length, 0);
+  r = await o.post('/comments/cases/x', { text: 'hi' }, `/workplans/${planId}`);
+  assert.strictEqual(r.status, 404);
+  // Reports and logframes
+  const [rep] = await db().find('reports', { limit: 1 });
+  await o.post(`/comments/reports/${rep.id}`, { text: 'Good turnout.' }, `/reports/${rep.id}`);
+  r = await v.req(`/reports/${rep.id}`);
+  assert.match(r.text, /Good turnout\./);
+  const [lf] = await db().find('logframes', { limit: 1 });
+  if (lf) {
+    await v.post(`/comments/logframes/${lf.id}`, { text: 'Targets look ambitious.' }, `/logframes/${lf.id}`);
+    r = await a.req(`/logframes/${lf.id}`);
+    assert.match(r.text, /Targets look ambitious\./);
+  }
+});

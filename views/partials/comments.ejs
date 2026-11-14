@@ -1,0 +1,27 @@
+<% if (typeof comments !== 'undefined' && comments) { const c = comments; %>
+<section class="panel d-print-none" id="comments" aria-labelledby="comments-title"><div class="panel-body">
+  <h2 class="panel-title" id="comments-title"><i class="bi bi-chat-left-text" aria-hidden="true"></i> Comments (<%= c.items.length %>)</h2>
+  <% if (!c.items.length) { %><p class="small text-body-secondary">No comments yet. Anyone signed in can comment, including read-only users.</p><% } %>
+  <ul class="comment-list">
+  <% for (const x of c.items) { %>
+    <li class="comment">
+      <div class="comment-head"><strong><%= x.authorName %></strong> <span class="small text-body-secondary"><%= h.fmtDateTime(x.createdAt) %></span>
+        <% if (x.authorId === user.id || user.role === 'admin') { %>
+        <form method="post" action="/comments/<%= c.kind %>/<%= c.id %>/<%= x.id %>/delete" class="ms-auto" data-comment>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn btn-link btn-sm text-danger p-0" type="submit" aria-label="Delete comment by <%= x.authorName %>">Delete</button>
+        </form>
+        <% } %>
+      </div>
+      <div class="comment-text"><%= x.text %></div>
+    </li>
+  <% } %>
+  </ul>
+  <form method="post" action="/comments/<%= c.kind %>/<%= c.id %>" data-comment>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="form-label" for="comment-text">Add a comment</label>
+    <textarea class="form-control" id="comment-text" name="text" rows="3" maxlength="2000" required></textarea>
+    <button class="btn btn-primary btn-sm mt-2" type="submit"><i class="bi bi-send" aria-hidden="true"></i> Post comment</button>
+  </form>
+</div></section>
+<% } %>

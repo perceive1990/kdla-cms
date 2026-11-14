@@ -273,6 +273,7 @@ router.get('/:id', async (req, res) => {
     ? (await logframes.linkLabels(req.db, [planned]))[`${planned.logframeId}:${planned.logframeResultId}`] || null
     : null;
   const office = await svc.officeOf(req.db, r);
+  await require('../services/comments').attach(req, res, 'reports', r.id);
   return res.render('reports/show', {
     title: r.heading, r, attendees, users, project, partners, plan: planned ? plan : null, planned, lfLink, office, canWrite: svc.canWriteFor(req.user, office),
     attStatus: require('../attendance-status').statusOf(r), attLabel: require('../attendance-status').LABEL[require('../attendance-status').statusOf(r)],

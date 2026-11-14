@@ -167,13 +167,14 @@ function createApp() {
   });
 
   // Read-only users see everything an officer sees but cannot add, change or delete anything. They can
-  // still manage their own account (password, two-step verification, appearance) and sign out.
+  // still comment on reports, work plans and logframes, and manage their own account (password, two-step verification, appearance) and sign out.
   app.use((req, res, next) => {
     const u = req.user;
     if (!u || u.role !== 'viewer') return next();
     const own = req.path.startsWith('/account/') || req.path === '/account' || req.path === '/logout';
+    const commenting = req.path.startsWith('/comments/');
     res.locals.readOnly = !own;
-    if (own || ['GET', 'HEAD'].includes(req.method)) return next();
+    if (own || commenting || ['GET', 'HEAD'].includes(req.method)) return next();
     if (wantsJson(req)) return res.status(403).json({ error: 'Read-only access' });
     return res.status(403).render('error', { title: 'Read-only access', message: 'Your account can view records but not add, change or delete them. Ask an administrator if you need to edit.' });
   });
@@ -207,6 +208,7 @@ function createApp() {
   app.use('/stakeholders', requireLogin, require('./routes/stakeholders'));
   app.use('/referrals', requireLogin, require('./routes/referrals'));
   app.use('/rooms', requireLogin, require('./routes/rooms'));
+  app.use('/comments', requireLogin, require('./routes/comments'));
   app.use('/statistics', requireLogin, require('./routes/stats'));
   app.use('/account', requireLogin, require('./routes/account'));
   app.use('/admin', requireLogin, require('./routes/admin'));
