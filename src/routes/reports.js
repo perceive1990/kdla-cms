@@ -91,6 +91,7 @@ router.get('/export.csv', async (req, res) => {
     { label: 'Attendees with a disability', value: disabled },
     { label: 'Other participants (unregistered)', value: 'otherParticipants' },
     { label: 'Immediate results', value: (r) => rich.toText(r.immediateResults) },
+    { label: 'Contribution to the logframe', value: (r) => rich.toText(r.contribution) },
     { label: 'Compiled by', value: (r) => (users[r.compiledById] ? users[r.compiledById].fullName || users[r.compiledById].username : '') },
   ], reports);
   audit(req, 'export', 'reports', null, `Exported ${reports.length} reports to CSV`);

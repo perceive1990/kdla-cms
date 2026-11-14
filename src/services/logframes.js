@@ -463,6 +463,38 @@ async function reportIndicators(db, r) {
   return { fw, list };
 }
 
+/**
+ * The write-ups of how activities contribute to the logframe, taken from the activity reports of the planned
+ * activities linked to it, grouped by result in logframe order (newest report first within a result).
+ */
+async function contributions(db, fw) {
+  const links = await linkedActivities(db, fw.id);
+  if (!links.length) return [];
+  const planIds = [...new Set(links.map((l) => l.plan.id))];
+  const reps = [];
+  for (let i = 0; i < planIds.length; i += 100) {
+    reps.push(...await db.find('reports', {
+      where: { workplanId: { $in: planIds.slice(i, i + 100) } },
+      fields: ['id', 'heading', 'date', 'office', 'workplanId', 'workplanItemId', 'compiledById', 'contribution', 'attendanceStatus'],
+    }));
+  }
+  const withText = reps.filter((r) => r.contribution && String(r.contribution).replace(/<[^>]*>/g, '').trim());
+  if (!withText.length) return [];
+  const itemOf = Object.fromEntries(links.map(({ plan, item }) => [`${plan.id}:${item.id}`, { plan, item }]));
+  const users = await mapByIds(db, 'users', withText.map((r) => r.compiledById));
+  const codeMap = codes(fw);
+  return ordered(fw).map((res) => ({
+    result: res, label: labelOf(fw, res, codeMap),
+    reports: withText.filter((r) => { const l = itemOf[`${r.workplanId}:${r.workplanItemId}`]; return l && l.item.logframeResultId === res.id; })
+      .map((r) => {
+        const { plan, item } = itemOf[`${r.workplanId}:${r.workplanItemId}`];
+        const u = users[r.compiledById];
+        return { report: r, plan, item, by: u ? u.fullName || u.username : '' };
+      })
+      .sort((a, b) => String(b.report.date).localeCompare(String(a.report.date))),
+  })).filter((g) => g.reports.length);
+}
+
 const SEVERITY = ['Behind', 'Below target', 'On track', 'Achieved'];
 
 /**
@@ -860,7 +892,7 @@ const view = {
 };
 
 module.exports = {
-  reportIndicators, submitted,
+  contributions, reportIndicators, submitted,
   LEVELS, PARENT_LEVEL, CHILD_LEVEL, DEFAULT_NAMES, SOURCES, UNITS, IMPORT_COLUMNS,
   names, getFramework, mustFramework, canChange, createFramework, readSettings, updateSettings, deleteFramework,
   ordered, codes, labelOf, getResult, readResult, validateResult, addResult, updateResult, deleteResult,

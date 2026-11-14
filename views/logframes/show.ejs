@@ -40,6 +40,7 @@
 <ul class="nav nav-tabs lf-tabs d-print-none" role="tablist">
   <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-chain" data-bs-toggle="tab" data-bs-target="#pane-chain" type="button" role="tab" aria-controls="pane-chain" aria-selected="true"><i class="bi bi-diagram-3" aria-hidden="true"></i> Results chain</button></li>
   <li class="nav-item" role="presentation"><button class="nav-link" id="tab-indicators" data-bs-toggle="tab" data-bs-target="#pane-indicators" type="button" role="tab" aria-controls="pane-indicators" aria-selected="false"><i class="bi bi-bar-chart-line" aria-hidden="true"></i> Indicators</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-contrib" data-bs-toggle="tab" data-bs-target="#pane-contrib" type="button" role="tab" aria-controls="pane-contrib" aria-selected="false"><i class="bi bi-journal-text" aria-hidden="true"></i> Contributions (<%= contributions.reduce((n, g) => n + g.reports.length, 0) %>)</button></li>
   <li class="nav-item" role="presentation"><button class="nav-link" id="tab-details" data-bs-toggle="tab" data-bs-target="#pane-details" type="button" role="tab" aria-controls="pane-details" aria-selected="false"><i class="bi bi-list-nested" aria-hidden="true"></i> Details<%= admin ? ' and editing' : '' %></button></li>
 </ul>
 <div class="tab-content lf-panes lf-print">
@@ -58,6 +59,24 @@
   <div class="panel"><div class="panel-body">
     <h2 class="panel-title">Progress towards the targets</h2>
     <%- include('_bullets') %>
+  </div></div>
+</div>
+<div class="tab-pane fade" id="pane-contrib" role="tabpanel" aria-labelledby="tab-contrib" tabindex="0">
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">How the activities contribute, in the words of those responsible</h2>
+    <p class="small text-body-secondary">From the "Contribution to the logframe" section of each activity report linked to this logframe, grouped by the result its planned activity serves.</p>
+    <% if (!contributions.length) { %><p class="text-body-secondary mb-0">No write-ups yet. They appear here once an activity report linked to this logframe has its "Contribution to the logframe" section filled in.</p><% } %>
+    <% for (const g of contributions) { %>
+      <section class="contrib-group">
+        <h3 class="h6 mb-2"><span class="lf-label"><%= g.label %></span> <%= g.result.text %></h3>
+        <% for (const c of g.reports) { %>
+          <article class="contrib">
+            <div class="contrib-head"><a class="fw-semibold" href="/reports/<%= c.report.id %>"><%= c.report.heading %></a> <span class="small text-body-secondary"><%= [h.fmtDate(c.report.date), c.report.office, c.by ? 'by ' + c.by : '', (Number.isInteger(c.item.number) ? c.item.number + '. ' : '') + c.item.title].filter(Boolean).join(' · ') %></span></div>
+            <div class="rich"><%- rich.toHtml(c.report.contribution) %></div>
+          </article>
+        <% } %>
+      </section>
+    <% } %>
   </div></div>
 </div>
 <div class="tab-pane fade" id="pane-details" role="tabpanel" aria-labelledby="tab-details" tabindex="0">

@@ -75,9 +75,10 @@ router.get('/:projectId', async (req, res) => {
   if (!fw) return res.render('logframes/show', { title: project.title, project, fw: null, admin });
   const prog = await svc.progress(req.db, fw, project);
   await require('../services/comments').attach(req, res, 'logframes', fw.id);
+  const contributions = await svc.contributions(req.db, fw);
   const users = await mapByIds(req.db, 'users', [...prog.results.flatMap((r) => r.direct.map((d) => d.item.responsibleId))]);
   return res.render('logframes/show', {
-    title: `${project.title} logframe`, project, fw, prog, admin, names: svc.names(fw), users, lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(), printLandscape: true,
+    title: `${project.title} logframe`, project, fw, prog, admin, contributions, rich: require('../richtext'), names: svc.names(fw), users, lf: svc.view, SOURCES: svc.SOURCES, charts, t0: today(), printLandscape: true,
   });
 });
 

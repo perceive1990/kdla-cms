@@ -92,6 +92,7 @@ const reportFields = {
   objectives: S(`Objectives. ${RICH}`),
   implementation: S(`How the activity was carried out. ${RICH}`),
   immediateResults: S(`Immediate results. ${RICH}`),
+  contribution: S(`How the activity contributes to the logframe, written by the person responsible. ${RICH}`),
   challenges: S(`Challenges. ${RICH}`),
   recommendations: S(`Recommendations. ${RICH}`),
   attendeeIds: ids('registered attendees (people of kind "attendee")'),

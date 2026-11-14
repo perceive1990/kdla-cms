@@ -3,5 +3,6 @@
 <div class="col-12">
   <label class="form-label" id="<%= name %>-label" for="<%= name %>"><%= label %><% if (locals.required) { %> <span class="text-danger" aria-hidden="true">*</span><% } %></label>
   <textarea class="form-control rich-source<%= errors[name] ? ' is-invalid' : '' %>" id="<%= name %>" name="<%= name %>" rows="<%= locals.rows || 5 %>" data-rich<%= locals.required ? ' required' : '' %>><%= rich.toHtml(values[name]) %></textarea>
+  <% if (locals.help) { %><div class="form-text" id="<%= name %>-help"><%= help %></div><% } %>
   <% if (errors[name]) { %><div class="invalid-feedback d-block"><%= errors[name] %></div><% } %>
 </div>
