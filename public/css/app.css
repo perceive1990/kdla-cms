@@ -747,3 +747,8 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 
 .ind-input { width: 7rem; margin-left: auto; }
 .act-costs { width: 100%; } .act-costs th:first-child { width: 14rem; } .act-costs th:nth-child(2) { width: 10rem; }
+
+/* Contributions to the logframe */
+.contrib-group { border-top: 1px solid var(--bs-border-color); padding-top: .75rem; margin-top: .75rem; }
+.contrib { border-left: 3px solid var(--bs-success-border-subtle, #a3cfbb); padding: .25rem 0 .25rem .75rem; margin-bottom: .75rem; }
+.contrib-head { margin-bottom: .25rem; }

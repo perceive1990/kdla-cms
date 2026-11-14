@@ -11,7 +11,7 @@ const { notFound, forbidden, HttpError } = require('./errors');
 const attendanceStatus = require('../attendance-status');
 const rich = require('../richtext');
 
-const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'challenges', 'recommendations'];
+const RICH_FIELDS = ['introduction', 'objectives', 'implementation', 'immediateResults', 'contribution', 'challenges', 'recommendations'];
 
 /** Work plan link: the web form sends "planId:itemId" as workplanItem; the API sends the two ids. */
 function readWorkplanLink(body) {
@@ -38,6 +38,8 @@ function readReport(body) {
     objectives: rich.clean(body.objectives),
     implementation: rich.clean(body.implementation),
     immediateResults: rich.clean(body.immediateResults),
+    // How the activity contributes to the logframe, written by the person responsible; shown on the logframe.
+    contribution: rich.clean(body.contribution),
     challenges: rich.clean(body.challenges),
     recommendations: rich.clean(body.recommendations),
     attendeeIds: [...new Set(arr(body.attendeeIds))],

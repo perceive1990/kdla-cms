@@ -1964,3 +1964,24 @@ test('programme staff, indicator results from reports, funding link and activity
   r = await a.req(`${base}/payments/print`);
   assert.ok(!r.text.includes('Hall, 2 days') && !r.text.includes('1,800') && !r.text.includes('Stationery'), 'activity costs are not on the form attendees sign');
 });
+
+test('the person responsible writes how the activity contributes to the logframe', async () => {
+  const a = ctx.admin;
+  let r = await a.req('/reports/new');
+  assert.match(r.text, /Contribution to the logframe/);
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Second mediation held', date: '2039-04-01', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kitwe Main Office',
+    compiledById: await userId('admin'), workplanItem: 'plan-ind:item-ind',
+    contribution: '<p>Seven disputes were settled, moving <strong>Output 1.1</strong> towards its target.</p>',
+  }, '/reports/new');
+  const id = r.location.split('/')[2];
+  assert.match((await db().get('reports', id)).contribution, /Seven disputes were settled/);
+  r = await a.req(`/reports/${id}`);
+  assert.match(r.text, /<h2 class="panel-title">Contribution to the logframe<\/h2>/);
+  r = await a.req('/logframes/proj-ind');
+  assert.match(r.text, /Contributions \(1\)/);
+  assert.match(r.text, /Seven disputes were settled, moving <strong>Output 1\.1<\/strong>/);
+  assert.ok(r.text.includes(`href="/reports/${id}">Second mediation held</a>`));
+  r = await a.req('/reports/export.csv');
+  assert.match(r.text, /Contribution to the logframe/);
+});

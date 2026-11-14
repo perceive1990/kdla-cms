@@ -47,6 +47,7 @@
     <%- include('../partials/richtext', { name: 'objectives', label: 'Objectives', required: true, rows: 4 }) %>
     <%- include('../partials/richtext', { name: 'implementation', label: 'Implementation of the activity', required: true, rows: 8 }) %>
     <%- include('../partials/richtext', { name: 'immediateResults', label: 'Immediate results', required: false, rows: 5 }) %>
+    <%- include('../partials/richtext', { name: 'contribution', label: 'Contribution to the logframe', required: false, rows: 5, help: 'Written by the person responsible: how this activity moves the project towards its logframe output and objectives, and what changed as a result. It appears on the project logframe under the activity\'s result.' }) %>
     <%- include('../partials/richtext', { name: 'challenges', label: 'Challenges', required: false, rows: 4 }) %>
     <%- include('../partials/richtext', { name: 'recommendations', label: 'Recommendations', required: false, rows: 4 }) %>
   </div></div>
