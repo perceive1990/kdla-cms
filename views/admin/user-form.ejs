@@ -11,7 +11,7 @@
     <% } %>
     <%- f.text('fullName', 'Full name', values, errors, { required: true, col: 'col-md-6' }) %>
     <%- f.text('email', 'Email', values, errors, { type: 'email', col: 'col-md-6' }) %>
-    <%- f.select('role', 'Role', [{ value: 'officer', label: 'Officer' }, { value: 'admin', label: 'Administrator' }], values, errors, { col: 'col-md-6', blank: false }) %>
+    <%- f.select('role', 'Role', [{ value: 'officer', label: 'Officer' }, { value: 'admin', label: 'Administrator' }, { value: 'viewer', label: 'Read only' }], values, errors, { col: 'col-md-6', blank: false }) %>
     <%- f.select('category', 'Category', choices.userCategories, values, errors, { col: 'col-md-4' }) %>
     <%- f.select('qualification', 'Qualification level', choices.qualificationLevels, values, errors, { col: 'col-md-4' }) %>
     <%- f.select('office', 'Office', choices.offices, values, errors, { col: 'col-md-4', help: 'Staff write activity reports for this office only. Without an office they cannot write reports.' }) %>

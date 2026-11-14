@@ -69,5 +69,5 @@ module.exports = {
   workplanStatuses: ['Draft', 'Approved', 'Closed'],
   workplanActivityStatuses: ['Not started', 'In progress', 'Completed', 'Postponed', 'Cancelled'],
 
-  roles: ['officer', 'admin'],
+  roles: ['officer', 'admin', 'viewer'],
 };

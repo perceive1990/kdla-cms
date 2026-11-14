@@ -44,6 +44,10 @@ async function authenticate(req, res, next) {
     throw new HttpError(403, 'password_change_required', 'Choose a new password first with POST /api/v1/me/password.');
   }
   if (!open && needs2faSetup(req.user)) throw new HttpError(403, 'two_step_setup_required', TWO_STEP_SETUP);
+  const own = req.path === '/me' || req.path.startsWith('/me/') || req.path.startsWith('/auth/');
+  if (req.user.role === 'viewer' && !own && !['GET', 'HEAD'].includes(req.method)) {
+    throw new HttpError(403, 'read_only', 'This account has read-only access: it can view records but not add, change or delete them.');
+  }
   return next();
 }
 

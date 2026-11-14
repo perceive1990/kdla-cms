@@ -17,7 +17,7 @@ const router = express.Router();
 async function formLists(db, values = {}, user = null) {
   const [attendees, users, projects, partners, workplanOptions] = await Promise.all([
     db.find('people', { where: { kind: 'attendee' }, fields: ['id', 'firstName', 'lastName', 'activity'], orderBy: ['lastName', 'ASC'] }),
-    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+    db.find('users', { where: { active: true }, fields: ['id', 'fullName', 'username', 'role'], orderBy: ['username', 'ASC'] }).then((us) => us.filter((u) => u.role !== 'viewer')),
     db.find('projects', { fields: ['id', 'title'], orderBy: ['title', 'ASC'] }),
     db.find('stakeholders', { fields: ['id', 'name'], orderBy: ['name', 'ASC'] }),
     workplans.activityOptions(db, values),

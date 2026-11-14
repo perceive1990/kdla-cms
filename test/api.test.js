@@ -949,3 +949,15 @@ test('administrator deletes a person and a case through the API', async () => {
   assert.strictEqual(r.status, 404);
   assert.strictEqual(r.json.error.code, 'not_found');
 });
+
+test('read-only users can read through the API but not write', async () => {
+  await createUser(db(), { username: 'apiviewer', password: 'apiviewer-password-1', fullName: 'API Viewer', role: 'viewer' });
+  const t = await login('apiviewer', 'apiviewer-password-1');
+  let r = await api('GET', '/cases', { token: t });
+  assert.strictEqual(r.status, 200);
+  r = await api('POST', '/people', { token: t, body: { kind: 'client', firstName: 'No', lastName: 'Write' } });
+  assert.strictEqual(r.status, 403);
+  assert.strictEqual(r.json.error.code, 'read_only');
+  r = await api('GET', '/me', { token: t });
+  assert.strictEqual(r.json.user.role, 'viewer');
+});

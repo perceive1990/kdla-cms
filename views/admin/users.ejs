@@ -1,6 +1,6 @@
 <%- include('../partials/header') %>
 <div class="page-head">
-  <div><h1>Staff accounts</h1><p class="sub">Officers can add and edit records. Administrators can also delete records, manage accounts and see the audit trail.</p></div>
+  <div><h1>Staff accounts</h1><p class="sub">Officers can add and edit records. Administrators can also delete records, manage accounts and see the audit trail. Read-only users can view and print records but not change them.</p></div>
   <a class="btn btn-primary" href="/admin/users/new"><i class="bi bi-person-plus"></i> Add account</a>
 </div>
 <div class="table-wrap">
@@ -11,7 +11,7 @@
       <tr>
         <td><a class="cell-strong" href="/admin/users/<%= u.id %>/edit"><%= u.fullName || '—' %></a></td>
         <td><%= u.username %></td>
-        <td><%= u.role === 'admin' ? 'Administrator' : 'Officer' %></td>
+        <td><%= { admin: 'Administrator', viewer: 'Read only' }[u.role] || 'Officer' %></td>
         <td class="d-none d-md-table-cell"><%= u.category %><%= u.qualification ? ' · ' + u.qualification : '' %></td>
         <td class="d-none d-md-table-cell"><%= u.office %></td>
         <td>
