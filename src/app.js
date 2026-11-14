@@ -209,6 +209,7 @@ function createApp() {
   app.use('/referrals', requireLogin, require('./routes/referrals'));
   app.use('/rooms', requireLogin, require('./routes/rooms'));
   app.use('/comments', requireLogin, require('./routes/comments'));
+  app.use('/registers', requireLogin, require('./routes/registers'));
   app.use('/statistics', requireLogin, require('./routes/stats'));
   app.use('/account', requireLogin, require('./routes/account'));
   app.use('/admin', requireLogin, require('./routes/admin'));

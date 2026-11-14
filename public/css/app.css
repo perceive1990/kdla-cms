@@ -147,7 +147,7 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .bars .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* Tables */
-.table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+.table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; position: relative; }
 .table { margin: 0; --bs-table-bg: transparent; --bs-table-hover-bg: var(--hover); --bs-table-color: var(--ink); }
 .table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--surface-2); font-weight: 600; white-space: nowrap; }
 .table td, .table th { padding: .65rem .8rem; vertical-align: middle; border-color: var(--line); }
@@ -755,3 +755,8 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 .reg-code { font-weight: 700; font-size: 1rem; color: #111; letter-spacing: .03em; text-align: right; }
 .contrib-planned { border-left-color: var(--bs-border-color); }
 .import-box { border: 1px dashed var(--bs-border-color); border-radius: .5rem; padding: .75rem; background: var(--bs-tertiary-bg); }
+
+/* Registers page */
+.reg-steps { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; padding-left: 1.1rem; margin: 0 0 1rem; }
+.reg-session { margin-bottom: .25rem; }
+.reg-list td { vertical-align: top; }

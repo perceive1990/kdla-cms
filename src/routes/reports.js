@@ -124,8 +124,14 @@ router.get('/new', async (req, res) => {
   } catch (e) {
     return refused(req, res, e, values.workplanId ? `/workplans/${values.workplanId}` : '/reports');
   }
+  const lists = await formLists(req.db, values, req.user);
+  // From the Registers page: start with the invite list ticked (people not yet recorded at another session).
+  if (req.query.names === 'invited' && values.workplanId) {
+    const o = lists.workplanOptions.find((x) => x.plan.id === values.workplanId && x.item.id === values.workplanItemId);
+    if (o) values.attendeeIds = [...o.invited];
+  }
   return res.render('reports/form', {
-    title: 'New activity report', values: withLink(values), errors: {}, isNew: true, ...(await formLists(req.db, values, req.user)),
+    title: 'New activity report', values: withLink(values), errors: {}, isNew: true, ...lists,
   });
 });
 
