@@ -242,6 +242,8 @@ function readActivity(body) {
     targetPeople: intOrNull(body.targetPeople),
     budget: amountOrNull(body.budget),
     output: str(body.output, 1000),
+    // How the activity will contribute to the logframe, written by the person responsible for approval of the plan.
+    contribution: str(body.contribution, 2000),
     status: str(body.status) || 'Not started',
   };
 }

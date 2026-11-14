@@ -289,9 +289,11 @@ router.get('/:id/activities/:itemId/register', async (req, res) => {
   // People already recorded at a session of this activity are left off: they are recorded once per activity.
   const invited = (await require('../services/attendance').shortlistPeople(req.db, it, plan)).filter((p) => !p.attended);
   const withNames = invited.length > 0 && (req.query.names === undefined || [].concat(req.query.names).includes('1'));
+  const code = reg.planCode(plan, it);
   res.render('register', {
-    title: `Register: ${it.title}`,
+    title: `${code} Attendance register ${it.title}`,
     info: {
+      code,
       title: it.title, type: it.activityType || '', date: it.startDate && it.startDate === it.endDate ? it.startDate : '',
       venue: it.venue || '', district: it.district || '', office: plan.office || '', project: project ? project.title : '', donor: project ? project.donor || '' : '',
       plan: `${num}${plan.title}`, facilitator: who ? who.fullName || who.username : '', ref: `Work plan activity ${num.trim()} ${plan.title}`.trim(),

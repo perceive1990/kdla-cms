@@ -33,6 +33,42 @@ function pages(total, names = []) {
   return out;
 }
 
+// ---------- Register names ----------
+// Every register carries a short reference, printed on each page and used to name its signed scans on the
+// activity report, so a pile of signed sheets is quickly matched to its activity. For example REG-FIS-2610-A03:
+// Fisenge Office, the work plan starting October 2026, planned activity 3.
+
+/** "Fisenge Office" → FIS, "Kitwe Main Office" → KM, "Chief Nkana Office" → CN. */
+function officeCode(office) {
+  const words = String(office || '').replace(/\boffice\b/gi, ' ').split(/[^A-Za-z]+/).filter(Boolean);
+  if (!words.length) return 'KDLA';
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  return words.map((w) => w[0]).join('').slice(0, 4).toUpperCase();
+}
+
+const yymm = (d) => (/^\d{4}-\d{2}/.test(String(d || '')) ? `${d.slice(2, 4)}${d.slice(5, 7)}` : '0000');
+
+/** The reference of the register of a planned activity. */
+function planCode(plan, item) {
+  const n = Number.isInteger(item.number) ? String(item.number).padStart(2, '0') : String(item.id).slice(0, 4).toUpperCase();
+  return `REG-${officeCode(plan.office)}-${yymm(plan.periodStart)}-A${n}`;
+}
+
+/** A report's register: its planned activity's reference, else one made from the office, date and report. */
+function reportCode(r, plan, item, office) {
+  if (plan && item) return planCode(plan, item);
+  const d = String(r.date || '');
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(2).replace(/-/g, '') : '000000';
+  return `REG-${officeCode(office || r.office)}-${day}-R${String(r.id).replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}`;
+}
+
+/** "REG-FIS-2610-A03 2026-10-05 signed register 2.pdf" */
+function scanName(code, date, k, original) {
+  const ext = (/\.([A-Za-z0-9]{1,5})$/.exec(String(original || '')) || [])[1];
+  return `${code}${/^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? ` ${date}` : ''} signed register ${k}${ext ? `.${ext.toLowerCase()}` : ''}`;
+}
+
 module.exports = {
+  officeCode, planCode, reportCode, scanName,
   FIRST_PAGE, NEXT_PAGES, MAX_LINES, lineCount, pages,
 };

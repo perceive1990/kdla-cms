@@ -198,11 +198,29 @@ async function setAttended(req, r, ids, { ifMatch } = {}) {
   return saved;
 }
 
+/** The reference printed on a report's register (its planned activity's, when it has one). */
+async function registerCode(db, r) {
+  const reg = require('../registers');
+  let plan = null;
+  let item = null;
+  if (r.workplanId && r.workplanItemId) {
+    plan = await db.get('workplans', r.workplanId);
+    item = plan && (plan.items || []).find((x) => x.id === r.workplanItemId);
+  }
+  return reg.reportCode(r, plan, item, await reports.officeOf(db, r));
+}
+
 async function addRegisterFiles(req, r, files) {
   await mustCorrect(req, r);
   if (!files.length) throw new HttpError(422, 'validation', 'Choose the scans or photos of the signed registers.', { fields: { attachments: 'Choose the scans or photos of the signed registers.' } });
+  // Each scan is named after the register, so the signed sheets are easy to find and match.
+  const code = await registerCode(req.db, r);
+  const start = registerFiles(r).length;
+  const named = files.map((f, i) => ({
+    ...f, originalName: f.name, name: require('../registers').scanName(code, r.date, start + i + 1, f.name), register: true,
+  }));
   const saved = await req.db.replace('reports', {
-    ...r, attachments: [...(r.attachments || []), ...files.map((f) => ({ ...f, register: true }))], updatedAt: now(),
+    ...r, attachments: [...(r.attachments || []), ...named], updatedAt: now(),
   });
   audit(req, 'update', 'reports', r.id, `Added ${files.length} signed register file(s)`);
   return saved;
@@ -269,5 +287,5 @@ async function decide(req, r, decision, note = '', verified = []) {
 
 module.exports = {
   STATUSES, LABEL, statusOf, counts, locked, registerFiles, attendedActivity, areas, importAreas, addPeople, removePeople, confirm, confirmCounts, shortlistPeople, search,
-  forReport, setAttended, addRegisterFiles, submit, decide, mustShortlist,
+  forReport, setAttended, registerCode, addRegisterFiles, submit, decide, mustShortlist,
 };

@@ -141,7 +141,7 @@ router.get('/:id/attendance', async (req, res) => {
   const users = await mapByIds(req.db, 'users', [r.attendanceSubmittedBy, r.attendanceDecidedBy, ...(r.attachments || []).map((a) => a.uploadedBy)].filter(Boolean));
   res.render('reports/attendance', {
     title: `Attendance: ${r.heading}`, r, data, users, status: attStatus.statusOf(r), LABEL: attStatus.LABEL,
-    canWrite: svc.canWriteFor(req.user, office), registers: attendance.registerFiles(r), office,
+    canWrite: svc.canWriteFor(req.user, office), registers: attendance.registerFiles(r), office, regCode: await attendance.registerCode(req.db, r),
   });
 });
 
@@ -262,9 +262,11 @@ router.get('/:id/register', async (req, res) => {
   const people = withNames ? rows.map((x) => x.person) : [];
   const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
   const who = r.compiledById ? await req.db.get('users', r.compiledById) : null;
+  const code = await require('../services/attendance').registerCode(req.db, r);
   res.render('register', {
-    title: `Register: ${r.heading}`,
+    title: `${code} Attendance register ${r.heading}`,
     info: {
+      code,
       title: r.heading, type: r.activityType || '', date: r.date || '', venue: r.location || '', district: r.district || '',
       office: await svc.officeOf(req.db, r), project: project ? project.title : '', donor: project ? project.donor || '' : '', plan: '',
       facilitator: who ? who.fullName || who.username : '', ref: `Activity report of ${r.date || ''}`,

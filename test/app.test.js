@@ -1426,7 +1426,14 @@ test('attendance: invite list by area before the activity, correction, signed re
   assert.match(r.text, /Upload at least one scan or photo of the signed register/);
   r = await f.postMultipart(`${att}/registers`, {}, [{ name: 'register-page-1.jpg', type: 'image/jpeg', content: 'fake image' }], att);
   assert.strictEqual(r.status, 302);
-  assert.ok((await db().get('reports', reportId)).attachments.some((x) => x.register && x.name === 'register-page-1.jpg'));
+  const scan = (await db().get('reports', reportId)).attachments.find((x) => x.register);
+  assert.match(scan.name, /^REG-FIS-3501-A01 (\d{4}-\d{2}-\d{2} )?signed register 1\.jpg$/, 'scans are named after the register');
+  assert.strictEqual(scan.originalName, 'register-page-1.jpg');
+  r = await f.req(att);
+  assert.match(r.text, /Register <strong>REG-FIS-3501-A01<\/strong>/);
+  r = await f.req(`/workplans/${planId}/activities/${itemId}/register`);
+  assert.match(r.text, /<title>REG-FIS-3501-A01 Attendance register/);
+  assert.match(r.text, /<div class="reg-code">REG-FIS-3501-A01<\/div>/);
   await f.post(`${att}/submit`, {}, att);
   assert.strictEqual((await db().get('reports', reportId)).attendanceStatus, 'Submitted');
 
@@ -1984,4 +1991,24 @@ test('the person responsible writes how the activity contributes to the logframe
   assert.ok(r.text.includes(`href="/reports/${id}">Second mediation held</a>`));
   r = await a.req('/reports/export.csv');
   assert.match(r.text, /Contribution to the logframe/);
+});
+
+test('work plan activities explain their contribution to the logframe before approval', async () => {
+  const a = ctx.admin;
+  let r = await a.req('/workplans/plan-ind/activities/item-ind/edit');
+  assert.match(r.text, /How this activity will contribute to the logframe/);
+  r = await a.post('/workplans/plan-ind/activities/item-ind', {
+    number: '1', title: 'Mediation in Chamboli', status: 'In progress', logframeResult: 'proj-ind:ra', responsibleId: (await db().find('users', { where: { username: 'prog1' } }))[0].id,
+    contribution: 'Mediation sessions settle disputes, so Output 1.1 moves towards 40 resolved.',
+  }, '/workplans/plan-ind/activities/item-ind/edit');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  assert.match((await db().get('workplans', 'plan-ind')).items[0].contribution, /Mediation sessions settle disputes/);
+  r = await a.req('/workplans/plan-ind');
+  assert.match(r.text, /1 of 1 activities explained/);
+  assert.match(r.text, /Mediation sessions settle disputes/);
+  r = await a.req('/workplans/plan-ind/print');
+  assert.match(r.text, /Contribution to the logframe: Mediation sessions settle disputes/);
+  r = await a.req('/logframes/proj-ind');
+  assert.match(r.text, /Contributions \(2\)/);
+  assert.match(r.text, /<span class="tag tag-muted">Planned<\/span>/);
 });

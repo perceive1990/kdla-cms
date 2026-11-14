@@ -86,6 +86,7 @@
           <% for (const a of registers) { %><li class="py-1"><i class="bi bi-file-earmark-check" aria-hidden="true"></i> <a href="/files/reports/<%= r.id %>/<%= a.id %>" target="_blank" rel="noopener"><%= a.name %></a> <span class="small text-body-secondary"><%= h.fmtDate(a.uploadedAt) %><%= name(a.uploadedBy) ? ' · ' + name(a.uploadedBy) : '' %></span></li><% } %>
         </ul>
       <% } else { %><p class="small text-body-secondary">None yet. Scan or photograph every signed page.</p><% } %>
+      <p class="small mb-2">Register <strong><%= regCode %></strong>. Scans are named after it when uploaded, for example "<%= regCode %><%= r.date ? ' ' + r.date : '' %> signed register 1.pdf".</p>
       <% if (open) { %>
       <form method="post" action="/reports/<%= r.id %>/attendance/registers" enctype="multipart/form-data">
         <%- f.hidden(csrfToken) %>
