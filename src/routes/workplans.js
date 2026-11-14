@@ -169,7 +169,7 @@ router.get('/:id/activities/:itemId/shortlist', async (req, res) => {
   try { attendance.mustShortlist(req.user, plan); } catch { canChange = false; }
   const inList = new Set(item.shortlist || []);
   res.render('workplans/shortlist', {
-    title: `Invite list: ${item.title}`, plan, item, people, areas, q: String(req.query.q || '').slice(0, 60), canChange,
+    title: `Invite list: ${item.title}`, plan, item, people, areas, confirmed: attendance.confirmCounts(item), q: String(req.query.q || '').slice(0, 60), canChange,
     found: found.filter((p) => !inList.has(p.id)).map((p) => ({ ...p, attended: done.get(p.id) || null })),
   });
 });
@@ -196,6 +196,12 @@ router.post('/:id/activities/:itemId/shortlist/import', (req, res) => shortlistA
 router.post('/:id/activities/:itemId/shortlist/add', (req, res) => shortlistAction(req, res, async (plan, item) => {
   await attendance.addPeople(req, plan, item.id, req.body.personIds || []);
   return 'Added to the invite list.';
+}));
+router.post('/:id/activities/:itemId/shortlist/confirm', (req, res) => shortlistAction(req, res, async (plan, item) => {
+  const answer = String(req.body.answer || '');
+  const n = await attendance.confirm(req, plan, item.id, req.body.personIds || [], answer);
+  const what = { yes: 'confirmed as coming', no: 'marked as not coming' }[answer] || 'marked as not yet confirmed';
+  return `${n} ${n === 1 ? 'person' : 'people'} ${what}.`;
 }));
 router.post('/:id/activities/:itemId/shortlist/remove', (req, res) => shortlistAction(req, res, async (plan, item) => {
   const n = [].concat(req.body.personIds || []).length;

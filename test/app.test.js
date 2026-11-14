@@ -1745,3 +1745,51 @@ test('payments are prepared on the work plan for the invite list, then carried t
   assert.strictEqual((await db().get('reports', reportId)).acquittal.rows.length, 1, 'the report keeps who was actually paid');
   assert.strictEqual((await db().get('workplans', planId)).items[0].acquittal.rows.length, 2, 'the plan keeps what was prepared');
 });
+
+test('invited people confirm whether they are coming, and acquittal costs are paid for a number of days', async () => {
+  const a = ctx.admin;
+  for (const [id, firstName] of [['conf-1', 'Mercy'], ['conf-2', 'Davies'], ['conf-3', 'Ruth']]) {
+    await db().create('people', {
+      id, kind: 'attendee', firstName, lastName: 'Confirm', nrc: '', contact: '', location: 'Confirmville', ageCategory: 'Woman', createdAt: '2039-01-01T00:00:00Z', updatedAt: '2039-01-01T00:00:00Z',
+    });
+  }
+  let r = await a.post('/workplans', { title: 'Confirm plan', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, { title: 'Confirmville workshop', status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  const base = `/workplans/${planId}/activities/${itemId}`;
+  await a.post(`${base}/shortlist/import`, { areas: 'Confirmville' }, `${base}/shortlist`);
+  await a.post(`${base}/shortlist/confirm`, { answer: 'yes', personIds: ['conf-1', 'conf-2'] }, `${base}/shortlist`);
+  await a.post(`${base}/shortlist/confirm`, { answer: 'no', personIds: ['conf-2'] }, `${base}/shortlist`);
+  await a.post(`${base}/shortlist/confirm`, { answer: 'yes', personIds: ['not-invited'] }, `${base}/shortlist`);
+  const item = (await db().get('workplans', planId)).items[0];
+  assert.deepStrictEqual(item.confirmations, { 'conf-1': 'yes', 'conf-2': 'no' }, 'only invited people are recorded');
+  r = await a.req(`${base}/shortlist`);
+  assert.match(r.text, /1 confirmed coming/);
+  assert.match(r.text, /1 not coming/);
+  assert.match(r.text, /1 not yet confirmed/);
+  r = await a.req(`/workplans/${planId}`);
+  assert.match(r.text, /3 invited, 1 confirmed/);
+  r = await a.req(`${base}/register`);
+  assert.match(r.text, /Confirmed coming/);
+  assert.match(r.text, /<td>Mercy<\/td><td>Confirm<\/td>\s*<td class="text-center reg-conf">Y<\/td>/);
+  assert.match(r.text, /<td>Davies<\/td><td>Confirm<\/td>\s*<td class="text-center reg-conf">N<\/td>/);
+  assert.match(r.text, /<td>Ruth<\/td><td>Confirm<\/td>\s*<td class="text-center reg-conf"><\/td>/);
+  await a.post(`${base}/shortlist/confirm`, { answer: '', personIds: ['conf-2'] }, `${base}/shortlist`);
+  assert.deepStrictEqual((await db().get('workplans', planId)).items[0].confirmations, { 'conf-1': 'yes' });
+
+  // Lunch for each of three days; transport once
+  await a.post(`${base}/payments`, {
+    currency: 'ZMW', cost_lunch: '1', rate_lunch: '100', days_lunch: '3', cost_transport: '1', rate_transport: '50', lunch: ['conf-1', 'conf-3'], transport: ['conf-1'],
+  }, `${base}/payments`);
+  const acq = (await db().get('workplans', planId)).items[0].acquittal;
+  assert.strictEqual(acq.costs.find((c) => c.key === 'lunch').days, 3);
+  const { totals, of } = require('../src/services/acquittal');
+  const t = totals(of({ acquittal: acq }));
+  assert.deepStrictEqual(t.sums, { transport: 50, lunch: 600, total: 650 });
+  r = await a.req(`${base}/payments`);
+  assert.match(r.text, /name="days_lunch" value="3"/);
+  r = await a.req(`${base}/payments/print`);
+  assert.ok(r.text.includes('Lunch 100.00 a day × 3 days = 300.00'), 'the rates show the days');
+  assert.ok(r.text.includes('Lunch (3 days)'));
+});
