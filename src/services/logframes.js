@@ -479,9 +479,10 @@ async function contributions(db, fw) {
     }));
   }
   const withText = reps.filter((r) => r.contribution && String(r.contribution).replace(/<[^>]*>/g, '').trim());
-  if (!withText.length) return [];
+  const plannedText = links.filter(({ item }) => item.contribution && item.status !== 'Cancelled');
+  if (!withText.length && !plannedText.length) return [];
   const itemOf = Object.fromEntries(links.map(({ plan, item }) => [`${plan.id}:${item.id}`, { plan, item }]));
-  const users = await mapByIds(db, 'users', withText.map((r) => r.compiledById));
+  const users = await mapByIds(db, 'users', [...withText.map((r) => r.compiledById), ...plannedText.map(({ item }) => item.responsibleId)]);
   const codeMap = codes(fw);
   return ordered(fw).map((res) => ({
     result: res, label: labelOf(fw, res, codeMap),
@@ -492,7 +493,10 @@ async function contributions(db, fw) {
         return { report: r, plan, item, by: u ? u.fullName || u.username : '' };
       })
       .sort((a, b) => String(b.report.date).localeCompare(String(a.report.date))),
-  })).filter((g) => g.reports.length);
+    users,
+    // What the work plans said each activity would contribute, when they were drawn up.
+    planned: plannedText.filter(({ item }) => item.logframeResultId === res.id),
+  })).filter((g) => g.reports.length || g.planned.length);
 }
 
 const SEVERITY = ['Behind', 'Below target', 'On track', 'Achieved'];

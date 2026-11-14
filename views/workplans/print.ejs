@@ -48,6 +48,7 @@
           <% if (it.activityType) { %><div class="wp-p-sub"><%= it.activityType %></div><% } %>
           <% if (lfl) { %><div class="wp-p-sub"><%= lfl.label %>: <%= lfl.text.length > 90 ? lfl.text.slice(0, 88) + '…' : lfl.text %></div><% } %>
           <% if (it.output) { %><div class="wp-p-sub">Expected: <%= it.output %></div><% } %>
+          <% if (it.contribution) { %><div class="wp-p-sub">Contribution to the logframe: <%= it.contribution %></div><% } %>
         </td>
         <td><%= it.venue || '' %><% if (it.district) { %><div class="wp-p-sub"><%= it.district %></div><% } %></td>
         <td><%= who(it.responsibleId) %></td>

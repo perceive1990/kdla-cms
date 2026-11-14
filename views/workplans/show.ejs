@@ -31,6 +31,7 @@
 <div class="panel d-print-none"><div class="panel-body d-flex flex-wrap align-items-center gap-2">
   <span class="small text-body-secondary me-2"><i class="bi bi-shield-check"></i> Administrator:</span>
   <% const moves = { Draft: [['Approved', 'Approve plan', 'btn-success']], Approved: [['Closed', 'Close plan', 'btn-outline-secondary'], ['Draft', 'Return to draft', 'btn-outline-secondary']], Closed: [['Approved', 'Reopen', 'btn-outline-secondary']] }[plan.status] || []; %>
+  <% if (plan.status === 'Draft') { const lv = items.filter((it) => it.status !== 'Cancelled'); const wr = lv.filter((it) => it.contribution).length; %><a class="small me-2" href="#contributions"><%= wr %> of <%= lv.length %> activities explain their contribution to the logframe</a><% } %>
   <% for (const [to, label, cls] of moves) { %>
     <form method="post" action="/workplans/<%= plan.id %>/status"><%- f.hidden(csrfToken) %><input type="hidden" name="status" value="<%= to %>"><button class="btn btn-sm <%= cls %>" type="submit"><%= label %></button></form>
   <% } %>
@@ -133,6 +134,23 @@
     </tbody>
   </table>
 </div>
+<% const live = items.filter((it) => it.status !== 'Cancelled'); const written = live.filter((it) => it.contribution); %>
+<section class="panel mt-3" id="contributions">
+  <div class="panel-body">
+    <div class="panel-head">
+      <h2 class="panel-title">Contribution to the logframe</h2>
+      <span class="tag <%= written.length === live.length ? 'tag-done' : 'tag-warn' %>"><%= written.length %> of <%= live.length %> activities explained</span>
+    </div>
+    <p class="small text-body-secondary">How each activity will contribute to the logframe, in the words of the person responsible. Read it before approving the plan.</p>
+    <% if (!live.length) { %><p class="text-body-secondary mb-0">No activities yet.</p><% } %>
+    <% for (const it of live) { const lfl = lfLabels[it.logframeId + ':' + it.logframeResultId]; %>
+      <article class="contrib">
+        <div class="contrib-head"><span class="fw-semibold"><%= Number.isInteger(it.number) ? it.number + '. ' : '' %><%= it.title %></span><% if (lfl) { %> <span class="small text-body-secondary">· <%= lfl.label %>: <%= lfl.text.length > 80 ? lfl.text.slice(0, 78) + '\u2026' : lfl.text %></span><% } %><% if (it.responsibleId && users[it.responsibleId]) { %> <span class="small text-body-secondary">· <%= users[it.responsibleId].fullName || users[it.responsibleId].username %></span><% } %></div>
+        <% if (it.contribution) { %><p class="prose mb-0"><%= it.contribution %></p><% } else { %><p class="small text-danger mb-0">Not written yet.<% if (canEdit) { %> <a href="/workplans/<%= plan.id %>/activities/<%= it.id %>/edit#contribution">Write it</a><% } %></p><% } %>
+      </article>
+    <% } %>
+  </div>
+</section>
 <% const allReports = items.flatMap((it) => it.reports.map((r) => ({ r, it }))).sort((x, y) => String(y.r.date).localeCompare(String(x.r.date))); %>
 <section class="panel mt-3" id="reports">
   <div class="panel-body">
