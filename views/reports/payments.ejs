@@ -18,7 +18,7 @@
   <%- f.hidden(csrfToken) %>
   <div class="panel"><div class="panel-body">
     <h2 class="panel-title">Costs for this activity</h2>
-    <p class="small text-body-secondary">Tick the costs attendees of this activity are eligible for and set each rate. Only the ticked costs appear below and on the printed form. Use Other for anything else, and name it.</p>
+    <p class="small text-body-secondary">Tick the costs attendees of this activity are eligible for, set each rate and the number of days it is paid for (for example lunch for each day of a three-day workshop). Only the ticked costs appear below and on the printed form. Use Other for anything else, and name it.</p>
     <div class="row g-3 mb-2">
       <div class="col-6 col-md-3">
         <label class="form-label" for="currency">Currency</label>
@@ -26,7 +26,7 @@
       </div>
     </div>
     <div class="table-wrap"><table class="table table-sm pay-costs">
-      <thead><tr><th class="text-center">Eligible</th><th>Cost</th><th>Rate (<%= acq.currency %>)</th></tr></thead>
+      <thead><tr><th class="text-center">Eligible</th><th>Cost</th><th>Rate (<%= acq.currency %>)</th><th>Days</th></tr></thead>
       <tbody>
       <% for (const c of acq.costs) { %>
         <tr>
@@ -39,6 +39,7 @@
             <% } %>
           </td>
           <td><input class="form-control form-control-sm pay-rate" type="number" min="0" step="0.01" name="rate_<%= c.key %>" value="<%= c.rate ?? '' %>" placeholder="0.00" aria-label="Rate for <%= c.label || 'other cost ' + c.n %>"<%= canEdit ? '' : ' disabled' %>></td>
+          <td><% if (c.perNight) { %><span class="small text-body-secondary">Nights per person, below</span><% } else { %><input class="form-control form-control-sm pay-nights" type="number" min="1" max="60" name="days_<%= c.key %>" value="<%= c.days || 1 %>" aria-label="Number of days for <%= c.label || 'other cost ' + c.n %>"<%= canEdit ? '' : ' disabled' %>><% } %></td>
         </tr>
       <% } %>
       </tbody>
@@ -60,7 +61,7 @@
     <% } %>
     <div class="table-wrap"><table class="table table-sm pay-table">
       <thead><tr><th>Name</th><th>NRC</th><th>Phone</th>
-        <% for (const c of acq.costs) { %><th class="text-center" data-cost-col="<%= c.key %>"<%= hide(c) %>><span data-cost-name="<%= c.key %>"><%= nameOf(c) %></span></th><% } %>
+        <% for (const c of acq.costs) { %><th class="text-center" data-cost-col="<%= c.key %>"<%= hide(c) %>><span data-cost-name="<%= c.key %>"><%= nameOf(c) %></span><% if (!c.perNight && c.days > 1) { %><div class="small fw-normal text-body-secondary"><%= c.days %> days</div><% } %></th><% } %>
         <th class="text-center" data-cost-col="accommodation"<%= hide(acc) %>>Nights</th><th class="text-end">Total</th></tr></thead>
       <tbody>
       <% for (const x of rows) { const p = x.person; const row = inList[p.id] || { items: {} }; const line = t.lines.find((l) => l.personId === p.id); const off = canEdit && !x.elsewhere ? '' : ' disabled'; %>

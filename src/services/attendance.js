@@ -93,12 +93,45 @@ async function removePeople(req, plan, itemId, ids) {
   return changeShortlist(req, plan, itemId, (list) => list.filter((id) => !drop.has(id)), `removed ${drop.size} from the shortlist`);
 }
 
+/** Records whether the ticked invited people confirmed they are coming: 'yes', 'no' or '' (not yet confirmed). */
+async function confirm(req, plan, itemId, ids, answer) {
+  mustShortlist(req.user, plan);
+  const value = ['yes', 'no'].includes(answer) ? answer : '';
+  const picked = new Set((Array.isArray(ids) ? ids : [ids]).map(String).filter(Boolean));
+  if (!picked.size) throw new HttpError(422, 'validation', 'Tick the people first.');
+  const before = workplans.getItem(plan, itemId);
+  let n = 0;
+  await workplans.savePlan(req.db, plan, (cur) => {
+    const it = workplans.getItem(cur, itemId);
+    const listed = new Set(it.shortlist || []);
+    const confirmations = { ...(it.confirmations || {}) };
+    for (const id of picked) {
+      if (!listed.has(id)) continue;
+      n += 1;
+      if (value) confirmations[id] = value; else delete confirmations[id];
+    }
+    return { ...cur, items: cur.items.map((x) => (x.id === itemId ? { ...it, confirmations, updatedAt: now() } : x)) };
+  });
+  const what = { yes: 'confirmed coming', no: 'not coming', '': 'not yet confirmed' }[value];
+  audit(req, 'update', 'workplans', plan.id, `Work plan "${plan.title}": ${n} invited marked ${what} for activity ${before.number ?? ''} ${before.title}`.replace(/\s+/g, ' '));
+  return n;
+}
+
+/** How many invited people confirmed they are coming, and how many said they are not. */
+function confirmCounts(item) {
+  const listed = new Set(item.shortlist || []);
+  const c = { yes: 0, no: 0 };
+  for (const [id, v] of Object.entries(item.confirmations || {})) if (listed.has(id) && c[v] !== undefined) c[v] += 1;
+  return { ...c, pending: listed.size - c.yes - c.no };
+}
+
 /**
  * The shortlisted people, sorted by village or area and name. With a plan, each carries `attended`: the
  * session of this planned activity they are already recorded at, if any.
  */
 async function shortlistPeople(db, item, plan = null) {
-  const people = Object.values(await mapByIds(db, 'people', item.shortlist || []));
+  const conf = item.confirmations || {};
+  const people = Object.values(await mapByIds(db, 'people', item.shortlist || [])).map((p) => ({ ...p, confirmed: conf[p.id] || '' }));
   if (plan) {
     const done = await attendedActivity(db, plan, item);
     for (const p of people) p.attended = done.get(p.id) || null;
@@ -118,15 +151,16 @@ async function search(db, term) {
 /** Who was invited (the planned activity's shortlist) and who is recorded as attending. */
 async function forReport(db, r) {
   let invited = [];
+  let conf = {};
   let plan = null;
   if (r.workplanId && r.workplanItemId) {
     plan = await db.get('workplans', r.workplanId);
     const item = plan && (plan.items || []).find((x) => x.id === r.workplanItemId);
-    if (item) invited = item.shortlist || [];
+    if (item) { invited = item.shortlist || []; conf = item.confirmations || {}; }
   }
   const claimed = new Set(Array.isArray(r.claimedIds) ? r.claimedIds : (r.attendeeIds || []));
   const ids = [...new Set([...invited, ...claimed, ...(r.attendeeIds || [])])];
-  const people = Object.values(await mapByIds(db, 'people', ids))
+  const people = Object.values(await mapByIds(db, 'people', ids)).map((p) => ({ ...p, confirmed: conf[p.id] || '' }))
     .sort((a, b) => areaKey(a.location).localeCompare(areaKey(b.location)) || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
   const attended = new Set(r.attendeeIds || []);
   const inv = new Set(invited);
@@ -234,6 +268,6 @@ async function decide(req, r, decision, note = '', verified = []) {
 }
 
 module.exports = {
-  STATUSES, LABEL, statusOf, counts, locked, registerFiles, attendedActivity, areas, importAreas, addPeople, removePeople, shortlistPeople, search,
+  STATUSES, LABEL, statusOf, counts, locked, registerFiles, attendedActivity, areas, importAreas, addPeople, removePeople, confirm, confirmCounts, shortlistPeople, search,
   forReport, setAttended, addRegisterFiles, submit, decide, mustShortlist,
 };

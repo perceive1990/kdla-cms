@@ -9,28 +9,30 @@
     <a class="btn btn-primary" href="/workplans/<%= plan.id %>/activities/<%= item.id %>/register"><i class="bi bi-pen" aria-hidden="true"></i> Print register with these names</a>
   </div>
 </div>
-<p class="small text-body-secondary">A person is recorded once per planned activity: anyone already on the register of a session of this activity is not invited or printed again. They can still be invited to other activities of the work plan. Shortlist the people to invite before the activity. Import the registered activity attendees of a village or area, or add people one by one. The register for signing then prints their names, and after the activity you tick who came on the activity report.</p>
+<p class="small text-body-secondary">A person is recorded once per planned activity: anyone already on the register of a session of this activity is not invited or printed again. They can still be invited to other activities of the work plan. Shortlist the people to invite before the activity and record who confirms they are coming. Import the registered activity attendees of a village or area, or add people one by one. The register for signing then prints their names, and after the activity you tick who came on the activity report.</p>
 <% if (!canChange) { %><div class="alert alert-secondary small py-2"><i class="bi bi-building" aria-hidden="true"></i> Only staff of <%= plan.office || 'the plan\'s office' %> change this invite list<%= plan.status === 'Closed' ? ', and the plan is closed' : '' %>.</div><% } %>
 
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="panel"><div class="panel-body">
       <h2 class="panel-title">Invited (<%= people.length %>)</h2>
+      <% if (people.length) { %><p class="small mb-2"><span class="tag tag-done"><%= confirmed.yes %> confirmed coming</span> <span class="tag tag-danger"><%= confirmed.no %> not coming</span> <span class="tag tag-muted"><%= confirmed.pending %> not yet confirmed</span></p><% } %>
       <% if (!people.length) { %>
         <p class="text-body-secondary mb-0">Nobody yet. Import a village or area, or search for people.</p>
       <% } else { %>
       <form method="post" action="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/remove">
         <%- f.hidden(csrfToken) %>
         <div class="table-wrap"><table class="table table-sm">
-          <thead><tr><% if (canChange) { %><th class="d-print-none"><span class="visually-hidden">Remove</span></th><% } %><th>Name</th><th>Village or area</th><th>Age and sex</th><th>Phone</th></tr></thead>
+          <thead><tr><% if (canChange) { %><th class="d-print-none"><span class="visually-hidden">Remove</span></th><% } %><th>Name</th><th>Coming?</th><th>Village or area</th><th>Age and sex</th><th>Phone</th></tr></thead>
           <tbody>
           <% for (const p of people) { %>
             <tr><% if (canChange) { %><td class="d-print-none"><input class="form-check-input" type="checkbox" name="personIds" value="<%= p.id %>" aria-label="Remove <%= p.firstName %> <%= p.lastName %>"></td><% } %>
-              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a><% if (p.attended) { %><div class="small"><span class="tag tag-done">Attended <%= h.fmtDate(p.attended.date) %></span> <span class="text-body-secondary">not on new registers</span></div><% } %></td><td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.contact || '' %></td></tr>
+              <td><a href="/people/attendees/<%= p.id %>"><%= p.firstName %> <%= p.lastName %></a><% if (p.attended) { %><div class="small"><span class="tag tag-done">Attended <%= h.fmtDate(p.attended.date) %></span> <span class="text-body-secondary">not on new registers</span></div><% } %></td><td><% if (p.confirmed === 'yes') { %><span class="tag tag-done">Confirmed</span><% } else if (p.confirmed === 'no') { %><span class="tag tag-danger">Not coming</span><% } else { %><span class="text-body-secondary small">Not yet confirmed</span><% } %></td><td><%= p.location || '' %></td><td><%= p.ageCategory || '' %></td><td><%= p.contact || '' %></td></tr>
           <% } %>
           </tbody>
         </table></div>
-        <% if (canChange) { %><div class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="personIds" hidden>Tick all</button><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Remove the ticked people</button></div><% } %>
+        <% if (canChange) { %><div class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-tick-all="personIds" hidden>Tick all</button><button class="btn btn-sm btn-outline-success" type="submit" formaction="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/confirm" name="answer" value="yes"><i class="bi bi-check-lg" aria-hidden="true"></i> Confirmed coming</button><button class="btn btn-sm btn-outline-secondary" type="submit" formaction="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/confirm" name="answer" value="no">Not coming</button><button class="btn btn-sm btn-outline-secondary" type="submit" formaction="/workplans/<%= plan.id %>/activities/<%= item.id %>/shortlist/confirm" name="answer" value="">Not yet confirmed</button><button class="btn btn-sm btn-outline-danger ms-auto" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Remove the ticked people</button></div>
+        <p class="small text-body-secondary mt-2 mb-0">Tick people, then record whether they confirmed they are coming. The register shows the answer beside each name.</p><% } %>
       </form>
       <% } %>
     </div></div>

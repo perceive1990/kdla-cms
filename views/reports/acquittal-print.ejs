@@ -22,12 +22,12 @@
     <div><span>Type of activity</span><%= info.type || '' %></div>
     <div><span>Date</span><% if (info.date) { %><%= h.fmtDate(info.date) %><% } else { %><span class="reg-line" style="min-width: 8rem"></span><% } %></div>
     <div><span>Venue</span><%= info.venue || '' %><%= info.district ? ', ' + info.district : '' %></div>
-    <div class="acq-rates"><span>Rates (<%= acq.currency %>)</span><%= acq.active.map((c) => c.label + ' ' + m(c.rate) + (c.perNight ? ' per night' : '')).join(' · ') %></div>
+    <div class="acq-rates"><span>Rates (<%= acq.currency %>)</span><%= acq.active.map((c) => c.label + ' ' + m(c.rate) + (c.perNight ? ' per night' : (c.days > 1 ? ' a day × ' + c.days + ' days = ' + m(c.rate * c.days) : ''))).join(' · ') %></div>
   </div>
   <p class="reg-consent">By signing, I confirm that I received the amount shown against my name for attending this activity.</p>
   <table class="reg-table acq-table">
     <thead><tr>
-      <th>No.</th><th>Name</th><th>NRC</th><th>Phone</th><% for (const c of acq.active) { %><th class="text-end"><%= c.label %><%= c.perNight ? ' (nights)' : '' %></th><% } %><th class="text-end">Total (<%= acq.currency %>)</th><th>Signature or thumbprint</th>
+      <th>No.</th><th>Name</th><th>NRC</th><th>Phone</th><% for (const c of acq.active) { %><th class="text-end"><%= c.label %><%= c.perNight ? ' (nights)' : (c.days > 1 ? ' (' + c.days + ' days)' : '') %></th><% } %><th class="text-end">Total (<%= acq.currency %>)</th><th>Signature or thumbprint</th>
     </tr></thead>
     <tbody>
     <% lines.forEach((l, i) => { %>

@@ -12,7 +12,7 @@ const attendance = require('./attendance');
 const { statusOf } = require('../attendance-status');
 
 // The costs an activity can pay. Each activity ticks the ones its attendees are eligible for and sets their
-// rates; up to three "other" costs take any name. Only the ticked costs appear on the page and the form.
+// rates and how many days each is paid for; up to three "other" costs take any name. Only the ticked costs appear on the page and the form.
 const CATALOGUE = [
   { key: 'transport', label: 'Transport' },
   { key: 'lunch', label: 'Lunch' },
@@ -42,11 +42,15 @@ function of(holder) {
   const costs = [...CATALOGUE, ...OTHERS.map((key, i) => ({ key, label: '', other: true, n: i + 1 }))].map((c) => {
     if (saved) {
       const s = saved[c.key];
-      return { ...c, on: Boolean(s), rate: s ? s.rate : null, label: c.other ? (s ? s.label : '') : c.label };
+      return {
+        ...c, on: Boolean(s), rate: s ? s.rate : null, days: c.perNight ? 1 : (s && s.days) || 1, label: c.other ? (s ? s.label : '') : c.label,
+      };
     }
     const rate = a.rates ? a.rates[c.key] ?? null : null;
     const used = legacyRows.some((r) => r[c.key]);
-    return { ...c, on: !c.other && (rate !== null || used), rate };
+    return {
+      ...c, on: !c.other && (rate !== null || used), rate, days: 1,
+    };
   });
   const rows = legacyRows.map((r) => ({
     personId: r.personId,
@@ -65,7 +69,9 @@ function totals(acq) {
   const lines = acq.rows.map((row) => {
     const line = { ...row, amounts: {}, total: 0 };
     for (const c of acq.active) {
-      const amount = row.items[c.key] ? Math.round((c.rate || 0) * (c.perNight ? Math.max(1, row.nights || 1) : 1) * 100) / 100 : 0;
+      // A cost is paid at its rate for each of its days (lunch for a three-day workshop: rate × 3); accommodation per night.
+      const times = c.perNight ? Math.max(1, row.nights || 1) : Math.max(1, c.days || 1);
+      const amount = row.items[c.key] ? Math.round((c.rate || 0) * times * 100) / 100 : 0;
       line.amounts[c.key] = amount;
       line.total += amount;
       sums[c.key] += amount;
@@ -106,7 +112,10 @@ function parse(req, body, allowedIds) {
     const name = c.other ? (label || `other cost ${c.key.slice(-1)}`) : c.label.toLowerCase();
     if (c.other && !label) fields[`label_${c.key}`] = `Name the other cost ${c.key.slice(-1)}, for example "Stationery", or untick it.`;
     if (raw === '' || rate === null || rate === 0) fields[`rate_${c.key}`] = `Set the ${name} rate, or untick ${name} for this activity.`;
-    costs.push({ key: c.key, label, rate, ...(c.perNight ? { perNight: true } : {}) });
+    const days = Number.parseInt(body[`days_${c.key}`], 10);
+    costs.push({
+      key: c.key, label, rate, ...(c.perNight ? { perNight: true } : { days: Number.isInteger(days) ? Math.min(60, Math.max(1, days)) : 1 }),
+    });
   }
   const allowed = new Set(allowedIds);
   const ticked = Object.fromEntries(costs.map((c) => [c.key, new Set([].concat(body[c.key] || []).map(String).filter((id) => allowed.has(id)))]));

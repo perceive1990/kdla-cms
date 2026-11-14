@@ -37,20 +37,21 @@
     <% if (info.plan) { %><div><span>Work plan activity</span><%= info.plan %></div><% } %>
     <div><span>Facilitator</span><%- blank(info.facilitator) %></div>
   </div>
-  <p class="reg-consent">By signing, I confirm I attended this activity and agree that <%= config.orgName %> records my details for its reports to donors and partners. For people listed in advance, ✓ or ✗ shows the answer already recorded; correct it if it has changed. Tick "Agrees to share" only if you also agree to <%= config.orgName %> sharing your details with partner organisations that can help you.</p>
+  <p class="reg-consent">By signing, I confirm I attended this activity and agree that <%= config.orgName %> records my details for its reports to donors and partners. For people listed in advance, "Confirmed coming" shows whether they confirmed before the meeting, and ✓ or ✗ shows the answer already recorded; correct it if it has changed. Tick "Agrees to share" only if you also agree to <%= config.orgName %> sharing your details with partner organisations that can help you.</p>
   <% } else { %>
   <p class="reg-cont"><strong><%= info.title %></strong><%= info.date ? ' · ' + h.fmtDate(info.date) : '' %><%= info.venue ? ' · ' + info.venue : '' %></p>
   <% } %>
   <table class="reg-table">
-    <colgroup><col class="r-no"><col class="r-name"><col class="r-name"><col class="r-sex"><col class="r-age"><col class="r-nrc"><col class="r-phone"><col class="r-yn"><col class="r-place"><col class="r-yn"><col class="r-sign"></colgroup>
+    <colgroup><col class="r-no"><col class="r-name"><col class="r-name"><col class="r-conf"><col class="r-sex"><col class="r-age"><col class="r-nrc"><col class="r-phone"><col class="r-yn"><col class="r-place"><col class="r-yn"><col class="r-sign"></colgroup>
     <thead><tr>
-      <th>No.</th><th>First name</th><th>Last name</th><th>Tick one<div class="reg-sexkey"><span>Girl</span><span>Boy</span><span>Woman</span><span>Man</span></div></th><th>Age</th><th>NRC number <small>(optional)</small></th><th>Phone</th><th>Disability <small>Y / N</small></th><th>Village or area</th><th>Agrees to share <small>tick</small></th><th>Signature or thumbprint</th>
+      <th>No.</th><th>First name</th><th>Last name</th><th>Confirmed coming <small>Y / N</small></th><th>Tick one<div class="reg-sexkey"><span>Girl</span><span>Boy</span><span>Woman</span><span>Man</span></div></th><th>Age</th><th>NRC number <small>(optional)</small></th><th>Phone</th><th>Disability <small>Y / N</small></th><th>Village or area</th><th>Agrees to share <small>tick</small></th><th>Signature or thumbprint</th>
     </tr></thead>
     <tbody>
     <% for (const person of sheet) { n += 1; %>
       <tr>
         <td class="reg-n"><%= n %></td>
         <td><%= person ? person.firstName : '' %></td><td><%= person ? person.lastName : '' %></td>
+        <td class="text-center reg-conf"><%= person ? ({ yes: 'Y', no: 'N' }[person.confirmed] || '') : '' %></td>
         <td><div class="reg-boxes"><% for (const a of ['Girl', 'Boy', 'Woman', 'Man']) { %><span class="<%= person && person.ageCategory === a ? 'on' : '' %>"></span><% } %></div></td>
         <td><%= person && person.age ? person.age : '' %></td>
         <td class="reg-id"><%= person && person.nrc ? person.nrc : '' %></td><td class="reg-id"><%= person && person.contact ? person.contact : '' %></td>

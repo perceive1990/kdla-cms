@@ -403,8 +403,8 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .reg-table th { background: #eef3ef; font-size: .7rem; font-weight: 700; line-height: 1.15; text-align: left; }
 .reg-table th small { font-weight: 400; display: block; }
 .reg-table tbody tr { height: 2.15rem; }
-.reg-table .r-no { width: 2.2rem; } .reg-table .r-name { width: 12%; } .reg-table .r-sex { width: 8.5rem; } .reg-table .r-age { width: 3rem; }
-.reg-table .r-nrc { width: 9%; } .reg-table .r-phone { width: 9%; } .reg-table .r-yn { width: 4.2rem; } .reg-table .r-place { width: 11%; } .reg-table .r-sign { width: auto; }
+.reg-table .r-no { width: 2.2rem; } .reg-table .r-name { width: 11%; } .reg-table .r-sex { width: 8.5rem; } .reg-table .r-age { width: 3rem; }
+.reg-table .r-nrc { width: 9%; } .reg-table .r-phone { width: 9%; } .reg-table .r-yn { width: 4.2rem; } .reg-table .r-conf { width: 4.6rem; } .reg-table .r-place { width: 11%; } .reg-table .r-sign { width: auto; }
 .reg-n { text-align: right; color: #555; }
 .reg-id { white-space: nowrap; font-size: .92em; letter-spacing: -.01em; }
 .reg-sexkey { display: grid; grid-template-columns: repeat(4, 1fr); font-weight: 400; font-size: .62rem; margin-top: .1rem; text-align: center; }
@@ -413,7 +413,8 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
 .reg-boxes span.on { background: #111; }
 .reg-box { display: inline-grid; place-items: center; font-size: .8rem; line-height: 1; font-weight: 700; }
 .reg-box.yes { color: #111; } .reg-box.no { color: #8a1c1c; }
-.reg-table td:nth-child(10) { text-align: center; }
+.reg-table td:nth-child(11) { text-align: center; }
+.reg-conf { font-weight: 700; }
 .reg-foot { display: flex; flex-wrap: wrap; gap: .5rem 2rem; align-items: flex-end; font-size: .8rem; margin-top: .6rem; }
 .reg-ref { margin-left: auto; font-size: .7rem; color: #555; }
 @media print {
