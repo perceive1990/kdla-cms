@@ -754,3 +754,4 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 .contrib-head { margin-bottom: .25rem; }
 .reg-code { font-weight: 700; font-size: 1rem; color: #111; letter-spacing: .03em; text-align: right; }
 .contrib-planned { border-left-color: var(--bs-border-color); }
+.import-box { border: 1px dashed var(--bs-border-color); border-radius: .5rem; padding: .75rem; background: var(--bs-tertiary-bg); }
