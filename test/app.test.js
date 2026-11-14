@@ -2045,3 +2045,39 @@ test('a register file imported while writing a report adds its people to the rep
   assert.match(r.text, /No one on this register could be imported \(1 line read\)/);
   assert.strictEqual(await db().count('reports'), count);
 });
+
+test('the Registers page lists each register with what is still to do', async () => {
+  const a = ctx.admin;
+  for (const [id, firstName] of [['regp-1', 'Alice'], ['regp-2', 'Bwalya']]) {
+    await db().create('people', {
+      id, kind: 'attendee', firstName, lastName: 'Regpage', nrc: '', contact: '', location: 'Regpageville', ageCategory: 'Woman', createdAt: '2039-01-01T00:00:00Z', updatedAt: '2039-01-01T00:00:00Z',
+    });
+  }
+  let r = await a.post('/workplans', { title: 'Registers plan', periodStart: '2039-07-01', periodEnd: '2039-09-30', office: 'Kakolo Office', currency: 'ZMW' }, '/workplans/new');
+  const planId = r.location.split('/')[2];
+  await a.post(`/workplans/${planId}/activities`, { title: 'Regpage forum', status: 'Not started' }, `/workplans/${planId}/activities/new`);
+  const itemId = (await db().get('workplans', planId)).items[0].id;
+  await a.post(`/workplans/${planId}/activities/${itemId}/shortlist/import`, { areas: 'Regpageville' }, `/workplans/${planId}/activities/${itemId}/shortlist`);
+  r = await a.req('/');
+  assert.match(r.text, /href="\/registers"/, 'Registers is in the menu');
+  r = await a.req('/registers?office=Kakolo+Office');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /REG-KAK-3907-A01/);
+  assert.match(r.text, /2 invited/);
+  assert.match(r.text, /Report not written/);
+  assert.ok(r.text.includes(`/reports/new?workplanItem=${planId}:${itemId}&amp;names=invited`));
+  r = await a.req(`/reports/new?workplanItem=${planId}:${itemId}&names=invited`);
+  assert.match(r.text, /value="regp-1" id="attendeeIds-\d+" checked/);
+  assert.match(r.text, /value="regp-2" id="attendeeIds-\d+" checked/);
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Regpage forum held', date: '2039-07-15', introduction: 'I', objectives: 'O', implementation: 'Im', office: 'Kakolo Office',
+    compiledById: await userId('admin'), workplanItem: `${planId}:${itemId}`, attendeeIds: ['regp-1', 'regp-2'],
+  }, '/reports/new');
+  const repId = r.location.split('/')[2];
+  r = await a.req('/registers?office=Kakolo+Office&q=regpage');
+  assert.match(r.text, /Names to confirm and scans to upload/);
+  assert.match(r.text, /2 attended · 0 scans/);
+  assert.ok(r.text.includes(`/reports/${repId}/attendance">`));
+  r = await a.req('/registers?office=Kakolo+Office&step=Approved&q=regpage');
+  assert.match(r.text, /No registers match/);
+});

@@ -1,0 +1,79 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div><h1>Registers</h1><p class="sub">Print each activity's register, put the names in its report, upload the signed scans and follow the approval</p></div>
+  <div class="d-flex gap-2"><a class="btn btn-outline-secondary" href="/people/attendees/import"><i class="bi bi-upload" aria-hidden="true"></i> Import a register into attendees</a></div>
+</div>
+<form class="filters" method="get" action="/registers" role="search">
+  <input class="form-control grow" type="search" name="q" value="<%= q.q %>" placeholder="Search activity or register reference" aria-label="Search registers">
+  <select class="form-select" name="step" aria-label="Stage" data-autosubmit>
+    <% for (const [v, l] of STEP_FILTERS) { %><option value="<%= v %>"<%= q.step === v ? ' selected' : '' %>><%= l %></option><% } %>
+  </select>
+  <select class="form-select" name="office" aria-label="Office" data-autosubmit>
+    <option value="">All offices</option>
+    <% for (const s of choices.offices) { %><option<%= q.office === s ? ' selected' : '' %>><%= s %></option><% } %>
+  </select>
+  <label class="form-check small mb-0"><input class="form-check-input" type="checkbox" name="closed" value="1"<%= q.closed ? ' checked' : '' %> data-autosubmit> Include closed plans</label>
+  <button class="btn btn-outline-primary" type="submit">Filter</button>
+</form>
+
+<ol class="reg-steps small text-body-secondary">
+  <li><strong>Print</strong> the register, with the invite list, before the activity.</li>
+  <li><strong>Put the names in the report</strong>: write the report with the invite list ticked, or import a typed register.</li>
+  <li><strong>Confirm who came and upload the signed scans</strong> on the attendance page, then submit.</li>
+  <li>An administrator <strong>approves</strong> it against the scans; only then it counts.</li>
+</ol>
+
+<% if (!rows.length && !looseRows.length) { %>
+  <div class="empty"><i class="bi bi-person-lines-fill" aria-hidden="true"></i><p class="mb-0">No registers match. Change the filters, or choose "All".</p></div>
+<% } else { %>
+<div class="table-wrap">
+  <table class="table reg-list align-middle">
+    <thead><tr><th>Register</th><th>Activity</th><th>Invited</th><th>Sessions and stage</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    <% for (const r of rows) { const base = `/workplans/${r.plan.id}/activities/${r.item.id}`; const resp = users[r.item.responsibleId]; %>
+      <tr>
+        <td class="nowrap"><strong><%= r.code %></strong><div class="small text-body-secondary"><%= r.plan.office || 'No office' %></div></td>
+        <td>
+          <div class="cell-strong"><%= Number.isInteger(r.item.number) ? r.item.number + '. ' : '' %><%= r.item.title %></div>
+          <div class="small text-body-secondary"><%= [r.item.startDate ? h.fmtDate(r.item.startDate) : '', r.item.venue, resp ? resp.fullName || resp.username : ''].filter(Boolean).join(' · ') %></div>
+          <div class="small"><a href="/workplans/<%= r.plan.id %>#act-<%= r.item.id %>"><%= r.plan.title %></a></div>
+        </td>
+        <td class="nowrap"><% if (r.invited) { %><a href="<%= base %>/shortlist"><%= r.invited %> invited</a><div class="small text-body-secondary"><%= r.confirmed %> confirmed</div><% } else { %><a class="small" href="<%= base %>/shortlist">Make the invite list</a><% } %></td>
+        <td>
+          <% if (!r.sessions.length) { %><span class="tag <%= STEPS.none.cls %>"><%= STEPS.none.label %></span><% } %>
+          <% for (const s of r.sessions) { const st = STEPS[s.status]; %>
+            <div class="reg-session"><a href="/reports/<%= s.id %>/attendance"><%= s.date ? h.fmtDate(s.date) : s.heading %></a> <span class="tag <%= st.cls %>"><%= st.label %></span> <span class="small text-body-secondary"><%= s.attended %> attended · <%= s.scans %> scan<%= s.scans === 1 ? '' : 's' %></span></div>
+          <% } %>
+        </td>
+        <td class="text-end">
+          <div class="d-flex flex-wrap justify-content-end gap-1">
+            <a class="btn btn-sm btn-outline-secondary" href="<%= base %>/register"><i class="bi bi-printer" aria-hidden="true"></i> Print<span class="visually-hidden"> register <%= r.code %></span></a>
+            <% if (r.canReport) { %><a class="btn btn-sm btn-primary" href="/reports/new?workplanItem=<%= r.plan.id %>:<%= r.item.id %>&amp;names=invited"><i class="bi bi-journal-plus" aria-hidden="true"></i> <%= r.sessions.length ? 'Report another session' : 'Write report with the names' %><span class="visually-hidden"> for <%= r.item.title %></span></a><% } %>
+            <% const open = r.sessions.find((s) => ['Draft', 'Returned'].includes(s.status)); if (open) { %><a class="btn btn-sm btn-outline-primary" href="/reports/<%= open.id %>/attendance"><i class="bi bi-person-check" aria-hidden="true"></i> Confirm names and upload scans</a><% } %>
+          </div>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% if (looseRows.length) { %>
+<h2 class="h6 mt-4">Activity reports outside a work plan</h2>
+<div class="table-wrap">
+  <table class="table reg-list align-middle">
+    <thead><tr><th>Register</th><th>Report</th><th>Stage</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    <% for (const s of looseRows) { const st = STEPS[s.status]; %>
+      <tr>
+        <td class="nowrap"><strong><%= s.code %></strong><div class="small text-body-secondary"><%= s.office || '' %></div></td>
+        <td><a href="/reports/<%= s.id %>"><%= s.heading %></a><div class="small text-body-secondary"><%= s.date ? h.fmtDate(s.date) : '' %></div></td>
+        <td><span class="tag <%= st.cls %>"><%= st.label %></span> <span class="small text-body-secondary"><%= s.attended %> attended · <%= s.scans %> scan<%= s.scans === 1 ? '' : 's' %></span></td>
+        <td class="text-end"><div class="d-flex flex-wrap justify-content-end gap-1"><a class="btn btn-sm btn-outline-secondary" href="/reports/<%= s.id %>/register"><i class="bi bi-printer" aria-hidden="true"></i> Print</a><a class="btn btn-sm btn-outline-primary" href="/reports/<%= s.id %>/attendance"><i class="bi bi-person-check" aria-hidden="true"></i> Attendance</a></div></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<% } %>
+<%- include('partials/footer') %>
