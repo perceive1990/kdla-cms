@@ -1970,6 +1970,38 @@ test('programme staff, indicator results from reports, funding link and activity
   assert.match(r.text, /activity costs ZMW 1,800/);
   r = await a.req(`${base}/payments/print`);
   assert.ok(!r.text.includes('Hall, 2 days') && !r.text.includes('1,800') && !r.text.includes('Stationery'), 'activity costs are not on the form attendees sign');
+
+  // ...they print on a form of their own, which the person responsible signs
+  r = await a.req(`${base}/payments`);
+  assert.strictEqual(r.text.split(`href="${base}/payments/activity-costs/print"`).length - 1, 2, 'printed from the top of the page and under the costs');
+  r = await a.req(`${base}/payments/activity-costs/print`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /<h2>Activity costs form<\/h2>/);
+  assert.match(r.text, /<td>Venue<\/td><td>Hall, 2 days<\/td><td class="text-end nowrap">1,500\.00<\/td>/);
+  assert.match(r.text, /<td>Stationery<\/td><td><\/td><td class="text-end nowrap">300\.00<\/td>/);
+  assert.match(r.text, /Total<\/th><th class="text-end nowrap">1,800\.00<\/th>/);
+  assert.match(r.text, /Received by: Programme Officer/);
+  assert.ok(!r.text.includes('Conference package'), 'costs left blank are not printed');
+  // A read-only user can print it too
+  await createUser(db(), { username: 'viewer2', password: 'viewer2-password-1', fullName: 'Board Member', office: 'Kitwe Main Office', role: 'viewer' });
+  const v = new Client();
+  await v.login('viewer2', 'viewer2-password-1');
+  r = await v.req(`${base}/payments/activity-costs/print`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /1,800\.00/);
+  // A report on the planned activity prints the costs prepared on the plan until it saves its own
+  r = await a.req(`/reports/${repId}/payments`);
+  assert.ok(r.text.includes(`href="/reports/${repId}/payments/activity-costs/print"`));
+  r = await a.req(`/reports/${repId}/payments/activity-costs/print`);
+  assert.match(r.text, /Hall, 2 days/);
+  assert.match(r.text, /Received by: Programme Officer/);
+  // Without activity costs there is no button, and the form says where to enter them
+  r = await a.req(`/reports/${kakolo.id}/payments`);
+  assert.ok(!r.text.includes('/payments/activity-costs/print'), 'nothing to print yet');
+  r = await a.req(`/reports/${kakolo.id}/payments/activity-costs/print`);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.text, /No activity costs are recorded for this activity yet/);
+  assert.ok(!r.text.includes('data-print'), 'no print button on an empty form');
 });
 
 test('the person responsible writes how the activity contributes to the logframe', async () => {
@@ -2080,4 +2112,30 @@ test('the Registers page lists each register with what is still to do', async ()
   assert.ok(r.text.includes(`/reports/${repId}/attendance">`));
   r = await a.req('/registers?office=Kakolo+Office&step=Approved&q=regpage');
   assert.match(r.text, /No registers match/);
+});
+
+test('look and feel: the typeface, the login screen and drawing activities for a plan without a project', async () => {
+  const c = new Client();
+  // The typeface is served by the system itself, without logging in
+  let r = await c.req('/vendor/fonts/source-sans-3/source-sans-3-latin-wght-normal.woff2');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('content-type') || '', /font\/woff2/);
+  r = await c.req('/static/images/zambia.svg');
+  assert.strictEqual(r.status, 200);
+  // The login screen shows the map of Zambia beside the form
+  r = await c.req('/login');
+  assert.match(r.text, /class="auth-brand"/);
+  assert.match(r.text, /Land is Life/);
+  assert.match(r.text, /name="username"/);
+  const a = ctx.admin;
+  r = await a.req('/');
+  assert.match(r.text, /class="avatar"/, 'the account menu shows initials');
+  assert.match(r.text, /class="stat-icon"/, 'dashboard figures carry icons');
+  // A plan for no particular project offers the projects whose logframe it can draw from (it used to fail)
+  await db().create('workplans', {
+    id: 'plan-noproj', title: 'Plan without a project', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW', status: 'Draft', items: [],
+  });
+  r = await a.req('/workplans/plan-noproj/from-logframe');
+  assert.ok([200, 302].includes(r.status), `from-logframe answered ${r.status}`);
+  if (r.status === 200) assert.match(r.text, /Add activities from the logframe/);
 });

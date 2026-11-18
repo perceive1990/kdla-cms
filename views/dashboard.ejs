@@ -16,10 +16,10 @@
 <% } %>
 
 <div class="row g-3 mb-3">
-  <div class="col-6 col-lg-3"><a class="stat" href="/cases?officer=me&status=open"><div class="label">My open cases</div><div class="value"><%= stats.mine %></div></a></div>
-  <div class="col-6 col-lg-3"><a class="stat<%= stats.overdue ? ' alert-stat' : '' %>" href="/tasks"><div class="label">My overdue tasks</div><div class="value"><%= stats.overdue %></div></a></div>
-  <div class="col-6 col-lg-3"><a class="stat" href="/cases?status=open"><div class="label">All open cases</div><div class="value"><%= stats.open %></div></a></div>
-  <div class="col-6 col-lg-3"><a class="stat" href="/referrals?followUp=Needs+follow+up"><div class="label">Referrals needing follow up</div><div class="value"><%= stats.openReferrals %></div></a></div>
+  <div class="col-6 col-lg-3"><a class="stat" href="/cases?officer=me&status=open"><span class="stat-icon" aria-hidden="true"><i class="bi bi-folder2-open"></i></span><div class="label">My open cases</div><div class="value"><%= stats.mine %></div></a></div>
+  <div class="col-6 col-lg-3"><a class="stat<%= stats.overdue ? ' alert-stat' : '' %>" href="/tasks"><span class="stat-icon" aria-hidden="true"><i class="bi bi-alarm"></i></span><div class="label">My overdue tasks</div><div class="value"><%= stats.overdue %></div></a></div>
+  <div class="col-6 col-lg-3"><a class="stat" href="/cases?status=open"><span class="stat-icon" aria-hidden="true"><i class="bi bi-briefcase"></i></span><div class="label">All open cases</div><div class="value"><%= stats.open %></div></a></div>
+  <div class="col-6 col-lg-3"><a class="stat" href="/referrals?followUp=Needs+follow+up"><span class="stat-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span><div class="label">Referrals needing follow up</div><div class="value"><%= stats.openReferrals %></div></a></div>
 </div>
 
 <div class="row g-3">
@@ -75,7 +75,7 @@
         <div class="empty"><i class="bi bi-folder2-open"></i>No cases yet. <a href="/cases/new">Open the first case</a>.</div>
       <% } else { %>
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
+        <table class="table table-hover align-middle dash-cases">
           <thead><tr><th>Case</th><th>Client</th><th>Status</th><th class="d-none d-md-table-cell">Officer</th><th class="d-none d-md-table-cell">Updated</th></tr></thead>
           <tbody>
           <% for (const c of recent) { %>
