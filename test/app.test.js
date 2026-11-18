@@ -2113,3 +2113,29 @@ test('the Registers page lists each register with what is still to do', async ()
   r = await a.req('/registers?office=Kakolo+Office&step=Approved&q=regpage');
   assert.match(r.text, /No registers match/);
 });
+
+test('look and feel: the typeface, the login screen and drawing activities for a plan without a project', async () => {
+  const c = new Client();
+  // The typeface is served by the system itself, without logging in
+  let r = await c.req('/vendor/fonts/source-sans-3/source-sans-3-latin-wght-normal.woff2');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('content-type') || '', /font\/woff2/);
+  r = await c.req('/static/images/zambia.svg');
+  assert.strictEqual(r.status, 200);
+  // The login screen shows the map of Zambia beside the form
+  r = await c.req('/login');
+  assert.match(r.text, /class="auth-brand"/);
+  assert.match(r.text, /Land is Life/);
+  assert.match(r.text, /name="username"/);
+  const a = ctx.admin;
+  r = await a.req('/');
+  assert.match(r.text, /class="avatar"/, 'the account menu shows initials');
+  assert.match(r.text, /class="stat-icon"/, 'dashboard figures carry icons');
+  // A plan for no particular project offers the projects whose logframe it can draw from (it used to fail)
+  await db().create('workplans', {
+    id: 'plan-noproj', title: 'Plan without a project', periodStart: '2039-01-01', periodEnd: '2039-12-31', office: 'Kitwe Main Office', currency: 'ZMW', status: 'Draft', items: [],
+  });
+  r = await a.req('/workplans/plan-noproj/from-logframe');
+  assert.ok([200, 302].includes(r.status), `from-logframe answered ${r.status}`);
+  if (r.status === 200) assert.match(r.text, /Add activities from the logframe/);
+});

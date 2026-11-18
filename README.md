@@ -46,6 +46,7 @@ These features follow what established legal aid and legal empowerment case mana
 | **Two-step verification** | Codes from Microsoft Authenticator or Google Authenticator, with one-time recovery codes. It can be required for administrators or for everyone, on the web and the API alike. |
 | **Account protection** | Accounts lock for 15 minutes after 5 wrong passwords. Automatic sign out after 60 idle minutes. Changing a password signs out other devices and ends API tokens. |
 | **Themes** | Light, dark or automatic mode, four colours (KDLA green by default), and a larger text option. Each person chooses their own. |
+| **Look and feel** | Pages are white panels on a soft green-grey ground under the KDLA green top bar. Text is set in Source Sans 3, a clear typeface for names, NRC numbers and figures, served by the system itself rather than an outside font service. Statuses show as tinted labels, the dashboard figures carry icons, and the login screen shows the map of Zambia from the logo with "Land is Life". Printouts keep their compact layout. |
 | **Full data export** | Administrators can download all records as JSON for safekeeping. |
 | **Install on a phone** | Staff can add the system to their phone's home screen like an app. |
 
@@ -355,7 +356,7 @@ Each person chooses light, dark or automatic mode, a colour and the text size un
 
 ## Logo
 
-The logo is KDLA's own: Zambia in lime green with K, D, L and A stepping across it, and "Land is Life" underneath. The map is drawn from Natural Earth's public-domain outline of Zambia, so it stays sharp at every size. `public/images/logo.svg` is the full logo (login page), `logo-mark.svg` the map and letters (header, printed documents, letters), and the PNGs (`logo.png`, `logo-mark.png`, `app-*`, `icon-*`, `maskable-*`, `apple-touch-icon.png`) are rendered from them for the app and the phone app icons. Their addresses carry the asset version, so browsers fetch a new logo after each deployment.
+The logo is KDLA's own: Zambia in lime green with K, D, L and A stepping across it, and "Land is Life" underneath. The map is drawn from Natural Earth's public-domain outline of Zambia, so it stays sharp at every size. `public/images/logo.svg` is the full logo (login page), `logo-mark.svg` the map and letters (header, printed documents, letters), `zambia.svg` the map alone (the login screen), and the PNGs (`logo.png`, `logo-mark.png`, `app-*`, `icon-*`, `maskable-*`, `apple-touch-icon.png`) are rendered from them for the app and the phone app icons. Their addresses carry the asset version, so browsers fetch a new logo after each deployment.
 
 ## Changing drop-down options
 

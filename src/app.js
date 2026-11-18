@@ -82,6 +82,7 @@ function createApp() {
   app.use('/vendor/bootstrap', express.static(path.join(ROOT, 'node_modules', 'bootstrap', 'dist'), staticOpts));
   app.use('/vendor/quill', express.static(path.join(ROOT, 'node_modules', 'quill', 'dist'), staticOpts));
   app.use('/vendor/bootstrap-icons', express.static(path.join(ROOT, 'node_modules', 'bootstrap-icons', 'font'), staticOpts));
+  app.use('/vendor/fonts/source-sans-3', express.static(path.join(ROOT, 'node_modules', '@fontsource-variable', 'source-sans-3', 'files'), staticOpts));
 
   app.get('/robots.txt', (req, res) => res.type('text/plain').send('User-agent: *\nDisallow: /\n'));
   app.get('/favicon.ico', (req, res) => res.sendFile(path.join(ROOT, 'public', 'images', 'icon-192.png'), { maxAge: '7d' }));

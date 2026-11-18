@@ -416,7 +416,7 @@ router.post('/:id/delete', async (req, res) => {
 
 // ---------- Planned activities drawn from the logframe ----------
 async function drawPage(req, res, plan, { rowValues = {}, rowErrors = {}, status = 200 } = {}) {
-  const projectId = plan.projectId || str(req.query.project || req.body.project, 60);
+  const projectId = plan.projectId || str(req.query.project || (req.body || {}).project, 60);
   const fw = projectId ? await logframes.getFramework(req.db, projectId) : null;
   const { users } = await lists(req.db);
   if (!fw) {
