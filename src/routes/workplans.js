@@ -243,7 +243,7 @@ router.get('/:id/activities/:itemId/payments', async (req, res) => {
     CURRENCIES: acquittal.CURRENCIES, canEdit: canChange, info,
     urls: {
       crumbs: [{ href: '/workplans', label: 'Work plans' }, { href: `/workplans/${plan.id}#act-${item.id}`, label: plan.title }],
-      action: `${base}/payments`, print: `${base}/payments/print`, people: { href: `${base}/shortlist`, label: 'Invite list' },
+      action: `${base}/payments`, print: `${base}/payments/print`, printCosts: `${base}/payments/activity-costs/print`, people: { href: `${base}/shortlist`, label: 'Invite list' },
     },
     lockedText: `You can view this acquittal. Staff of ${plan.office || 'the plan\'s office'} prepare it while the plan is open.`,
     peopleNote: 'Prepared before the activity for the people on the invite list. When the activity report is written, its payment acquittal starts from this one; tick there who was actually paid.',
@@ -272,6 +272,17 @@ router.get('/:id/activities/:itemId/payments/print', async (req, res) => {
     .sort((x, y) => `${x.person.lastName} ${x.person.firstName}`.localeCompare(`${y.person.lastName} ${y.person.firstName}`));
   res.render('reports/acquittal-print', {
     title: `Payment acquittal: ${item.title}`, acq, lines, sums: t.sums, project, users: await mapByIds(req.db, 'users', [acq.preparedBy].filter(Boolean)),
+    office: plan.office || '', info, urls: { back: `/workplans/${plan.id}/activities/${item.id}/payments` },
+  });
+});
+
+/** The planned activity's costs on a form of their own, for the person responsible to sign on receipt. */
+router.get('/:id/activities/:itemId/payments/activity-costs/print', async (req, res) => {
+  const {
+    plan, item, acq, project, info,
+  } = await itemPayments(req);
+  res.render('reports/activity-costs-print', {
+    title: `Activity costs: ${item.title}`, acq, project, users: await mapByIds(req.db, 'users', [acq.preparedBy, acq.activityCosts.responsibleId].filter(Boolean)),
     office: plan.office || '', info, urls: { back: `/workplans/${plan.id}/activities/${item.id}/payments` },
   });
 });

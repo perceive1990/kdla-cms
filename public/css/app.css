@@ -384,6 +384,30 @@ a.stat:hover { border-color: rgba(var(--accent-text-rgb), .5); color: inherit; }
   .acq-table tbody tr { height: 11mm; break-inside: avoid; }
   .acq-table tfoot { display: table-row-group; }
 }
+/* The acquittal and activity costs forms show as a white sheet on screen, so they read the same in dark mode */
+.acq-doc { --muted: #555; --bs-secondary-color: #555; --bs-body-color: #111; color-scheme: light; background: #fff; color: #111;
+  border: 1px solid var(--line); border-radius: .5rem; padding: 1.25rem 1.5rem; overflow-x: auto; }
+@media print { .acq-doc { border: 0; border-radius: 0; padding: 0; overflow: visible; } }
+/* Activity costs form: one portrait A4 page for the person responsible to sign */
+.act-wrap { border: 0; border-radius: 0; background: transparent; max-width: 48rem; }
+.reg-table.act-table { min-width: 30rem; font-size: .875rem; }
+.reg-table.act-table tbody tr { height: 2.4rem; }
+.act-table .a-cost { width: 30%; } .act-table .a-amount { width: 9rem; }
+.act-table tfoot th { font-size: .875rem; }
+.acq-sign-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 48rem; }
+@media (max-width: 575.98px) {
+  .acq-doc { padding: 1rem; }
+  .reg-table.act-table { min-width: 0; font-size: .8rem; }
+  .act-table .a-cost { width: 28%; } .act-table .a-amount { width: 6.5rem; }
+  .acq-sign, .acq-sign-2 { grid-template-columns: 1fr; gap: 1.5rem; }
+}
+@media print {
+  .act-wrap { max-width: none; }
+  .reg-table.act-table { min-width: 0; font-size: 10pt; }
+  .reg-table.act-table tbody tr { height: 10mm; }
+  .act-table tfoot th { font-size: 10pt; }
+  .acq-sign-2 { max-width: none; gap: 2rem 3rem; margin-top: 2rem; }
+}
 /* Invite lists */
 .sl-areas { max-height: 18rem; overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .4rem .6rem; }
 /* Attendance registers for signing */

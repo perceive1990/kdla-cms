@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+<% const m = (n) => Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+   const who = (id) => (users[id] ? users[id].fullName || users[id].username : '');
+   const ac = acq.activityCosts; const items = ac.items.filter((c) => c.amount !== null); const responsible = who(ac.responsibleId); %>
+<div class="page-head d-print-none">
+  <div>
+    <div class="crumbs"><a href="<%= urls.back %>">Payment acquittal</a></div>
+    <h1>Activity costs form</h1>
+    <p class="sub"><%= items.length %> <%= items.length === 1 ? 'cost' : 'costs' %> · <%= acq.currency %> <%= m(ac.total) %><%= responsible ? ' · ' + responsible : '' %></p>
+  </div>
+  <% if (items.length) { %><button class="btn btn-primary" type="button" data-print><i class="bi bi-printer" aria-hidden="true"></i> Print or save as PDF</button><% } %>
+</div>
+<% if (!items.length) { %>
+  <div class="alert alert-secondary">No activity costs are recorded for this activity yet. Enter them under <a href="<%= urls.back %>#activity-costs">Activity costs</a> on the payment acquittal page and save, then print this form.</div>
+<% } else { %>
+<article class="acq-doc">
+  <header class="ig-head">
+    <img src="/static/images/logo-mark.png?v=<%= assetVersion %>" alt="" width="64" height="56">
+    <div>
+      <h2>Activity costs form</h2>
+      <p><%= config.orgFullName %><%= office ? ' · ' + office : '' %><%= project ? ' · ' + project.title + (project.donor ? ' (' + project.donor + ')' : '') : '' %></p>
+    </div>
+  </header>
+  <div class="reg-info acq-info">
+    <div><span>Activity</span><strong><%= info.title %></strong></div>
+    <div><span>Type of activity</span><%= info.type || '' %></div>
+    <div><span>Date</span><% if (info.date) { %><%= h.fmtDate(info.date) %><% } else { %><span class="reg-line" style="min-width: 8rem"></span><% } %></div>
+    <div><span>Venue</span><%= info.venue || '' %><%= info.district ? ', ' + info.district : '' %></div>
+    <div><span>Person responsible</span><strong><%= responsible %></strong></div>
+  </div>
+  <p class="reg-consent">By signing, I confirm that I received the total below for the costs of running this activity.</p>
+  <div class="table-wrap act-wrap"><table class="reg-table act-table">
+    <thead><tr><th class="r-no">No.</th><th class="a-cost">Cost</th><th>Details</th><th class="a-amount text-end">Amount (<%= acq.currency %>)</th></tr></thead>
+    <tbody>
+    <% items.forEach((c, i) => { %>
+      <tr><td class="reg-n"><%= i + 1 %></td><td><%= c.label %></td><td><%= c.note %></td><td class="text-end nowrap"><%= m(c.amount) %></td></tr>
+    <% }) %>
+    </tbody>
+    <tfoot><tr><th colspan="3" class="text-end">Total</th><th class="text-end nowrap"><%= m(ac.total) %></th></tr></tfoot>
+  </table></div>
+  <section class="acq-sign acq-sign-2">
+    <div><div class="wp-sign-line"></div>Received by: <%= responsible %><div class="wp-p-sub">Person responsible: signature and date</div></div>
+    <div><div class="wp-sign-line"></div>Prepared by: <%= who(acq.preparedBy) %><div class="wp-p-sub">Signature and date</div></div>
+    <div><div class="wp-sign-line"></div>Paid by<div class="wp-p-sub">Name, signature and date</div></div>
+    <div><div class="wp-sign-line"></div>Approved by<div class="wp-p-sub">Name, signature and date</div></div>
+  </section>
+  <footer class="ig-foot"><%= config.appName %> · <%= info.ref %> · printed <%= h.fmtDate(new Date().toISOString().slice(0, 10)) %></footer>
+</article>
+<% } %>
+<%- include('../partials/footer') %>

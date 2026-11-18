@@ -278,7 +278,8 @@ router.get('/:id/payments', async (req, res) => {
     canEdit: await acquittal.canEdit(req, r), info: reportInfo(r),
     urls: {
       crumbs: [{ href: '/reports', label: 'Activity reports' }, { href: `/reports/${r.id}`, label: r.heading }],
-      action: `/reports/${r.id}/payments`, print: `/reports/${r.id}/payments/print`, people: { href: `/reports/${r.id}/attendance`, label: 'Attendance' },
+      action: `/reports/${r.id}/payments`, print: `/reports/${r.id}/payments/print`, printCosts: `/reports/${r.id}/payments/activity-costs/print`,
+      people: { href: `/reports/${r.id}/attendance`, label: 'Attendance' },
     },
     lockedText: 'You can view this acquittal. Staff of the activity\'s office prepare it; once the attendance is approved, only an administrator can change it.',
     peopleNote: 'The list holds the people invited to or recorded at this activity; add walk-ins on the attendance page first.',
@@ -309,6 +310,18 @@ router.get('/:id/payments/print', async (req, res) => {
   const users = await mapByIds(req.db, 'users', [acq.preparedBy, r.compiledById].filter(Boolean));
   res.render('reports/acquittal-print', {
     title: `Payment acquittal: ${r.heading}`, acq, lines, sums: t.sums, project, users, office: await svc.officeOf(req.db, r),
+    info: reportInfo(r), urls: { back: `/reports/${r.id}/payments` },
+  });
+});
+
+/** The activity costs on a form of their own, for the person responsible to sign on receipt. */
+router.get('/:id/payments/activity-costs/print', async (req, res) => {
+  const r = await svc.getReport(req.db, req.params.id);
+  const { acq } = await acquittal.forReport(req.db, r);
+  const project = r.projectId ? await req.db.get('projects', r.projectId) : null;
+  const users = await mapByIds(req.db, 'users', [acq.preparedBy, acq.activityCosts.responsibleId].filter(Boolean));
+  res.render('reports/activity-costs-print', {
+    title: `Activity costs: ${r.heading}`, acq, project, users, office: await svc.officeOf(req.db, r),
     info: reportInfo(r), urls: { back: `/reports/${r.id}/payments` },
   });
 });
