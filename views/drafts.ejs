@@ -1,0 +1,71 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div><h1>Offline drafts</h1><p class="sub">Write activity reports and case notes without internet on this computer. They are sent when the connection returns.</p></div>
+  <div class="d-flex gap-2 align-items-center"><span class="tag" data-net-status role="status" aria-live="polite">Checking connection…</span></div>
+</div>
+
+<div class="drafts" data-drafts data-user="<%= user.id %>" data-default-office="<%= user.office || '' %>">
+  <div class="panel"><div class="panel-body">
+    <div class="form-check form-switch mb-1">
+      <input class="form-check-input" type="checkbox" role="switch" id="offline-switch" data-offline-switch>
+      <label class="form-check-label fw-semibold" for="offline-switch">Use offline drafts on this computer</label>
+    </div>
+    <p class="small text-body-secondary mb-0">Switch on only on a computer you use yourself. The forms on this page are kept on the computer so they open without internet; your drafts stay in this browser until they are sent. No existing case, client or report is stored. Logging out deletes unsent drafts from this computer, so send them first. To open this page offline, open the installed app or this address: <strong>/drafts</strong>.</p>
+    <div class="alert alert-warning small mt-2 mb-0" data-no-storage hidden>This browser does not allow offline storage (for example a private window), so drafts cannot be kept here.</div>
+  </div></div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <button class="btn btn-primary" type="button" data-new-draft="report"><i class="bi bi-journal-plus" aria-hidden="true"></i> New activity report</button>
+    <button class="btn btn-outline-primary" type="button" data-new-draft="note"><i class="bi bi-chat-left-text" aria-hidden="true"></i> New case note</button>
+    <button class="btn btn-outline-secondary ms-auto" type="button" data-send-all hidden><i class="bi bi-cloud-upload" aria-hidden="true"></i> Send all now</button>
+  </div>
+
+  <!-- Activity report draft -->
+  <form class="panel" data-draft-form="report" hidden novalidate>
+    <div class="panel-body row g-3">
+      <h2 class="panel-title col-12">Activity report draft</h2>
+      <div class="col-md-6"><label class="form-label" for="d-heading">Heading *</label><input class="form-control" id="d-heading" name="heading" maxlength="300" required></div>
+      <div class="col-md-3"><label class="form-label" for="d-date">Date of activity *</label><input class="form-control" type="date" id="d-date" name="date" required></div>
+      <div class="col-md-3"><label class="form-label" for="d-type">Activity *</label>
+        <select class="form-select" id="d-type" name="activityType" required><option value="">Choose</option><% for (const a of choices.activities) { %><option><%= a %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label" for="d-office">Office *</label>
+        <select class="form-select" id="d-office" name="office"><% for (const o of offices) { %><option><%= o %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label" for="d-district">District</label>
+        <select class="form-select" id="d-district" name="district"><option value="">Choose</option><% for (const d of choices.districts) { %><option><%= d %></option><% } %></select></div>
+      <div class="col-md-4"><label class="form-label" for="d-location">Venue or community</label><input class="form-control" id="d-location" name="location" maxlength="200"></div>
+      <div class="col-12"><label class="form-label" for="d-plan">Work plan activity</label>
+        <select class="form-select" id="d-plan" name="workplanItem"><option value="">Not from a work plan</option><% for (const o of options) { %><option value="<%= o.value %>"><%= o.label %></option><% } %></select></div>
+      <% for (const [name, label, req] of [['introduction', 'Introduction', true], ['objectives', 'Objectives', true], ['implementation', 'Implementation', true], ['immediateResults', 'Immediate results', false], ['contribution', 'Contribution to the logframe', false], ['challenges', 'Challenges', false], ['recommendations', 'Recommendations', false]]) { %>
+        <div class="col-12"><label class="form-label" for="d-<%= name %>"><%= label %><%= req ? ' *' : '' %></label><textarea class="form-control" id="d-<%= name %>" name="<%= name %>" rows="<%= req ? 4 : 3 %>"></textarea></div>
+      <% } %>
+      <div class="col-12">
+        <label class="form-label" for="d-attendees">Who attended</label>
+        <textarea class="form-control font-monospace small" id="d-attendees" name="attendees" rows="6" placeholder="One person per line: full name, NRC, sex, phone, village or area&#10;Mary Banda, 123456/65/1, F, 0977000000, Chamboli&#10;John Phiri, , M, , Chamboli"></textarea>
+        <div class="form-text">Each line needs at least the full name and sex (F or M). People already registered are matched by NRC when the draft is sent.</div>
+        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="d-adults" name="adults" checked><label class="form-check-label small" for="d-adults">Everyone listed is an adult</label></div>
+      </div>
+      <div class="col-md-4"><label class="form-label" for="d-others">Others not registered by name</label><input class="form-control" type="number" min="0" id="d-others" name="otherParticipants"></div>
+      <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit"><i class="bi bi-save" aria-hidden="true"></i> Save draft</button><button class="btn btn-outline-secondary" type="button" data-cancel-draft>Cancel</button></div>
+    </div>
+  </form>
+
+  <!-- Case note draft -->
+  <form class="panel" data-draft-form="note" hidden novalidate>
+    <div class="panel-body row g-3">
+      <h2 class="panel-title col-12">Case note draft</h2>
+      <div class="col-md-4"><label class="form-label" for="n-case">Case number *</label><input class="form-control" id="n-case" name="caseNumber" maxlength="40" placeholder="KDLA/2026/0012" required></div>
+      <div class="col-md-4"><label class="form-label" for="n-type">Type of entry *</label>
+        <select class="form-select" id="n-type" name="type"><% for (const t of choices.noteTypes) { %><option><%= t %></option><% } %></select></div>
+      <div class="col-md-2"><label class="form-label" for="n-date">Date *</label><input class="form-control" type="date" id="n-date" name="date" required></div>
+      <div class="col-md-2"><label class="form-label" for="n-min">Minutes</label><input class="form-control" type="number" min="0" id="n-min" name="minutes"></div>
+      <div class="col-12"><label class="form-label" for="n-text">Note *</label><textarea class="form-control" id="n-text" name="text" rows="6" maxlength="5000" required></textarea></div>
+      <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit"><i class="bi bi-save" aria-hidden="true"></i> Save draft</button><button class="btn btn-outline-secondary" type="button" data-cancel-draft>Cancel</button></div>
+    </div>
+  </form>
+
+  <div class="panel"><div class="panel-body">
+    <h2 class="panel-title">Drafts on this computer</h2>
+    <div data-draft-list><p class="text-body-secondary mb-0">No drafts.</p></div>
+  </div></div>
+</div>
+<%- include('partials/footer', { draftsPage: true }) %>

@@ -27,7 +27,7 @@ const ROOT = path.join(__dirname, '..');
 /** Short hash of our own CSS/JS (and the Vue screens) so browsers fetch new versions after each deployment. */
 function assetVersion(extra = '') {
   const h = crypto.createHash('sha1');
-  for (const f of ['public/css/app.css', 'public/js/app.js', 'public/js/theme.js', 'src/pwa/sw.js', 'public/manifest.webmanifest', 'public/images/logo.png', 'public/images/logo-mark.png', 'public/images/app-192.png']) {
+  for (const f of ['public/css/app.css', 'public/js/app.js', 'public/js/drafts.js', 'public/js/theme.js', 'src/pwa/sw.js', 'public/manifest.webmanifest', 'public/images/logo.png', 'public/images/logo-mark.png', 'public/images/app-192.png']) {
     try { h.update(fs.readFileSync(path.join(ROOT, f))); } catch (e) { /* optional file */ }
   }
   h.update(extra);
@@ -217,6 +217,7 @@ function createApp() {
   app.use('/rooms', requireLogin, require('./routes/rooms'));
   app.use('/comments', requireLogin, require('./routes/comments'));
   app.use('/registers', requireLogin, require('./routes/registers'));
+  app.use('/drafts', requireLogin, require('./routes/drafts'));
   app.use('/statistics', requireLogin, require('./routes/stats'));
   app.use('/account', requireLogin, require('./routes/account'));
   app.use('/admin', requireLogin, require('./routes/admin'));

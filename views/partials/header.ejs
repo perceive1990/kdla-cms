@@ -10,6 +10,7 @@
   <script src="/static/js/theme.js?v=<%= assetVersion %>"></script>
   <link rel="icon" type="image/png" href="/static/images/app-192.png?v=<%= assetVersion %>">
   <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png?v=<%= assetVersion %>">
+  <% if (user) { %><meta name="kdla-user" content="<%= user.id %>"><% } %>
   <link rel="manifest" href="/static/manifest.webmanifest?v=<%= assetVersion %>">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -52,6 +53,7 @@
         <li><a class="dropdown-item" href="/account/appearance"><i class="bi bi-palette"></i> Appearance</a></li>
         <li><a class="dropdown-item" href="/account/security"><i class="bi bi-shield-lock"></i> Password and security</a></li>
         <li><a class="dropdown-item" href="/account/app"><i class="bi bi-phone"></i> Install the app (phone or computer)</a></li>
+        <li><a class="dropdown-item" href="/drafts"><i class="bi bi-cloud-slash"></i> Offline drafts</a></li>
         <% if (config.api.enabled) { %><li><a class="dropdown-item" href="/account/api"><i class="bi bi-key"></i> API access</a></li><% } %>
         <li><hr class="dropdown-divider"></li>
         <li>
