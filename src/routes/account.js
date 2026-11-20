@@ -34,9 +34,12 @@ router.post('/appearance', async (req, res) => {
   return res.redirect('/account/appearance');
 });
 
-// ---------- Phone app ----------
-router.get('/app', (req, res) => {
-  res.render('account/app', { title: 'Install the phone app' });
+// ---------- Phone and computer app ----------
+router.get('/app', async (req, res) => {
+  // A code to scan with a phone, so staff working at a computer can open the site on their phone to install it.
+  const siteUrl = `${req.protocol}://${req.get('host')}/`;
+  const qr = await QRCode.toString(siteUrl, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
+  res.render('account/app', { title: 'Install the app', siteUrl, qr });
 });
 
 // ---------- Password ----------

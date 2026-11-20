@@ -421,21 +421,30 @@
   var note = document.getElementById('installed-note');
   if (installed && note) note.hidden = false;
 
+  // Chrome and Edge (Android, Windows, Mac, Linux) offer installation through this event; every
+  // "Install app" button and the install panel show only then. Safari on iPhone and Mac uses its own menus.
   var deferred = null;
+  function offer(on) {
+    document.querySelectorAll('[data-install-app], [data-install-offer]').forEach(function (el) {
+      if (el.closest('#install-panel')) return;
+      el.hidden = !on;
+    });
+    if (panel) panel.hidden = !on;
+  }
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferred = e;
-    if (panel && !installed) panel.hidden = false;
+    if (!installed) offer(true);
   });
   window.addEventListener('appinstalled', function () {
     deferred = null;
-    if (panel) panel.hidden = true;
+    offer(false);
     if (note) note.hidden = false;
   });
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-install-app]');
     if (!btn || !deferred) return;
     deferred.prompt();
-    deferred.userChoice.finally(function () { deferred = null; if (panel) panel.hidden = true; });
+    deferred.userChoice.finally(function () { deferred = null; offer(false); });
   });
 })();

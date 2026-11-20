@@ -49,7 +49,7 @@ These features follow what established legal aid and legal empowerment case mana
 | **Look and feel** | Pages are white panels on a soft green-grey ground under the KDLA green top bar. Text is set in Source Sans 3, a clear typeface for names, NRC numbers and figures, served by the system itself rather than an outside font service. Statuses show as tinted labels, the dashboard figures carry icons, and the login screen shows the map of Zambia from the logo with "Land is Life". Printouts keep their compact layout. |
 | **Live screens** | The dashboard, **Cases**, **Tasks and hearings** and **Activity reports** are live screens built with Vue. Lists narrow and sort as you type or choose a filter, without reloading; the search also reads complaint and report text on the server. The filters in use show above each list, each with a button to remove it, and stay in the address bar, so a filtered list can be bookmarked or shared; **Print** and **Export CSV** follow them. Tasks are ticked off in place, with **Undo**, and the overdue count in the menu follows. Activity reports show each report's attendance status and payments, totals for the reports shown and a payments filter, and the CSV export carries the payments too. The dashboard's figures and lists refresh every minute while someone is using it. Without JavaScript every page works as before. |
 | **Full data export** | Administrators can download all records as JSON for safekeeping. |
-| **Install on a phone** | Staff can add the system to their phone's home screen like an app. |
+| **Install on a phone or computer** | Staff can install the system as an app on Android phones, iPhones, and Windows, Mac or Linux computers. An **Install app** button appears at the top of the page (and on the login page) when the browser offers it; **Install the app** in the user menu gives step-by-step instructions for each phone and browser and a QR code to open the site on a phone. |
 
 ## The API
 
@@ -307,7 +307,7 @@ Other commands: `npm run create-admin -- <username> <password> "Full Name"` and 
 
 ## Phone app
 
-Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Reports** (user menu > Install the phone app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
+Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Reports** (the **Install app** button at the top of the page, or user menu > Install the app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
 
 ## Live screens (Vue)
 
