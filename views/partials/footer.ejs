@@ -5,6 +5,7 @@
 <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 <% if (locals.richEditor) { %><script src="/vendor/quill/quill.js"></script><% } %>
 <script src="/static/js/app.js?v=<%= assetVersion %>"></script>
+<% if (locals.draftsPage) { %><script src="/static/js/drafts.js?v=<%= assetVersion %>"></script><% } %>
 <% if (user) { %><script type="module" src="/static/vue/main.js?v=<%= vueHash %>"></script><% } %>
 </body>
 </html>

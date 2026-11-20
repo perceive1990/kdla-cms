@@ -1046,3 +1046,5 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 .dash-cases td, .dash-cases th { padding-left: .6rem; padding-right: .6rem; }
 .install-btn { white-space: nowrap; }
 .install-qr svg { width: 168px; height: 168px; background: #fff; padding: 6px; border-radius: 8px; border: 1px solid var(--line); }
+.draft-item { border-top: 1px solid var(--line); padding: .6rem 0; }
+.draft-item:first-of-type { border-top: 0; }

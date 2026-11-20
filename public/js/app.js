@@ -448,3 +448,83 @@
     deferred.userChoice.finally(function () { deferred = null; offer(false); });
   });
 })();
+
+// ---------- Offline drafts: keep the drafts page fresh, and clear drafts at log out ----------
+(function () {
+  var meta = document.querySelector('meta[name="kdla-user"]');
+  var me = meta ? meta.getAttribute('content') : '';
+  var flag;
+  try { flag = localStorage.getItem('kdla-offline-drafts') || ''; } catch (e) { flag = ''; }
+  var on = me && flag === me;
+  if (on && navigator.onLine && 'serviceWorker' in navigator && !document.querySelector('[data-drafts]')) {
+    var last;
+    try { last = Number(localStorage.getItem('kdla-drafts-kept') || 0); } catch (e) { last = 0; }
+    if (Date.now() - last > 3600000) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg.active) reg.active.postMessage({ type: 'drafts-on' });
+        try { localStorage.setItem('kdla-drafts-kept', String(Date.now())); } catch (e) { /* ignore */ }
+      });
+    }
+  }
+
+  function draftsOf(user) {
+    return new Promise(function (resolve) {
+      if (!window.indexedDB) { resolve([]); return; }
+      var req;
+      try { req = indexedDB.open('kdla-drafts', 1); } catch (e) { resolve([]); return; }
+      req.onupgradeneeded = function () { req.result.createObjectStore('drafts', { keyPath: 'id' }); };
+      req.onerror = function () { resolve([]); };
+      req.onsuccess = function () {
+        var db = req.result;
+        var get = db.transaction('drafts', 'readonly').objectStore('drafts').getAll();
+        get.onsuccess = function () { resolve((get.result || []).filter(function (d) { return d.userId === user; })); };
+        get.onerror = function () { resolve([]); };
+      };
+    });
+  }
+  function wipe(ids) {
+    return new Promise(function (resolve) {
+      var req;
+      try { req = indexedDB.open('kdla-drafts', 1); } catch (e) { resolve(); return; }
+      req.onerror = function () { resolve(); };
+      req.onsuccess = function () {
+        var t = req.result.transaction('drafts', 'readwrite');
+        ids.forEach(function (id) { t.objectStore('drafts').delete(id); });
+        t.oncomplete = resolve; t.onerror = resolve;
+      };
+    });
+  }
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.matches || !form.matches('form[action="/logout"]') || !me || form.getAttribute('data-cleared')) return;
+    e.preventDefault();
+    draftsOf(me).then(function (rows) {
+      if (rows.length && !form.getAttribute('data-confirmed')) {
+        var main = document.getElementById('main');
+        var box = document.getElementById('drafts-logout');
+        if (!box && main) {
+          box = document.createElement('div');
+          box.id = 'drafts-logout';
+          box.className = 'alert alert-warning d-flex flex-wrap align-items-center gap-2';
+          box.setAttribute('role', 'alert');
+          var msg = document.createElement('span');
+          msg.textContent = 'You have ' + rows.length + ' unsent offline draft' + (rows.length === 1 ? '' : 's') + ' on this computer. Logging out deletes ' + (rows.length === 1 ? 'it' : 'them') + '.';
+          var open = document.createElement('a'); open.className = 'btn btn-sm btn-primary'; open.href = '/drafts'; open.textContent = 'Send them first';
+          var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-sm btn-outline-danger'; go.textContent = 'Log out and delete them';
+          go.addEventListener('click', function () { form.setAttribute('data-confirmed', '1'); form.requestSubmit(); });
+          box.appendChild(msg); box.appendChild(open); box.appendChild(go);
+          main.insertBefore(box, main.firstChild);
+          window.scrollTo(0, 0);
+        }
+        return;
+      }
+      wipe(rows.map(function (d) { return d.id; })).then(function () {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({ type: 'drafts-off' });
+        try { localStorage.removeItem('kdla-drafts-kept'); } catch (err) { /* ignore */ }
+        form.setAttribute('data-cleared', '1');
+        form.submit();
+      });
+    });
+  });
+}());

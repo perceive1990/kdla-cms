@@ -2355,3 +2355,69 @@ test('security floor: the file upload and form readers are versions without know
   assert.strictEqual(r.status, 400);
   assert.strictEqual((await db().get('tasks', task.id)).done, false, 'nothing changed');
 });
+
+test('offline drafts: the drafts page holds no records, and drafts sent later are saved once', async () => {
+  const a = ctx.admin;
+  let r = await a.req('/drafts');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('cache-control'), /no-store/);
+  assert.match(r.text, /Use offline drafts on this computer/);
+  assert.match(r.text, /\/static\/js\/drafts\.js/);
+  r = await a.req('/drafts/token');
+  const { csrf, userId: me } = JSON.parse(r.text);
+  assert.ok(csrf && me);
+  const send = (body, token = csrf) => a.req('/drafts/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': token }, body: JSON.stringify(body) });
+
+  // An activity report written offline, with the names of those who attended
+  const report = {
+    kind: 'report', offlineId: 'draft-0001-abcdef',
+    data: {
+      heading: 'Offline drafted meeting', date: '2039-06-01', activityType: 'Community Meeting', office: 'Kitwe Main Office', location: 'Ndeke',
+      introduction: 'First paragraph.\n\nSecond <paragraph>.', objectives: 'O', implementation: 'Im',
+      attendees: 'Offline Mumba, 900401/65/1, F, 0970000401, Ndeke\nOffline Chanda, , M, , Ndeke\nNoname', adults: true, otherParticipants: '3',
+    },
+  };
+  r = await send(report, 'wrong-token');
+  assert.strictEqual(r.status, 403, 'the form token is checked');
+  r = await send(report);
+  assert.strictEqual(r.status, 200, r.text);
+  let out = JSON.parse(r.text);
+  assert.ok(out.ok);
+  assert.match(out.message, /Report "Offline drafted meeting" saved\. Register imported: 2 attendees added/);
+  const saved = await db().get('reports', out.url.split('/')[2]);
+  assert.strictEqual(saved.introduction, '<p>First paragraph.</p><p>Second &lt;paragraph&gt;.</p>');
+  assert.strictEqual(saved.attendeeIds.length, 2);
+  assert.strictEqual(saved.compiledById, me);
+  r = await send(report);
+  out = JSON.parse(r.text);
+  assert.match(out.message, /Already sent/, 'sending again does not make a second report');
+  assert.strictEqual((await db().find('reports', { where: { offlineId: 'draft-0001-abcdef' } })).length, 1);
+
+  // A draft the server cannot accept comes back with the reason, to correct offline
+  r = await send({ kind: 'report', offlineId: 'draft-0002-abcdef', data: { heading: 'No date', activityType: 'Community Meeting', office: 'Kitwe Main Office' } });
+  assert.strictEqual(r.status, 422);
+  assert.ok(JSON.parse(r.text).error);
+
+  // A case note, matched by case number
+  const c = await db().create('cases', {
+    id: 'case-offline', caseNumber: 'KDLA/2039/0777', heading: 'Offline note case', status: 'Open', restricted: false, openedOn: '2026-01-01', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+  });
+  const note = { kind: 'note', offlineId: 'draft-0003-abcdef', data: { caseNumber: c.caseNumber.toLowerCase(), type: 'Field visit', date: '2026-01-05', minutes: '30', text: 'Visited the plot offline.' } };
+  r = await send(note);
+  assert.strictEqual(r.status, 200, r.text);
+  assert.match(JSON.parse(r.text).message, new RegExp(`Note added to the diary of ${c.caseNumber.replace(/\//g, '\\/')}`));
+  await send(note);
+  assert.strictEqual((await db().find('caseNotes', { where: { caseId: c.id, offlineId: 'draft-0003-abcdef' } })).length, 1);
+  r = await send({ kind: 'note', offlineId: 'draft-0004-abcdef', data: { caseNumber: 'KDLA/1999/9999', type: 'Field visit', date: '2026-01-05', text: 'x' } });
+  assert.strictEqual(r.status, 422);
+  assert.match(JSON.parse(r.text).error, /No case has the number KDLA\/1999\/9999/);
+
+  // Signed out: the token is refused, so the drafts wait on the computer
+  r = await new Client().req('/drafts/token');
+  assert.notStrictEqual(r.status, 200);
+
+  // The service worker keeps the drafts page only when asked, and never other pages
+  const sw = await (await fetch(`${base}/sw.js`)).text();
+  assert.match(sw, /drafts-on/);
+  assert.match(sw, /k !== SHELL/);
+});
