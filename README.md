@@ -47,6 +47,7 @@ These features follow what established legal aid and legal empowerment case mana
 | **Account protection** | Accounts lock for 15 minutes after 5 wrong passwords. Automatic sign out after 60 idle minutes. Changing a password signs out other devices and ends API tokens. |
 | **Themes** | Light, dark or automatic mode, four colours (KDLA green by default), and a larger text option. Each person chooses their own. |
 | **Look and feel** | Pages are white panels on a soft green-grey ground under the KDLA green top bar. Text is set in Source Sans 3, a clear typeface for names, NRC numbers and figures, served by the system itself rather than an outside font service. Statuses show as tinted labels, the dashboard figures carry icons, and the login screen shows the map of Zambia from the logo with "Land is Life". Printouts keep their compact layout. |
+| **Live screens** | The dashboard, **Cases**, **Tasks and hearings** and **Activity reports** are live screens built with Vue. Lists narrow and sort as you type or choose a filter, without reloading; the search also reads complaint and report text on the server. The filters in use show above each list, each with a button to remove it, and stay in the address bar, so a filtered list can be bookmarked or shared; **Print** and **Export CSV** follow them. Tasks are ticked off in place, with **Undo**, and the overdue count in the menu follows. Activity reports show each report's attendance status and payments, totals for the reports shown and a payments filter, and the CSV export carries the payments too. The dashboard's figures and lists refresh every minute while someone is using it. Without JavaScript every page works as before. |
 | **Full data export** | Administrators can download all records as JSON for safekeeping. |
 | **Install on a phone** | Staff can add the system to their phone's home screen like an app. |
 
@@ -308,6 +309,16 @@ Other commands: `npm run create-admin -- <username> <password> "Full Name"` and 
 
 Staff can install the system on Android phones, iPhones and computers as an app called **KDLA Reports** (user menu > Install the phone app). It is a progressive web app: the same site, login and data, with its own home screen icon and full screen window, at no cost and without an app store. It needs internet. The service worker (`src/pwa/sw.js`, served at `/sw.js`) keeps only design files on the device and never stores pages, files or API answers, so client data does not stay on a lost phone. Without a connection it shows `/offline`.
 
+## Live screens (Vue)
+
+The dashboard, Cases, Tasks and hearings and Activity reports run as live screens built with [Vue](https://vuejs.org). The server still draws each page as before. The parts that become live carry `data-vue` (which screen) and `data-src` (where its data comes from), and `client/main.js` swaps each one for its Vue screen once that data has arrived. If anything fails (an old browser, no connection, an error), the server's version stays and works as it always did, so nothing depends on the live screens.
+
+* **No build step.** The browser code lives in `client/`: one `.vue` file per screen or part (`client/screens/`, `client/components/`) and small helpers (`client/lib/`). When the app starts, `src/vue-screens.js` compiles them with Vue's own compiler and serves them from `/static/vue/`, with a version in every import, so browsers and the phone app load new code after each deployment. A screen that does not compile stops the app starting and fails the tests, rather than failing in someone's browser.
+* **Security rules unchanged.** Templates are compiled on the server, so browsers run Vue's runtime-only build (served from `node_modules` at `/vendor/vue/`) and the content security policy still allows scripts from this site only, with no `eval`.
+* **The same data rules.** Each live list reads JSON from its own page's address plus `/data` (`/cases/data`, `/tasks/data`, `/reports/data`, `/dashboard/data`), behind the same login and with the same rules: confidential cases stay hidden from staff outside the case, and read-only users see everything but the buttons that change records. Searches with `?q=` are answered on the server, which reads the long text (a case's complaint, a report's introduction and objectives) that is not sent to the browser. Lists filter by the same rules as the server, so the list on screen, its printout and its CSV export always match.
+* **Automatic sign-out still works.** The dashboard asks for fresh figures only while the page is open and in use; left alone for three minutes it stops, so the idle sign-out happens as before.
+* **Writing a screen.** Use `<script setup>`, import only from `vue` or from files in `client/`, and put styles in `public/css/app.css` (a `<style>` block is refused). The browser helpers are checked by the linter.
+
 ## Appearance
 
 ### Filtering beneficiaries by community
@@ -416,6 +427,7 @@ src/totp.js             two-step verification codes
 src/theme.js            appearance options
 src/choices.js          drop-down options
 views/                  EJS page templates
+client/                 live screens (Vue): .vue files and browser helpers, compiled by src/vue-screens.js at start-up
 public/                 CSS, JavaScript, logo (logo.svg, logo-mark.svg and PNGs), app icons
 scripts/                create-admin, init-db, seed-demo, package (builds the deployment zip)
 infra/provision.sh      Azure setup script

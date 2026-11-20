@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const config = require('../config');
 const choices = require('../choices');
 const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
@@ -10,7 +11,7 @@ const { HttpError } = require('../services/errors');
 const rich = require('../richtext');
 const { saveUploads } = require('../services/attachments');
 const {
-  mapByIds, pagination, toCsv, sendCsv, fullName, tally, today, str,
+  mapByIds, pagination, toCsv, sendCsv, fullName, tally, today, str, fmtDate,
 } = require('../helpers');
 
 const router = express.Router();
@@ -87,8 +88,77 @@ router.get('/', async (req, res) => {
   res.render('reports/list', { title: 'Activity reports', reports, users, pg });
 });
 
+// What working out a report's payments needs (services/acquittal.js summaries).
+const PAY_FIELDS = ['id', 'date', 'attendeeIds', 'claimedIds', 'workplanId', 'workplanItemId', 'acquittal'];
+
+// Data for the live (Vue) list of activity reports: every report in light form with its attendance status and
+// payment totals, so searching, filtering and sorting happen in the browser. With ?q= it answers which reports
+// match the search on the server instead (the same search as the list and the CSV export, which reads the text
+// of the reports too).
+router.get('/data', async (req, res) => {
+  const term = str(req.query.q, 80);
+  if (term) {
+    const hits = await req.db.find('reports', { ...svc.reportQuery({ q: term }), fields: ['id'] });
+    return res.json({ q: term, ids: hits.map((r) => r.id) });
+  }
+  const [reports, users, projects, plans] = await Promise.all([
+    req.db.find('reports', {
+      fields: ['id', 'date', 'heading', 'activityNumber', 'activityType', 'office', 'district', 'location', 'attendeeIds', 'claimedIds', 'otherParticipants',
+        'compiledById', 'attendanceStatus', 'projectId', 'workplanId', 'workplanItemId', 'acquittal'],
+      orderBy: ['date', 'DESC'],
+    }),
+    req.db.find('users', { fields: ['id', 'fullName', 'username'] }),
+    req.db.find('projects', { fields: ['id', 'title'] }),
+    req.db.find('workplans', { fields: ['id', 'title'] }),
+  ]);
+  const names = Object.fromEntries(users.map((u) => [u.id, u.fullName || u.username]));
+  const money = await acquittal.summaries(req.db, reports);
+  const TONE = {
+    Draft: 'tag-muted', Submitted: 'tag-warn', Returned: 'tag-danger', Approved: 'tag-done',
+  };
+  return res.json({
+    pageSize: config.pageSize,
+    lists: {
+      activities: choices.activities,
+      offices: choices.offices,
+      districts: choices.districts,
+      attendance: attStatus.STATUSES.map((s) => [s, attStatus.LABEL[s]]),
+    },
+    projects: Object.fromEntries(projects.map((p) => [p.id, p.title])),
+    plans: Object.fromEntries(plans.map((p) => [p.id, p.title])),
+    reports: reports.map((r) => {
+      const status = attStatus.statusOf(r);
+      return {
+        id: r.id,
+        date: r.date || '',
+        dateLabel: fmtDate(r.date),
+        heading: r.heading,
+        number: Number.isInteger(r.activityNumber) ? r.activityNumber : null,
+        activity: r.activityType || '',
+        office: r.office || '',
+        district: r.district || '',
+        venue: r.location || '',
+        attendees: (r.attendeeIds || []).length + (r.otherParticipants || 0),
+        compiledBy: names[r.compiledById] || '',
+        attendance: status,
+        attendanceLabel: attStatus.LABEL[status],
+        attendanceTone: TONE[status],
+        projectId: r.projectId || '',
+        workplanId: r.workplanId || '',
+        pay: money[r.id],
+      };
+    }),
+  });
+});
+
 router.get('/export.csv', async (req, res) => {
-  const reports = await req.db.find('reports', { ...svc.reportQuery(req.query), orderBy: ['date', 'ASC'] });
+  let reports = await req.db.find('reports', { ...svc.reportQuery(req.query), orderBy: ['date', 'ASC'] });
+  // Payments as on each report's payment acquittal page (worked out against every report, for the other sessions of
+  // a planned activity), and the list's payments filter.
+  const money = await acquittal.summaries(req.db, await req.db.find('reports', { fields: PAY_FIELDS }));
+  if (req.query.pay === 'yes') reports = reports.filter((r) => money[r.id]);
+  if (req.query.pay === 'none') reports = reports.filter((r) => !money[r.id]);
+  const pay = (key) => (r) => (money[r.id] ? money[r.id][key] : '');
   const users = await mapByIds(req.db, 'users', reports.map((r) => r.compiledById));
   const att = await mapByIds(req.db, 'people', reports.flatMap((r) => r.attendeeIds || []));
   const orgs = await mapByIds(req.db, 'stakeholders', reports.flatMap((r) => r.partnerIds || []));
@@ -110,6 +180,13 @@ router.get('/export.csv', async (req, res) => {
     { label: 'Immediate results', value: (r) => rich.toText(r.immediateResults) },
     { label: 'Contribution to the logframe', value: (r) => rich.toText(r.contribution) },
     { label: 'Compiled by', value: (r) => (users[r.compiledById] ? users[r.compiledById].fullName || users[r.compiledById].username : '') },
+    { label: 'Attendance', value: (r) => attStatus.LABEL[attStatus.statusOf(r)] },
+    { label: 'Payments currency', value: pay('currency') },
+    { label: 'Payments to attendees', value: pay('attendees') },
+    { label: 'People paid', value: pay('people') },
+    { label: 'Activity costs', value: pay('activity') },
+    { label: 'Payments total', value: pay('total') },
+    { label: 'Payments from the work plan', value: (r) => (money[r.id] ? (money[r.id].fromPlan ? 'Yes' : 'No') : '') },
   ], reports);
   audit(req, 'export', 'reports', null, `Exported ${reports.length} reports to CSV`);
   sendCsv(res, `activity-reports-${today()}.csv`, csv);

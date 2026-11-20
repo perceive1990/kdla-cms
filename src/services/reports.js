@@ -116,7 +116,9 @@ function reportQuery(params = {}) {
   if (choices.activities.includes(params.activityType)) where.activityType = params.activityType;
   if (params.projectId) where.projectId = String(params.projectId).slice(0, 60);
   if (choices.offices.includes(params.office)) where.office = params.office;
-  if (['Draft', 'Submitted', 'Returned', 'Approved'].includes(params.attendance)) where.attendanceStatus = params.attendance;
+  // Reports written before attendance approval existed have no status and count as approved (attendance-status.js).
+  if (params.attendance === 'Approved') where.$or = [{ attendanceStatus: 'Approved' }, { attendanceStatus: null }];
+  else if (['Draft', 'Submitted', 'Returned'].includes(params.attendance)) where.attendanceStatus = params.attendance;
   if (params.workplanId) where.workplanId = String(params.workplanId).slice(0, 60);
   if (isRealDate(params.from)) where.date = { $gte: params.from };
   if (isRealDate(params.to)) where.date = { ...(where.date || {}), $lte: params.to };

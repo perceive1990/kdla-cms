@@ -1,5 +1,6 @@
 <%- include('../partials/header', { printLandscape: true }) %>
 <% const uname = (id) => usersById[id] ? (usersById[id].fullName || usersById[id].username) : 'Former user'; %>
+<div data-vue="tasks" data-src="/tasks/data?<%= new URLSearchParams({ who, show }).toString() %>">
 <div class="page-head">
   <div><h1>Tasks and hearings</h1><p class="sub">Deadlines, court hearings, mediation sessions and follow ups</p></div>
   <div class="d-flex gap-2">
@@ -54,4 +55,5 @@
     <% } %>
   </div></div>
 <% } %>
+</div>
 <%- include('../partials/footer') %>

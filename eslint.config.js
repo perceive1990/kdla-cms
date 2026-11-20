@@ -20,4 +20,9 @@ module.exports = [
     languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
     rules: { 'no-var': 'off', 'prefer-const': 'off' },
   },
+  {
+    // The live screens' browser code: ES modules (the .vue files are checked when the app compiles them).
+    files: ['client/**/*.js'],
+    languageOptions: { sourceType: 'module', globals: { ...globals.browser } },
+  },
 ];

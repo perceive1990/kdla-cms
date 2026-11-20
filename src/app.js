@@ -20,15 +20,17 @@ const { themeOf } = require('./theme');
 const { HttpError } = require('./services/errors');
 const { createApiRouter } = require('./api');
 const { docsPage } = require('./api/docs');
+const { createVueScreens } = require('./vue-screens');
 
 const ROOT = path.join(__dirname, '..');
 
-/** Short hash of our own CSS/JS so browsers fetch new versions after each deployment. */
-function assetVersion() {
+/** Short hash of our own CSS/JS (and the Vue screens) so browsers fetch new versions after each deployment. */
+function assetVersion(extra = '') {
   const h = crypto.createHash('sha1');
   for (const f of ['public/css/app.css', 'public/js/app.js', 'public/js/theme.js', 'src/pwa/sw.js', 'public/manifest.webmanifest', 'public/images/logo.png', 'public/images/logo-mark.png', 'public/images/app-192.png']) {
     try { h.update(fs.readFileSync(path.join(ROOT, f))); } catch (e) { /* optional file */ }
   }
+  h.update(extra);
   return h.digest('hex').slice(0, 10);
 }
 
@@ -39,7 +41,9 @@ function wantsJson(req) {
 function createApp() {
   const db = getDb();
   const app = express();
-  const version = assetVersion();
+  // Live screens built with Vue (client/), compiled now so the page code below can point at their version.
+  const vue = createVueScreens({ watch: !config.isProd, maxAgeSeconds: config.isProd ? 30 * 86400 : 0 });
+  const version = assetVersion(vue.hash);
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(ROOT, 'views'));
@@ -53,7 +57,7 @@ function createApp() {
   app.use((req, res, next) => {
     Object.assign(res.locals, {
       config, choices, h: helpers, f: form, rich, path: req.path, query: req.query, title: '',
-      user: null, flashes: [], csrfToken: '', assetVersion: version, theme: themeOf(null), fundingUrl: config.fundingRequestUrl,
+      user: null, flashes: [], csrfToken: '', assetVersion: version, vueHash: vue.hash, theme: themeOf(null), fundingUrl: config.fundingRequestUrl,
     });
     req.db = db;
     res.setHeader('X-Robots-Tag', 'noindex, nofollow'); // private system: keep out of search engines
@@ -78,7 +82,9 @@ function createApp() {
   app.use(compression());
 
   const staticOpts = { maxAge: config.isProd ? '30d' : 0, immutable: config.isProd };
+  app.use('/static/vue', (req, res, next) => vue.handler(req, res, next));
   app.use('/static', express.static(path.join(ROOT, 'public'), staticOpts));
+  app.get(`/vendor/vue/${path.basename(vue.runtimePath)}`, (req, res) => res.sendFile(vue.runtimePath, staticOpts));
   app.use('/vendor/bootstrap', express.static(path.join(ROOT, 'node_modules', 'bootstrap', 'dist'), staticOpts));
   app.use('/vendor/quill', express.static(path.join(ROOT, 'node_modules', 'quill', 'dist'), staticOpts));
   app.use('/vendor/bootstrap-icons', express.static(path.join(ROOT, 'node_modules', 'bootstrap-icons', 'font'), staticOpts));

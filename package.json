@@ -1,6 +1,6 @@
 {
   "name": "kdla-case-management",
-  "version": "2.32.0",
+  "version": "2.33.0",
   "description": "KDLA Reports and Case Documentation: Node.js, Express and Azure Cosmos DB (NoSQL), with a JSON REST API",
   "main": "server.js",
   "private": true,
@@ -35,7 +35,8 @@
     "multer": "^2.0.2",
     "qrcode": "^1.5.4",
     "quill": "2.0.2",
-    "sanitize-html": "^2.18.1"
+    "sanitize-html": "^2.18.1",
+    "vue": "^3.5.45"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
