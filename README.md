@@ -407,7 +407,7 @@ See `.env.example`. The most important settings:
 * File uploads are only processed for signed-in staff, and the API checks access to the record before it reads an upload.
 * Rate limiting works behind Azure's proxy, which adds the visitor's port number to their address.
 * Search engines are told not to index the site, and browsers always load new styles and scripts after a deployment.
-* Dependencies have no known vulnerabilities (`npm audit`), the code passes a linter, and 26 groups of automated tests cover the web workflows, the API and the security rules.
+* Dependencies have no known vulnerabilities (`npm audit`, checked again in version 2.33.1, which updated the file upload and form reading components), the code passes a linter, and 68 automated tests cover the web workflows, the live screens, the API and the security rules.
 * Not yet tested against a live Cosmos DB account: the Microsoft emulator could not be downloaded in the build environment, so the database calls were checked against the SDK's published interface and the in-memory driver that mirrors it. Run `/healthz?db=1` and a short trial after the first deployment.
 
 ## Project layout

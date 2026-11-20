@@ -2314,3 +2314,36 @@ test('payments prepared on a planned activity count once across its sessions in 
   // Added up, the venue and the person who came to neither are counted once, on the first session.
   assert.deepStrictEqual([sums['session-1'].unique, sums['session-2'].unique], [700, 100]);
 });
+
+test('security floor: the file upload and form readers are versions without known weaknesses', async () => {
+  const path = require('path');
+  const newer = (have, need) => {
+    const [a, b] = [have, need].map((v) => v.split('.').map(Number));
+    const i = a.findIndex((n, k) => n !== b[k]);
+    return i === -1 || a[i] > b[i];
+  };
+  // npm audit flagged earlier versions of these (denial of service); 2.33.1 updated them
+  for (const [name, fixed] of [['multer', '2.5.0'], ['body-parser', '2.4.0']]) {
+    const { version } = require(path.join(__dirname, '..', 'node_modules', name, 'package.json'));
+    assert.ok(newer(version, fixed), `${name} ${version} is ${fixed} or later`);
+  }
+  // A compressed form is read; one with bytes added after the compressed data is refused at once
+  const zlib = require('zlib');
+  const a = ctx.admin;
+  const task = (await db().find('tasks', { where: { title: 'Live tick test' } }))[0];
+  const token = (await a.req('/tasks')).text.match(/name="csrf-token" content="([^"]+)"/)[1];
+  const send = (body) => a.req(`/tasks/${task.id}/done`, {
+    method: 'POST',
+    body,
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded', 'content-encoding': 'gzip', accept: 'application/json', 'x-csrf-token': token,
+    },
+  });
+  const packed = zlib.gzipSync('done=false');
+  let r = await send(packed);
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(JSON.parse(r.text).done, false);
+  r = await send(Buffer.concat([packed, Buffer.from('bytes after the compressed data')]));
+  assert.strictEqual(r.status, 400);
+  assert.strictEqual((await db().get('tasks', task.id)).done, false, 'nothing changed');
+});
