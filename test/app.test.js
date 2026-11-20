@@ -2139,3 +2139,178 @@ test('look and feel: the typeface, the login screen and drawing activities for a
   assert.ok([200, 302].includes(r.status), `from-logframe answered ${r.status}`);
   if (r.status === 200) assert.match(r.text, /Add activities from the logframe/);
 });
+
+test('live screens (Vue): compiled ahead of time, served with versions, and fed by data the user may see', async () => {
+  const a = ctx.admin;
+  const json = (r) => JSON.parse(r.text);
+  // Pages keep the version the server draws and mark the parts the live screens take over
+  let r = await a.req('/cases');
+  assert.match(r.text, /data-vue="cases" data-src="\/cases\/data"/);
+  assert.match(r.text, /<table class="table/, 'the server still draws the list (it works without JavaScript)');
+  const main = r.text.match(/<script type="module" src="(\/static\/vue\/main\.js\?v=([0-9a-f]{10}))"><\/script>/);
+  assert.ok(main, 'logged-in pages load the live screens');
+  assert.match(r.headers.get('content-security-policy'), /script-src 'self'(;|$)/, 'scripts only from this site');
+  assert.doesNotMatch(r.headers.get('content-security-policy'), /unsafe-eval/, 'no eval: templates are compiled on the server');
+  r = await a.req('/tasks');
+  assert.match(r.text, /data-vue="tasks" data-src="\/tasks\/data\?who=me&amp;show=open"/);
+  r = await a.req('/reports');
+  assert.match(r.text, /data-vue="reports" data-src="\/reports\/data"/);
+  r = await a.req('/');
+  for (const part of ['dash-stats', 'dash-tasks', 'dash-recent', 'dash-hearings']) assert.match(r.text, new RegExp(`data-vue="${part}" data-src="/dashboard/data"`));
+
+  // Every module is served as plain JavaScript; imports point at versioned files of this site only
+  const { build } = require('../src/vue-screens');
+  const built = build();
+  assert.strictEqual(main[2], built.hash);
+  for (const [path, code] of built.modules) {
+    assert.doesNotMatch(code, /\bfrom\s*["']vue["']|new Function|\beval\(/, `${path} is ready for the browser`);
+    const imports = [
+      ...code.matchAll(/^\s*(?:import|export)\s[^'"]*?\bfrom\s*["']([^"']+)["']/gm),
+      ...code.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g),
+    ].map((m) => m[1]);
+    for (const url of imports) {
+      assert.ok(url === built.runtime || (url.startsWith('/static/vue/') && url.endsWith(`?v=${built.hash}`)), `${path} imports ${url}`);
+    }
+    if (path.endsWith('/main.js')) assert.ok(imports.includes(built.runtime) && imports.some((u) => u.includes('/screens/cases-list.js?v=')), 'main.js loads Vue and the screens');
+    r = await a.req(`${path}?v=${built.hash}`);
+    assert.strictEqual(r.status, 200, path);
+    assert.match(r.headers.get('content-type'), /text\/javascript/);
+  }
+  r = await a.req(built.runtime);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('content-type'), /javascript/);
+  r = await a.req('/static/vue/screens/nothing.js');
+  assert.strictEqual(r.status, 404);
+
+  // Case data: light, limited to cases the person may see; the search reads the complaint on the server
+  const officer1 = await userId('officer1');
+  r = await a.post('/people/clients', { firstName: 'Live', lastName: 'Screen', ageCategory: 'Woman', consentRecord: 'yes' }, '/people/clients/new');
+  const clientId = idFrom(r.location);
+  r = await a.postMultipart('/cases', {
+    heading: 'Live list confidential matter', openedOn: today(), caseTypes: ['Land and Property'], services: ['Legal Advice'],
+    complaint: 'The kingfisher boundary stone was moved', status: 'Open Active Case', officerId: officer1, clientIds: [clientId], restricted: 'on',
+  }, [], '/cases/new');
+  const secretId = idFrom(r.location);
+  r = await a.req('/cases/data');
+  assert.strictEqual(r.status, 200);
+  let data = json(r);
+  const row = data.cases.find((c) => c.id === secretId);
+  assert.ok(row, 'administrators see every case');
+  assert.deepStrictEqual(row.clients, [[clientId, 'Live Screen']]);
+  assert.strictEqual(row.restricted, true);
+  assert.ok(!('complaint' in row) && !r.text.includes('kingfisher'), 'long case text stays on the server');
+  assert.ok(data.lists.statuses.length && data.officers.length && data.pageSize > 0);
+  r = await a.req('/cases/data?q=KINGFISHER');
+  assert.deepStrictEqual(json(r).ids, [secretId], 'the search matches the complaint, whatever the capitals');
+  const o2 = new Client();
+  await o2.login('officer2', 'new-pass-for-chanda');
+  r = await o2.req('/cases/data');
+  assert.ok(!json(r).cases.some((c) => c.id === secretId), 'staff outside the case do not get it');
+  assert.ok(!r.text.includes('Live list confidential matter'));
+  r = await o2.req('/cases/data?q=kingfisher');
+  assert.deepStrictEqual(json(r).ids, [], 'nor find it by searching');
+  const viewer = new Client();
+  await viewer.login('viewer1', 'viewer-password-1');
+  r = await viewer.req('/cases/data');
+  assert.strictEqual(r.status, 200, 'read-only users see the live list too');
+  r = await new Client().req('/cases/data');
+  assert.strictEqual(r.status, 302, 'no data without logging in');
+  assert.match(r.location, /^\/login/);
+
+  // Tasks: ticked off without reloading, with the overdue count for the menu
+  const adminId = await userId('admin');
+  await a.post('/tasks', { title: 'Live tick test', type: 'Task', dueDate: today(-2), assigneeId: adminId }, '/tasks/new');
+  const task = (await db().find('tasks', { where: { title: 'Live tick test' } }))[0];
+  r = await a.req('/tasks/data?who=me&show=open');
+  data = json(r);
+  const t = data.tasks.find((x) => x.id === task.id);
+  assert.ok(t, 'the task is listed');
+  assert.strictEqual(t.done, false);
+  assert.ok(t.dueLabel && data.today === today() && data.types.length);
+  r = await a.req('/dashboard/data');
+  data = json(r);
+  const overdue = data.stats.overdue;
+  assert.ok(overdue >= 1);
+  assert.ok(data.myTasks.some((x) => x.id === task.id && x.overdue), 'the dashboard lists it as overdue');
+  assert.ok(['mine', 'open', 'openReferrals'].every((k) => Number.isInteger(data.stats[k])));
+  const token = (await a.req('/tasks')).text.match(/name="csrf-token" content="([^"]+)"/)[1];
+  const tick = (client, done, csrf = token) => client.req(`/tasks/${task.id}/done`, {
+    method: 'POST',
+    body: new URLSearchParams({ done }),
+    headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'x-csrf-token': csrf },
+  });
+  r = await tick(a, 'true');
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(json(r), { ok: true, id: task.id, done: true, overdue: overdue - 1 });
+  assert.strictEqual((await db().get('tasks', task.id)).done, true);
+  r = await tick(a, 'false');
+  assert.deepStrictEqual(json(r), { ok: true, id: task.id, done: false, overdue });
+  const viewerToken = (await viewer.req('/tasks')).text.match(/name="csrf-token" content="([^"]+)"/)[1];
+  r = await tick(viewer, 'true', viewerToken);
+  assert.strictEqual(r.status, 403, 'read-only users cannot tick tasks');
+  assert.strictEqual((await db().get('tasks', task.id)).done, false);
+
+  // Reports: attendance status and payments, counted as on each payment acquittal page
+  r = await a.req('/reports/data');
+  data = json(r);
+  const ndeke = data.reports.find((x) => x.heading === 'Paralegal training Ndeke');
+  assert.deepStrictEqual(
+    { total: ndeke.pay.total, people: ndeke.pay.people, currency: ndeke.pay.currency, fromPlan: ndeke.pay.fromPlan },
+    { total: 1510, people: 3, currency: 'ZMW', fromPlan: false },
+  );
+  const forum = data.reports.find((x) => x.heading === 'Wusakile land forum held');
+  assert.strictEqual(forum.pay.total, 120, 'the report keeps who was actually paid');
+  assert.ok(data.reports.some((x) => x.pay === null), 'reports without payments say so');
+  assert.ok(data.lists.attendance.some(([v, l]) => v === 'Submitted' && l === 'Waiting for approval'));
+  r = await a.post('/reports', {
+    activityType: 'Community Meeting', heading: 'Live search report', date: '2039-05-01', introduction: 'The hornbill gathering', objectives: 'O', implementation: 'Im',
+    office: 'Kitwe Main Office', compiledById: adminId,
+  }, '/reports/new');
+  const liveReport = r.location.split('/')[2];
+  r = await a.req('/reports/data?q=hornbill');
+  assert.deepStrictEqual(json(r).ids, [liveReport], 'the search reads the text of the reports on the server');
+  // Reports from before attendance approval count as approved, in the list, the export and the live screen alike
+  await db().create('reports', {
+    id: 'legacy-report', heading: 'Legacy outreach before approvals', activityType: 'Community Meeting', date: '2030-01-01', office: 'Kitwe Main Office', attendeeIds: [],
+    createdAt: '2030-01-01T00:00:00Z', updatedAt: '2030-01-01T00:00:00Z',
+  });
+  r = await a.req('/reports?attendance=Approved&print=1');
+  assert.ok(r.text.includes('Legacy outreach before approvals'));
+  r = await a.req('/reports/data');
+  assert.strictEqual(json(r).reports.find((x) => x.id === 'legacy-report').attendance, 'Approved');
+  // Export CSV follows the payments filter and carries the payments
+  r = await a.req('/reports/export.csv?pay=yes');
+  assert.match(r.text, /Payments total/);
+  assert.match(r.text, /Paralegal training Ndeke[^\r\n]*,ZMW,1510,3,0,1510,No/);
+  assert.ok(!r.text.includes('Legacy outreach'));
+  r = await a.req('/reports/export.csv?pay=none');
+  assert.ok(r.text.includes('Legacy outreach') && !r.text.includes('Paralegal training Ndeke'));
+});
+
+test('payments prepared on a planned activity count once across its sessions in the totals', async () => {
+  const { summaries } = require('../src/services/acquittal');
+  await db().create('workplans', {
+    id: 'plan-sessions', title: 'Two-session forum', periodStart: '2040-01-01', periodEnd: '2040-12-31', office: 'Kitwe Main Office', currency: 'ZMW', status: 'Approved',
+    items: [{
+      id: 'forum', title: 'Forum in two sessions', shortlist: ['s-1', 's-2', 's-3'],
+      acquittal: {
+        currency: 'ZMW', costs: [{ key: 'transport', label: 'Transport', rate: 100, days: 1 }],
+        rows: [{ personId: 's-1', items: { transport: true } }, { personId: 's-2', items: { transport: true } }, { personId: 's-3', items: { transport: true } }],
+        activityCosts: { responsibleId: 'x', items: [{ key: 'venue', amount: 500, note: '' }] },
+      },
+    }],
+  });
+  const first = {
+    id: 'session-1', date: '2040-02-01', workplanId: 'plan-sessions', workplanItemId: 'forum', attendeeIds: ['s-1'],
+  };
+  const second = {
+    id: 'session-2', date: '2040-03-01', workplanId: 'plan-sessions', workplanItemId: 'forum', attendeeIds: ['s-2'],
+  };
+  const sums = await summaries(db(), [second, first]);
+  // Each session shows what its payment acquittal page shows: its own attendee, the invited person who came to
+  // neither session, and the venue.
+  assert.deepStrictEqual([sums['session-1'].total, sums['session-2'].total], [700, 700]);
+  assert.ok(sums['session-1'].fromPlan && sums['session-2'].fromPlan);
+  // Added up, the venue and the person who came to neither are counted once, on the first session.
+  assert.deepStrictEqual([sums['session-1'].unique, sums['session-2'].unique], [700, 100]);
+});

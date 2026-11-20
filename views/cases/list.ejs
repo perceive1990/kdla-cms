@@ -1,4 +1,5 @@
 <%- include('../partials/header', { printLandscape: true }) %>
+<div data-vue="cases" data-src="/cases/data">
 <div class="page-head">
   <div><h1>Cases</h1><p class="sub">All case files across offices</p></div>
   <div class="d-flex gap-2">
@@ -9,7 +10,7 @@
 </div>
 
 <form class="filters" method="get" action="/cases" role="search">
-  <input class="form-control grow" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search heading, case number, complaint" aria-label="Search cases">
+  <div class="search-box grow"><i class="bi bi-search" aria-hidden="true"></i><input class="form-control" type="search" name="q" value="<%= query.q || '' %>" placeholder="Search heading, case number, complaint" aria-label="Search cases"></div>
   <select class="form-select" name="status" aria-label="Status" data-autosubmit>
     <option value="">All statuses</option>
     <option value="open"<%= query.status === 'open' ? ' selected' : '' %>>All open cases</option>
@@ -40,6 +41,7 @@
   <button class="btn btn-outline-primary" type="submit">Filter</button>
   <% if (Object.keys(query).some((k) => k !== 'page' && query[k])) { %><a class="btn btn-link" href="/cases">Clear</a><% } %>
 </form>
+<div class="results-bar"><p class="results-count"><strong><%= h.plural(pg.total, 'case') %></strong></p></div>
 
 <% if (!cases.length) { %>
   <div class="panel"><div class="empty"><i class="bi bi-folder2-open"></i>No cases match. <a href="/cases/new">Open a new case</a>.</div></div>
@@ -69,4 +71,5 @@
 </div>
 <% } %>
 <%- include('../partials/pager') %>
+</div>
 <%- include('../partials/footer') %>

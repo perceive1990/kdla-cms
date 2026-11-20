@@ -1,13 +1,16 @@
 'use strict';
 const express = require('express');
+const config = require('../config');
+const choices = require('../choices');
 const roomsSvc = require('../services/rooms');
 const { requireAdmin } = require('../auth');
 const { audit } = require('../audit');
 const { checkCase } = require('../conflicts');
+const { visibleWhere } = require('../access');
 const svc = require('../services/cases');
 const { saveUploads } = require('../services/attachments');
 const {
-  arr, mapByIds, pagination, toCsv, sendCsv, fullName, fmtDate, today, daysBetween,
+  arr, str, mapByIds, pagination, toCsv, sendCsv, fullName, fmtDate, today, daysBetween, statusBadge,
 } = require('../helpers');
 
 const router = express.Router();
@@ -32,6 +35,54 @@ router.get('/', async (req, res) => {
   const officers = await req.db.find('users', { fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] });
   const users = Object.fromEntries(officers.map((u) => [u.id, u]));
   res.render('cases/list', { title: 'Cases', cases, people, users, officers, pg });
+});
+
+// Data for the live (Vue) case list: every case the user may see, in light form, so searching, filtering and
+// sorting happen in the browser without reloading. With ?q= it answers which cases match the search on the
+// server instead (the same search as the list, the printout and the CSV export, which includes the complaint text).
+router.get('/data', async (req, res) => {
+  const term = str(req.query.q, 80);
+  if (term) {
+    const hits = await req.db.find('cases', { ...svc.caseQuery(req.user, { q: term }), fields: ['id'] });
+    return res.json({ q: term, ids: hits.map((c) => c.id) });
+  }
+  const [cases, users] = await Promise.all([
+    req.db.find('cases', {
+      where: visibleWhere(req.user, {}),
+      fields: ['id', 'caseNumber', 'heading', 'caseTypes', 'status', 'outcome', 'office', 'officerId', 'clientIds', 'defendantIds', 'restricted', 'openedOn', 'closedOn', 'updatedAt'],
+      orderBy: ['updatedAt', 'DESC'],
+    }),
+    req.db.find('users', { fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] }),
+  ]);
+  const people = await mapByIds(req.db, 'people', cases.flatMap((c) => [...(c.clientIds || []), ...(c.defendantIds || [])]));
+  // [id, name] for each client or other party ('' when the person record is gone, so filtering by id still works).
+  const named = (ids) => (ids || []).map((id) => [id, people[id] ? fullName(people[id]) : '']);
+  return res.json({
+    me: req.user.id,
+    pageSize: config.pageSize,
+    lists: {
+      statuses: choices.caseStatuses, types: choices.caseTypes, offices: choices.offices, outcomes: choices.caseOutcomes,
+    },
+    officers: users.map((u) => ({ id: u.id, name: u.fullName || u.username })),
+    cases: cases.map((c) => ({
+      id: c.id,
+      no: c.caseNumber,
+      heading: c.heading,
+      types: c.caseTypes || [],
+      status: c.status,
+      badge: statusBadge(c.status),
+      outcome: c.outcome || '',
+      office: c.office || '',
+      officerId: c.officerId || '',
+      clients: named(c.clientIds),
+      others: named(c.defendantIds),
+      restricted: c.restricted === true,
+      opened: c.openedOn || '',
+      openedLabel: fmtDate(c.openedOn),
+      updated: c.updatedAt || '',
+      updatedLabel: fmtDate(c.updatedAt),
+    })),
+  });
 });
 
 router.get('/export.csv', async (req, res) => {

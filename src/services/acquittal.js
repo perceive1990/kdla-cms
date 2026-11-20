@@ -5,7 +5,7 @@
 // activity report. Staff of the report's office prepare it; once the attendance is approved it is locked to
 // administrators, like the register.
 const { audit } = require('../audit');
-const { now, str } = require('../helpers');
+const { now, str, mapByIds } = require('../helpers');
 const { forbidden, HttpError } = require('./errors');
 const reports = require('./reports');
 const attendance = require('./attendance');
@@ -201,10 +201,79 @@ async function forReport(db, r) {
   return { acq: of(r), fromPlan: false };
 }
 
+/**
+ * Payment totals for many activity reports at once (the activity reports list), counted as on the payment
+ * acquittal page: only people still on a report's attendance (invited, ticked or recorded), and nobody recorded
+ * on another register of the same planned activity. `list` must hold every report (with attendeeIds, claimedIds,
+ * workplanId, workplanItemId and acquittal), so the other registers are known.
+ * Returns id -> { currency, people, attendees, activity, total, fromPlan, unique }, or null where nothing is
+ * prepared. `unique` is the part of the total that adds up across reports: an acquittal prepared on a planned
+ * activity serves each of its sessions until a session saves its own, so each person and the activity costs it
+ * lists are counted once, on the earliest session.
+ */
+async function summaries(db, list) {
+  const plans = await mapByIds(db, 'workplans', list.filter((r) => r.workplanId && r.workplanItemId).map((r) => r.workplanId));
+  const sessions = new Map();
+  for (const r of list) {
+    if (!r.workplanId || !r.workplanItemId) continue;
+    const k = `${r.workplanId}:${r.workplanItemId}`;
+    if (!sessions.has(k)) sessions.set(k, []);
+    sessions.get(k).push(r);
+  }
+  const out = {};
+  const shared = [];
+  for (const r of list) {
+    const plan = r.workplanId && r.workplanItemId ? plans[r.workplanId] : null;
+    const item = plan ? (plan.items || []).find((x) => x.id === r.workplanItemId) : null;
+    const holder = r.acquittal ? r : (item && item.acquittal ? item : null);
+    if (!holder) { out[r.id] = null; continue; }
+    const acq = of(holder);
+    const attended = new Set(r.attendeeIds || []);
+    const claimed = Array.isArray(r.claimedIds) ? r.claimedIds : (r.attendeeIds || []);
+    const listed = new Set([...(item ? item.shortlist || [] : []), ...claimed, ...attended]);
+    const elsewhere = new Set();
+    for (const o of sessions.get(`${r.workplanId}:${r.workplanItemId}`) || []) {
+      if (o.id !== r.id) for (const id of o.attendeeIds || []) elsewhere.add(id);
+    }
+    const t = totals({ ...acq, rows: acq.rows.filter((x) => listed.has(x.personId) && (attended.has(x.personId) || !elsewhere.has(x.personId))) });
+    const total = Math.round((t.sums.total + acq.activityCosts.total) * 100) / 100;
+    out[r.id] = {
+      currency: acq.currency,
+      people: t.people,
+      attendees: t.sums.total,
+      activity: acq.activityCosts.total,
+      total,
+      fromPlan: holder !== r,
+      unique: total,
+    };
+    if (holder !== r) shared.push({ r, lines: t.lines, activity: acq.activityCosts.total });
+  }
+  const seen = new Map();
+  const byDate = (a, b) => String(a.r.date || '').localeCompare(String(b.r.date || '')) || String(a.r.id).localeCompare(String(b.r.id));
+  for (const s of shared.sort(byDate)) {
+    const key = `${s.r.workplanId}:${s.r.workplanItemId}`;
+    if (!seen.has(key)) seen.set(key, { people: new Set(), activity: false });
+    const counted = seen.get(key);
+    let unique = 0;
+    for (const line of s.lines) {
+      if (line.total > 0 && !counted.people.has(line.personId)) {
+        counted.people.add(line.personId);
+        unique += line.total;
+      }
+    }
+    if (!counted.activity) {
+      counted.activity = true;
+      unique += s.activity;
+    }
+    out[s.r.id].unique = Math.round(unique * 100) / 100;
+  }
+  return out;
+}
+
 /** " and activity costs ZMW 1,850.00" for messages, or nothing. */
 const activityNote = (a) => (a.activityCosts.total ? `, and activity costs ${a.currency} ${a.activityCosts.total.toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '');
 
 module.exports = {
   activityNote,
-  CATALOGUE, OTHERS, ACTIVITY_COSTS, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit,
+  CATALOGUE, OTHERS, ACTIVITY_COSTS, CURRENCIES, of, totals, parse, save, saveForItem, itemPeople, forReport, canEdit, mustEdit, summaries,
 };

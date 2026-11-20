@@ -4,7 +4,7 @@ const choices = require('../choices');
 const { visibleWhere } = require('../access');
 const { safeBack } = require('../middleware');
 const svc = require('../services/tasks');
-const { str, today } = require('../helpers');
+const { str, today, fmtDate } = require('../helpers');
 
 const router = express.Router();
 
@@ -33,6 +33,39 @@ router.get('/', async (req, res) => {
     ];
   res.render('tasks/list', {
     title: 'Tasks and hearings', groups, cases, users, usersById: Object.fromEntries(users.map((u) => [u.id, u])), who, show, total: tasks.length,
+  });
+});
+
+const wantsJson = (req) => (req.get('accept') || '').includes('application/json');
+/** The signed-in person's overdue tasks, as counted for the badge in the menu. */
+const overdueCount = (req) => req.db.count('tasks', { where: { assigneeId: req.user.id, done: false, dueDate: { $lt: today() } } });
+
+// Data for the live (Vue) task list: the same tasks as the page (whose and which, chosen on the server),
+// with the case each belongs to (confidential cases stay hidden) and labels ready to show.
+router.get('/data', async (req, res) => {
+  const { who, show, tasks, cases } = await svc.listTasks(req, { who: req.query.who, show: req.query.show });
+  const users = await req.db.find('users', { fields: ['id', 'fullName', 'username'], orderBy: ['username', 'ASC'] });
+  const byId = Object.fromEntries(users.map((u) => [u.id, u]));
+  const name = (id) => (byId[id] ? byId[id].fullName || byId[id].username : 'Former user');
+  res.json({
+    who, show, me: req.user.id, today: today(), week: today(7), types: choices.taskTypes,
+    users: users.map((u) => ({ id: u.id, name: u.fullName || u.username })),
+    tasks: tasks.map((t) => {
+      const c = t.caseId && cases[t.caseId];
+      return {
+        id: t.id,
+        title: t.title,
+        type: t.type,
+        due: t.dueDate,
+        dueLabel: fmtDate(t.dueDate),
+        time: t.dueTime || '',
+        location: t.location || '',
+        notes: t.notes || '',
+        done: t.done === true,
+        assignee: name(t.assigneeId),
+        case: c ? { id: c.id, no: c.caseNumber, heading: c.redacted ? '' : c.heading } : null,
+      };
+    }),
   });
 });
 
@@ -80,7 +113,10 @@ router.post('/:id', async (req, res) => {
 
 router.post('/:id/done', async (req, res) => {
   const t = await svc.getTask(req, req.params.id);
-  await svc.setTaskDone(req, t, req.body.done !== 'false');
+  const done = req.body.done !== 'false';
+  await svc.setTaskDone(req, t, done);
+  // The live screens tick tasks off without reloading: they get the new state and the overdue count back.
+  if (wantsJson(req)) return res.json({ ok: true, id: t.id, done, overdue: await overdueCount(req) });
   return res.redirect(safeBack(req, '/tasks'));
 });
 
