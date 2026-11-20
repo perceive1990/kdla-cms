@@ -617,6 +617,14 @@ test('phone app: manifest, service worker and offline page work without login', 
   assert.strictEqual(r.status, 200);
   assert.match(r.text, /Add to Home Screen/);
   assert.match(r.text, /rel="manifest"/);
+  assert.match(r.text, /On a computer/);
+  assert.match(r.text, /Install this site as an app/, 'Edge steps');
+  assert.match(r.text, /Add to Dock/, 'Mac steps');
+  assert.match(r.text, /<svg[^>]*viewBox/, 'a QR code to open the site on a phone');
+  assert.match(r.text, /data-install-app hidden/, 'the top bar offers installation when the browser allows it');
+  assert.strictEqual(m.launch_handler.client_mode, 'focus-existing');
+  r = await fetch(`${base}/login`);
+  assert.match(await r.text(), /data-install-offer hidden/);
 });
 
 test('work plans: draft, planned activities, approval, linked reports and progress', async () => {

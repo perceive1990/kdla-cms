@@ -38,6 +38,7 @@
     <input class="form-control form-control-sm" type="search" name="q" placeholder="Search cases, clients, NRC…" aria-label="Search" value="<%= path === '/search' ? (query.q || '') : '' %>">
   </form>
   <div class="ms-auto d-flex align-items-center gap-2">
+    <button class="btn btn-sm btn-light install-btn" type="button" data-install-app hidden title="Install <%= config.appShortName %> on this device"><i class="bi bi-download" aria-hidden="true"></i><span class="d-none d-sm-inline"> Install app</span><span class="visually-hidden d-sm-none">Install app</span></button>
     <button class="icon-btn" type="button" id="theme-toggle" data-mode="<%= theme.mode %>" aria-label="Switch between light and dark mode" title="Light or dark mode">
       <i class="bi bi-moon-stars" aria-hidden="true"></i>
     </button>
@@ -50,7 +51,7 @@
         <li><span class="dropdown-item-text small text-body-secondary"><%= user.username %> · <%= { admin: 'Administrator', viewer: 'Read only' }[user.role] || 'Officer' %></span></li>
         <li><a class="dropdown-item" href="/account/appearance"><i class="bi bi-palette"></i> Appearance</a></li>
         <li><a class="dropdown-item" href="/account/security"><i class="bi bi-shield-lock"></i> Password and security</a></li>
-        <li><a class="dropdown-item" href="/account/app"><i class="bi bi-phone"></i> Install the phone app</a></li>
+        <li><a class="dropdown-item" href="/account/app"><i class="bi bi-phone"></i> Install the app (phone or computer)</a></li>
         <% if (config.api.enabled) { %><li><a class="dropdown-item" href="/account/api"><i class="bi bi-key"></i> API access</a></li><% } %>
         <li><hr class="dropdown-divider"></li>
         <li>

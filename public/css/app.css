@@ -1044,3 +1044,5 @@ body.read-only main a[href$="/import"], body.read-only main [data-write] { displ
 
 /* Dashboard: the recent cases table fits its column without scrolling */
 .dash-cases td, .dash-cases th { padding-left: .6rem; padding-right: .6rem; }
+.install-btn { white-space: nowrap; }
+.install-qr svg { width: 168px; height: 168px; background: #fff; padding: 6px; border-radius: 8px; border: 1px solid var(--line); }

@@ -1,46 +1,83 @@
 <%- include('../partials/header') %>
-<div class="page-head"><div><h1>Install the phone app</h1><p class="sub">Use <%= config.appName %> from your phone's home screen, with the same login and the same records. No app store and no cost.</p></div></div>
+<div class="page-head"><div><h1>Install the app</h1><p class="sub">Use <%= config.appName %> as an app on your phone or computer, with the same login and the same records. No app store and no cost.</p></div></div>
 
-<div style="max-width: 900px;">
+<div style="max-width: 980px;">
   <div class="panel" id="install-panel" hidden><div class="panel-body d-flex flex-wrap align-items-center gap-3">
     <img src="/static/images/app-192.png?v=<%= assetVersion %>" alt="" width="64" height="64" class="rounded-3 border">
     <div class="flex-grow-1">
       <h2 class="panel-title mb-1">Ready to install on this device</h2>
-      <p class="small text-body-secondary mb-0">Adds a <%= config.appShortName %> icon to your home screen or desktop.</p>
+      <p class="small text-body-secondary mb-0">Adds a <%= config.appShortName %> icon to your home screen, Start menu, desktop or dock.</p>
     </div>
-    <button type="button" class="btn btn-primary" data-install-app><i class="bi bi-download"></i> Install app</button>
+    <button type="button" class="btn btn-primary" data-install-app><i class="bi bi-download" aria-hidden="true"></i> Install app</button>
   </div></div>
 
-  <div class="alert alert-success" id="installed-note" hidden><i class="bi bi-check-circle"></i> You are using the installed app.</div>
+  <div class="alert alert-success" id="installed-note" hidden><i class="bi bi-check-circle" aria-hidden="true"></i> You are using the installed app.</div>
 
+  <h2 class="h5 mt-2 mb-2"><i class="bi bi-phone" aria-hidden="true"></i> On a phone or tablet</h2>
   <div class="row g-3">
-    <div class="col-md-6"><div class="panel h-100"><div class="panel-body">
-      <h2 class="panel-title"><i class="bi bi-android2"></i> Android phones</h2>
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body text-center install-qr">
+      <h3 class="panel-title">Open it on your phone</h3>
+      <%- qr %>
+      <p class="small text-body-secondary mt-2 mb-0">Scan with the phone's camera, then follow the steps for your phone.<br><span class="text-break"><%= siteUrl %></span></p>
+    </div></div></div>
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body">
+      <h3 class="panel-title"><i class="bi bi-android2" aria-hidden="true"></i> Android</h3>
       <ol class="mb-0">
-        <li>Open this site in <strong>Chrome</strong> and sign in.</li>
-        <li>Tap the <strong>⋮</strong> menu at the top right.</li>
-        <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>, then <strong>Install</strong>.</li>
+        <li>Open the site in <strong>Chrome</strong> and sign in.</li>
+        <li>Tap <strong>Install app</strong> at the top of the page, or the <strong>⋮</strong> menu and <strong>Add to Home screen</strong> or <strong>Install app</strong>.</li>
+        <li>Tap <strong>Install</strong>.</li>
         <li>Open <strong><%= config.appShortName %></strong> from your home screen.</li>
       </ol>
     </div></div></div>
-    <div class="col-md-6"><div class="panel h-100"><div class="panel-body">
-      <h2 class="panel-title"><i class="bi bi-apple"></i> iPhone and iPad</h2>
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body">
+      <h3 class="panel-title"><i class="bi bi-apple" aria-hidden="true"></i> iPhone and iPad</h3>
       <ol class="mb-0">
-        <li>Open this site in <strong>Safari</strong> and sign in.</li>
-        <li>Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up"></i>.</li>
-        <li>Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        <li>Open the site in <strong>Safari</strong> and sign in.</li>
+        <li>Tap the <strong>Share</strong> button <i class="bi bi-box-arrow-up" aria-hidden="true"></i>.</li>
+        <li>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
         <li>Open <strong><%= config.appShortName %></strong> from your home screen.</li>
       </ol>
+    </div></div></div>
+  </div>
+
+  <h2 class="h5 mt-4 mb-2"><i class="bi bi-laptop" aria-hidden="true"></i> On a computer</h2>
+  <div class="row g-3">
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body">
+      <h3 class="panel-title"><i class="bi bi-browser-chrome" aria-hidden="true"></i> Chrome (Windows, Mac, Linux)</h3>
+      <ol class="mb-0">
+        <li>Sign in, then click <strong>Install app</strong> at the top of the page, or the install icon <i class="bi bi-display" aria-hidden="true"></i> at the right of the address bar.</li>
+        <li>Click <strong>Install</strong>.</li>
+        <li>If neither shows: <strong>⋮</strong> menu, <strong>Cast, save and share</strong>, <strong>Install page as app</strong>.</li>
+      </ol>
+    </div></div></div>
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body">
+      <h3 class="panel-title"><i class="bi bi-browser-edge" aria-hidden="true"></i> Microsoft Edge (Windows)</h3>
+      <ol class="mb-0">
+        <li>Sign in, then click <strong>Install app</strong> at the top of the page, or the <strong>App available</strong> icon in the address bar.</li>
+        <li>Click <strong>Install</strong>.</li>
+        <li>If neither shows: <strong>…</strong> menu, <strong>Apps</strong>, <strong>Install this site as an app</strong>.</li>
+        <li>Tick <strong>Pin to taskbar</strong> or <strong>Create desktop shortcut</strong> if offered.</li>
+      </ol>
+    </div></div></div>
+    <div class="col-md-4"><div class="panel h-100"><div class="panel-body">
+      <h3 class="panel-title"><i class="bi bi-apple" aria-hidden="true"></i> Safari (Mac)</h3>
+      <ol class="mb-0">
+        <li>Sign in, then open the <strong>File</strong> menu.</li>
+        <li>Choose <strong>Add to Dock</strong>, then <strong>Add</strong>.</li>
+        <li>Open <strong><%= config.appShortName %></strong> from the Dock or Launchpad.</li>
+      </ol>
+      <p class="small text-body-secondary mt-2 mb-0">Needs macOS Sonoma or later. On older Macs use Chrome or Edge.</p>
     </div></div></div>
   </div>
 
   <div class="panel mt-3"><div class="panel-body">
     <h2 class="panel-title">Good to know</h2>
     <ul class="mb-0">
-      <li>The app opens full screen and updates itself after every change to the system.</li>
-      <li>It needs internet. Client and case details are never stored on the phone, so they stay safe if a phone is lost or stolen.</li>
-      <li>Press and hold the app icon for shortcuts to <strong>New case</strong>, <strong>Tasks and hearings</strong> and <strong>Clients</strong> (Android).</li>
-      <li>Always log out on a shared phone.</li>
+      <li>The app opens in its own window and updates itself after every change to the system. There is nothing to download again.</li>
+      <li>It needs internet. Client and case details are never stored on the device, so they stay safe if a phone or laptop is lost or stolen.</li>
+      <li>To remove it: on a phone, press and hold the icon and remove it; on a computer, open the app, then its <strong>⋮</strong> or <strong>…</strong> menu and <strong>Uninstall</strong>.</li>
+      <li>Press and hold (or right click) the app icon for shortcuts to <strong>New case</strong>, <strong>Tasks and hearings</strong> and <strong>Clients</strong> (Android and Windows).</li>
+      <li>Always log out on a shared phone or computer.</li>
       <% if (config.api.enabled) { %><li>Developers building a separate app can use the <a href="/api/docs">JSON API</a>.</li><% } %>
     </ul>
   </div></div>
