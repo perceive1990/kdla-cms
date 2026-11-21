@@ -5,7 +5,7 @@ const config = require('../config');
 const { audit } = require('../audit');
 const { visibleWhere, canSeeCase, isAdmin } = require('../access');
 const {
-  newId, now, arr, str, bool, intOrNull, mapByIds, today, isRealDate,
+  newId, now, arr, str, bool, intOrNull, mapByIds, today, isRealDate, fullName,
 } = require('../helpers');
 const { removeAttachments } = require('./attachments');
 const { HttpError, notFound, forbidden } = require('./errors');
@@ -46,9 +46,28 @@ function readCase(body) {
   return v;
 }
 
+/** "Mary Banda", "Mary Banda and John Phiri", "Mary Banda and 2 others". */
+function joinNames(names) {
+  if (names.length <= 1) return names[0] || '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]} and ${names.length - 1} others`;
+}
+
+/** The case title from its parties: "Client vs Other party", or the client alone when there is no other party. */
+function caseTitle(clients, others) {
+  const a = joinNames(clients.map(fullName).filter(Boolean));
+  const b = joinNames(others.map(fullName).filter(Boolean));
+  return (b ? `${a} vs ${b}` : a).slice(0, 300);
+}
+
 async function validateCase(db, v) {
   const e = {};
-  if (!v.heading) e.heading = 'Enter a heading, for example "John Mansa vs Mary Sampa".';
+  // The title is made from the parties when it is left blank.
+  if (!v.heading && v.clientIds.length) {
+    const people = await mapByIds(db, 'people', [...v.clientIds, ...(v.defendantIds || [])]);
+    v.heading = caseTitle(v.clientIds.map((id) => people[id]).filter(Boolean), (v.defendantIds || []).map((id) => people[id]).filter(Boolean));
+  }
+  if (!v.heading) e.heading = 'Choose the client and other party first, so the title is made from their names, or type a title.';
   if (!isRealDate(v.openedOn)) e.openedOn = 'Enter the date the case was opened.';
   else if (v.openedOn > today()) e.openedOn = 'The opening date cannot be in the future.';
   if (!v.caseTypes.length) e.caseTypes = 'Select at least one type of case.';
@@ -228,6 +247,6 @@ async function deleteNote(req, c, noteId) {
 }
 
 module.exports = {
-  isConcluded, readCase, validateCase, caseQuery, getCase, logView, createCase, mayChangeAccess, protectAccessFields, updateCase, deleteCase,
+  isConcluded, caseTitle, readCase, validateCase, caseQuery, getCase, logView, createCase, mayChangeAccess, protectAccessFields, updateCase, deleteCase,
   readNote, validateNote, listNotes, addNote, deleteNote,
 };
