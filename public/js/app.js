@@ -528,3 +528,38 @@
     });
   });
 }());
+
+// ---------- Case form: the title is made from the client and the other party ----------
+(function () {
+  var box = document.querySelector('[data-case-title]');
+  if (!box) return;
+  var input = box.querySelector('#heading');
+  var reset = box.querySelector('[data-title-reset]');
+  var auto;
+  function names(list) {
+    return Array.prototype.map.call(document.querySelectorAll('#' + list + ' input:checked'), function (b) {
+      var label = document.querySelector('label[for="' + b.id + '"]');
+      return label ? label.textContent.replace(/\s*\([^)]*\)\s*$/, '').trim() : '';
+    }).filter(Boolean);
+  }
+  function join(n) {
+    if (n.length <= 1) return n[0] || '';
+    if (n.length === 2) return n[0] + ' and ' + n[1];
+    return n[0] + ' and ' + (n.length - 1) + ' others';
+  }
+  function title() {
+    var a = join(names('clientIds-list'));
+    var b = join(names('defendantIds-list'));
+    return (b ? a + ' vs ' + b : a).slice(0, 300);
+  }
+  function fill() { if (auto) input.value = title(); if (reset) reset.hidden = auto || !title(); }
+  ['clientIds-list', 'defendantIds-list'].forEach(function (id) {
+    var list = document.getElementById(id);
+    if (list) list.addEventListener('change', fill);
+  });
+  input.addEventListener('input', function () { auto = input.value.trim() === ''; if (reset) reset.hidden = auto || !title(); });
+  if (reset) reset.addEventListener('click', function () { auto = true; fill(); input.focus(); });
+  // Kept up to date while it is empty or still the generated title; a title typed by hand is left alone.
+  auto = !input.value.trim() || input.value === title();
+  fill();
+}());

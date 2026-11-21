@@ -2421,3 +2421,30 @@ test('offline drafts: the drafts page holds no records, and drafts sent later ar
   assert.match(sw, /drafts-on/);
   assert.match(sw, /k !== SHELL/);
 });
+
+test('the case title is made from the client and the other party', async () => {
+  const a = ctx.admin;
+  const { caseTitle } = require('../src/services/cases');
+  const p = (firstName, lastName) => ({ firstName, lastName });
+  assert.strictEqual(caseTitle([p('Mary', 'Sampa')], [p('John', 'Mansa')]), 'Mary Sampa vs John Mansa');
+  assert.strictEqual(caseTitle([p('Mary', 'Sampa'), p('Ruth', 'Banda')], [p('John', 'Mansa')]), 'Mary Sampa and Ruth Banda vs John Mansa');
+  assert.strictEqual(caseTitle([p('Mary', 'Sampa'), p('Ruth', 'Banda'), p('Ann', 'Phiri')], []), 'Mary Sampa and 2 others');
+
+  let r = await a.req('/cases/new');
+  assert.ok(r.text.indexOf('name="clientIds"') < r.text.indexOf('id="heading"'), 'the parties come first');
+  assert.match(r.text, /Case title/);
+  const [mary] = await db().find('people', { where: { firstName: 'Mary', lastName: 'Sampa' } });
+  const [john] = await db().find('people', { where: { firstName: 'John', lastName: 'Mansa' } });
+  r = await a.postMultipart('/cases', {
+    heading: '', openedOn: '2026-03-03', caseTypes: ['Land and Property'], services: ['Legal Advice'], status: 'Open Active Case',
+    officerId: await userId('officer1'), clientIds: [mary.id], defendantIds: [john.id], office: 'Fisenge Office',
+  }, [], '/cases/new');
+  assert.strictEqual(r.status, 302, r.text.slice(0, 300));
+  assert.strictEqual((await db().get('cases', idFrom(r.location))).heading, 'Mary Sampa vs John Mansa');
+  // A title typed by hand is kept
+  r = await a.postMultipart('/cases', {
+    heading: 'Sampa family land dispute', openedOn: '2026-03-03', caseTypes: ['Land and Property'], services: ['Legal Advice'], status: 'Open Active Case',
+    officerId: await userId('officer1'), clientIds: [mary.id], defendantIds: [john.id], office: 'Fisenge Office',
+  }, [], '/cases/new');
+  assert.strictEqual((await db().get('cases', idFrom(r.location))).heading, 'Sampa family land dispute');
+});
